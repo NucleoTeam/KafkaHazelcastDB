@@ -1,13 +1,17 @@
 package com.nucleocore.db.kafka;
 
+import com.nucleocore.db.database.DataEntry;
+import com.nucleocore.db.database.Modification;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 
 import java.util.Properties;
+import java.util.Stack;
 
 public class ProducerHandler {
     private KafkaProducer producer;
+    private Stack<DataEntry> entry = new Stack<DataEntry>();
 
     public ProducerHandler(String bootstrap) {
         producer = createProducer(bootstrap);

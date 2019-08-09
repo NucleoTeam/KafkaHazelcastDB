@@ -1,10 +1,10 @@
-package com.nucleocore.db.server;
+package com.nucleocore.db;
 
-import com.nucleocore.db.server.Entry;
+import com.nucleocore.db.database.DataEntry;
 
 import java.io.Serializable;
 
-public class Test implements Entry, Serializable {
+public class Test implements DataEntry, Serializable {
     public String name;
     public String user;
 

@@ -5,6 +5,7 @@ public class Test extends DataEntry {
     public String user;
 
     public Test() {
+
     }
 
     public Test(Test t) {

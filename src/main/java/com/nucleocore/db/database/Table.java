@@ -15,13 +15,13 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.UUID;
 
-public class Database {
+public class Table {
     private ProducerHandler producer;
     private ConsumerHandler consumer;
     private static HazelcastInstance hz = Hazelcast.newHazelcastInstance();
     private IMap<String, DataEntry> map;
     private ObjectMapper om = new ObjectMapper();
-    public Database(String table){
+    public Table(String table){
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -35,6 +35,17 @@ public class Database {
 
     public IMap<String, DataEntry> getMap() {
         return map;
+    }
+
+    public boolean compare(Object a, Object b){
+        if(a.getClass()==String.class && b.getClass()==String.class){
+            return ((String)a).equals((String)b);
+        }else if(a.getClass()==Integer.class && b.getClass()==Integer.class){
+            return ((Integer)a) == ((Integer)b);
+        }else if(a.getClass()==Long.class && b.getClass()==Long.class){
+            return ((Long)a) == ((Long)b);
+        }
+        return false;
     }
 
     public synchronized boolean save(DataEntry oldEntry, DataEntry newEntry){
@@ -58,7 +69,7 @@ public class Database {
                 boolean changed = false;
                 updateEntry.setMasterClass(newEntry.getClass().getName());
                 for (Field f : newEntry.getClass().getDeclaredFields()) {
-                    if (f.get(newEntry) != f.get(oldEntry)) {
+                    if (!compare(f.get(newEntry), f.get(oldEntry))) {
                         updateEntry.getChange().put(f.getName(), f.get(newEntry));
                         changed = true;
                     }

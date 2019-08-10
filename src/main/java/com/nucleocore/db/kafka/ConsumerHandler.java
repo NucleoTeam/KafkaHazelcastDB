@@ -1,23 +1,20 @@
 package com.nucleocore.db.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nucleocore.db.database.Database;
+import com.nucleocore.db.database.Table;
 import com.nucleocore.db.database.Modification;
-import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.*;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.*;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.regex.Pattern;
 
 public class ConsumerHandler implements Runnable {
     private Queue<String> entries = new LinkedList();
     private KafkaConsumer consumer;
-    private Database database;
+    private Table database;
 
-    public ConsumerHandler(String bootstrap, String groupName, Database database, String table) {
+    public ConsumerHandler(String bootstrap, String groupName, Table database, String table) {
         this.database = database;
         this.consumer = createConsumer(bootstrap, groupName);
         this.subscribe(table.split(","));
@@ -113,11 +110,11 @@ public class ConsumerHandler implements Runnable {
         this.entries = entries;
     }
 
-    public Database getDatabase() {
+    public Table getDatabase() {
         return database;
     }
 
-    public void setDatabase(Database database) {
+    public void setDatabase(Table database) {
         this.database = database;
     }
 }

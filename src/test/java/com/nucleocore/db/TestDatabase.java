@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.hazelcast.query.EntryObject;
 import com.hazelcast.query.Predicate;
 import com.hazelcast.query.PredicateBuilder;
-import com.nucleocore.db.database.Database;
+import com.nucleocore.db.database.Table;
 import com.nucleocore.db.database.utils.DataEntry;
 import org.junit.Test;
 
@@ -15,16 +15,16 @@ import static org.junit.Assert.*;
 public class TestDatabase {
     @Test
     public void shouldCreateEntry(){
-        Database db = new Database("test");
-        db.getMap().set("nathaniel", new com.nucleocore.db.database.utils.Test("Nathaniel", "nathanield"));
+        Table db = new Table("test");
+        db.getMap().set("nathaniel", new com.nucleocore.db.database.utils.Test("tes","Nathaniel", "nathanield"));
         assertTrue(db.getMap().size()==1);
         db.getMap().flush();
     }
 
     @Test
     public void shouldGetCreatedEntry() throws JsonProcessingException {
-        Database db = new Database("test2");
-        db.getMap().set("david", new com.nucleocore.db.database.utils.Test("David", "davidl"));
+        Table db = new Table("test2");
+        db.getMap().set("david", new com.nucleocore.db.database.utils.Test("test","David", "davidl"));
         assertTrue(db.getMap().size()==1);
         EntryObject e = new PredicateBuilder().getEntryObject();
         Predicate sqlQuery = e.get("name").equal("David");

@@ -4,8 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hazelcast.query.EntryObject;
 import com.hazelcast.query.Predicate;
 import com.hazelcast.query.PredicateBuilder;
-import com.nucleocore.db.database.Database;
-import com.nucleocore.db.database.Modification;
+import com.nucleocore.db.database.Table;
 import com.nucleocore.db.database.utils.DataEntry;
 import com.nucleocore.db.database.utils.Test;
 
@@ -13,12 +12,12 @@ import java.io.IOException;
 import java.util.*;
 
 public class Server {
-    static TreeMap<String, Database> databases = new TreeMap<>();
+    static TreeMap<String, Table> tables = new TreeMap<>();
     public static void main(String... args) {
         String tableString = System.getenv("tables");
         if (tableString != null){
             for(String table : tableString.split(",")){
-                databases.put(table, new Database(table));
+                launchTable(table);
             }
         }
         new Thread(new Runnable() {
@@ -29,20 +28,23 @@ public class Server {
                 int i = 0;
                 while((i = sc.nextInt())!=0){
                     System.out.println("Selected: "+i);
+                    long time;
                     switch (i){
                         case 1:
                             getTable("test4").save(null, new Test(UUID.randomUUID().toString(), "This","That"));
                             break;
                         case 2:
+                            time = System.currentTimeMillis();
                             EntryObject e = new PredicateBuilder().getEntryObject();
                             Predicate sqlQuery = e.get("user").equal("That");
                             Collection<DataEntry> entries = getTable("test4").getMap().values( sqlQuery );
+                            System.out.println(System.currentTimeMillis()-time);
                             for(DataEntry de : entries){
                                 System.out.println(((Test)de).getName());
                             }
                         break;
                         case 3:
-                            DataEntry de = getTable("test4").getMap().get("44bae15f-4532-4492-87d2-a35799d0ae92");
+                            DataEntry de = getTable("test4").getMap().get("");
                             try {
                                 System.out.println(om.writeValueAsString(de));
                             }catch (IOException ex){
@@ -52,10 +54,12 @@ public class Server {
                         break;
                         case 4:
                             try {
-                                Test data = (Test) getTable("test4").getMap().get("3b9e56c4-5567-451c-8841-892d001bf88e");
+                                time = System.currentTimeMillis();
+                                Test data = (Test) getTable("test4").getMap().get("53241121-b828-4e7c-848e-a83d93a98ddb");
                                 Test data2 = new Test(data);
                                 data2.setName(data2.getName()+".");
                                 getTable("test4").save(data, data2);
+                                System.out.println(System.currentTimeMillis()-time);
                             }catch (Exception ex){
                                 ex.printStackTrace();
                             }
@@ -65,7 +69,12 @@ public class Server {
             }
         }).start();
     }
-    public static Database getTable(String table){
-        return databases.get(table);
+    public static Table getTable(String table){
+        return tables.get(table);
+    }
+    public static Table launchTable(String table){
+        Table t = new Table(table);
+        tables.put(table, t);
+        return t;
     }
 }

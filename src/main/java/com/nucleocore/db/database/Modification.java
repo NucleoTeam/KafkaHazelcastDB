@@ -9,7 +9,7 @@ public enum Modification {
         this.modification = modification;
     }
 
-    public Class getModification() {
+    public Class<?> getModification() {
         return modification;
     }
     public static Modification get(String val){

@@ -1,20 +1,25 @@
 package com.nucleocore.db.kafka;
 
-import com.nucleocore.db.database.DataEntry;
-import com.nucleocore.db.database.Modification;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nucleocore.db.database.modifications.Modify;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
 
-import java.util.Properties;
-import java.util.Stack;
+import java.time.Duration;
+import java.util.*;
 
-public class ProducerHandler {
+public class ProducerHandler implements Runnable {
     private KafkaProducer producer;
-    private Stack<DataEntry> entry = new Stack<DataEntry>();
+    private Queue<Modify> pendingSaves = new LinkedList<>();
+    private String table;
 
-    public ProducerHandler(String bootstrap) {
+    public ProducerHandler(String bootstrap, String table) {
         producer = createProducer(bootstrap);
+        this.table = table;
+        new Thread(this).start();
     }
 
     private KafkaProducer createProducer(String bootstrap) {
@@ -27,5 +32,40 @@ public class ProducerHandler {
 
     public KafkaProducer getProducer() {
         return producer;
+    }
+
+    public synchronized void save(Modify modify){
+        pendingSaves.add(modify);
+    }
+
+    public Modify pop(){
+        if(pendingSaves.isEmpty())
+            return null;
+        return pendingSaves.remove();
+    }
+    @Override
+    public void run() {
+        ObjectMapper om = new ObjectMapper();
+        do {
+            Modify mod;
+            while((mod = pop())!=null) {
+                try {
+                    ProducerRecord record = new ProducerRecord(
+                        table,
+                        UUID.randomUUID().toString(),
+                        mod.getClass().getSimpleName() + om.writeValueAsString(mod)
+                    );
+                    getProducer().send(record);
+                    System.out.println("Sending to " + table + " datagram: " + mod.getClass().getSimpleName() + om.writeValueAsString(mod));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            try {
+                Thread.sleep(0, 10);
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+        } while(!Thread.interrupted());
     }
 }

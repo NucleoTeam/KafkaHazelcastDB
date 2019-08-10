@@ -3,11 +3,15 @@ package com.nucleocore.db.database.modifications;
 import com.nucleocore.db.database.Modification;
 
 import java.util.Map;
+import java.util.TreeMap;
 
-public class Update {
+public class Update extends Modify {
     public String key;
-    public Map<String, Object> change;
+    public Map<String, Object> change = new TreeMap<>();
     public String masterClass;
+
+    public Update() {
+    }
 
     public Update(String key, Map<String, Object> change, String masterClass) {
         this.key = key;

@@ -1,17 +1,26 @@
 package com.nucleocore.db.database.modifications;
 
-import com.nucleocore.db.database.DataEntry;
-import com.nucleocore.db.database.Modification;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nucleocore.db.database.utils.DataEntry;
 
-import java.io.Serializable;
+import java.io.IOException;
 
-public class Create {
-    private DataEntry data;
+public class Create extends Modify {
+    private String data;
     private String key;
+    public String masterClass;
+    private static ObjectMapper om = new ObjectMapper();
 
-    public Create(DataEntry data, String key) {
-        this.data = data;
+    public Create() {
+    }
+
+    public Create(String key, DataEntry data) throws IOException{
+
         this.key = key;
+        this.masterClass = data.getClass().getName();
+        this.data = om.writeValueAsString(data);
     }
 
     public String getKey() {
@@ -22,11 +31,24 @@ public class Create {
         this.key = key;
     }
 
-    public DataEntry getData() {
+    public String getData() {
         return data;
     }
 
-    public void setData(DataEntry data) {
+    @JsonIgnore
+    public DataEntry getValue() throws ClassNotFoundException, IOException {
+        return (DataEntry) om.readValue(data, Class.forName(masterClass));
+    }
+
+    public void setData(String data) {
         this.data = data;
+    }
+
+    public String getMasterClass() {
+        return masterClass;
+    }
+
+    public void setMasterClass(String masterClass) {
+        this.masterClass = masterClass;
     }
 }

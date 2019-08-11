@@ -21,14 +21,10 @@ public class Table {
     private static HazelcastInstance hz = Hazelcast.newHazelcastInstance();
     private IMap<String, DataEntry> map;
     private ObjectMapper om = new ObjectMapper();
-    public Table(String table, String bootstrap){
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                map = hz.getMap(table);
-            }
+    public Table(String bootstrap, String table){
+        new Thread(()->{
+            map = hz.getMap(table);
         }).start();
-
         producer = new ProducerHandler(bootstrap, table);
         consumer = new ConsumerHandler(bootstrap, UUID.randomUUID().toString(), this, table);
     }

@@ -18,18 +18,7 @@ public class ConsumerHandler implements Runnable {
         this.database = database;
         this.consumer = createConsumer(bootstrap, groupName);
         this.subscribe(table.split(","));
-        new Thread(new Executor()).start();
-        new Thread(this).start();
-    }
-    public synchronized String pop(){
-        if(entries.isEmpty())
-            return null;
-        return entries.remove();
-    }
-
-    public class Executor implements Runnable {
-        @Override
-        public void run() {
+        new Thread(()->{
             ObjectMapper om = new ObjectMapper();
             do {
                 String entry;
@@ -50,7 +39,13 @@ public class ConsumerHandler implements Runnable {
                     e.printStackTrace();
                 }
             } while(!Thread.interrupted());
-        }
+        }).start();
+        new Thread(this).start();
+    }
+    public synchronized String pop(){
+        if(entries.isEmpty())
+            return null;
+        return entries.remove();
     }
 
     public synchronized void add(String e){

@@ -15,7 +15,7 @@ import static org.junit.Assert.*;
 public class TestDatabase {
     @Test
     public void shouldCreateEntry(){
-        Table db = new Table("test");
+        Table db = new Table("192.169.1.16:9093,192.169.1.19:9093,192.169.1.17:9093", "test");
         db.getMap().set("nathaniel", new com.nucleocore.db.database.utils.Test("tes","Nathaniel", "nathanield"));
         assertTrue(db.getMap().size()==1);
         db.getMap().flush();
@@ -23,7 +23,7 @@ public class TestDatabase {
 
     @Test
     public void shouldGetCreatedEntry() throws JsonProcessingException {
-        Table db = new Table("test2");
+        Table db = new Table("192.169.1.16:9093,192.169.1.19:9093,192.169.1.17:9093","test2");
         db.getMap().set("david", new com.nucleocore.db.database.utils.Test("test","David", "davidl"));
         assertTrue(db.getMap().size()==1);
         EntryObject e = new PredicateBuilder().getEntryObject();

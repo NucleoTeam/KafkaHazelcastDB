@@ -11,7 +11,7 @@ import com.nucleocore.db.database.utils.Test;
 import java.io.IOException;
 import java.util.*;
 
-public class Server {
+public class NucleoDB {
     static TreeMap<String, Table> tables = new TreeMap<>();
     public static void main(String... args) {
         String tableString = System.getenv("tables");

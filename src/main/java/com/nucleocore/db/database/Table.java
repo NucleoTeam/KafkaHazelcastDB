@@ -21,7 +21,7 @@ public class Table {
     private static HazelcastInstance hz = Hazelcast.newHazelcastInstance();
     private IMap<String, DataEntry> map;
     private ObjectMapper om = new ObjectMapper();
-    public Table(String table){
+    public Table(String table, String bootstrap){
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -29,8 +29,8 @@ public class Table {
             }
         }).start();
 
-        producer = new ProducerHandler("192.169.1.16:9093,192.169.1.19:9093,192.169.1.17:9093", table);
-        consumer = new ConsumerHandler("192.169.1.16:9093,192.169.1.19:9093,192.169.1.17:9093", UUID.randomUUID().toString(), this, table);
+        producer = new ProducerHandler(bootstrap, table);
+        consumer = new ConsumerHandler(bootstrap, UUID.randomUUID().toString(), this, table);
     }
 
     public IMap<String, DataEntry> getMap() {

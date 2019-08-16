@@ -1,7 +1,11 @@
 package com.nucleocore.db.database.utils;
 
 public class Test extends DataEntry {
+
+    @Index
     public String name;
+
+    @Index
     public String user;
 
     public Test() {

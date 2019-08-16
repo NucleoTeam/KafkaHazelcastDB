@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hazelcast.query.EntryObject;
 import com.hazelcast.query.Predicate;
 import com.hazelcast.query.PredicateBuilder;
+import com.nucleocore.db.database.Modification;
 import com.nucleocore.db.database.Table;
 import com.nucleocore.db.database.utils.DataEntry;
 import com.nucleocore.db.database.utils.Test;
@@ -12,9 +13,13 @@ import java.io.IOException;
 import java.util.*;
 
 public class NucleoDB {
-    static TreeMap<String, Table> tables = new TreeMap<>();
+    private TreeMap<String, Table> tables = new TreeMap<>();
+    static String latestSave = "";
+
     public static void main(String... args) {
-        launchTable("192.169.1.16:9093,192.169.1.19:9093,192.169.1.17:9093", "test4");
+        NucleoDB db = new NucleoDB();
+        db.launchTable("192.169.1.16:9093,192.169.1.19:9093,192.169.1.17:9093", "test4");
+        db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
         new Thread(()->{
             ObjectMapper om = new ObjectMapper();
             Scanner sc = new Scanner(System.in);
@@ -24,47 +29,72 @@ public class NucleoDB {
                 long time;
                 switch (i){
                     case 1:
-                        getTable("test4").save(null, new Test(UUID.randomUUID().toString(), "This","That"));
+                        db.getTable("test4").save(null, new Test(UUID.randomUUID().toString(), "This","Thot"), d->{
+                            System.out.println("["+d.getKey()+"] Finished save");
+                            latestSave = d.getKey();
+                        });
                         break;
+
                     case 2:
                         time = System.currentTimeMillis();
-                        EntryObject e = new PredicateBuilder().getEntryObject();
-                        Predicate sqlQuery = e.get("user").equal("That");
-                        Collection<DataEntry> entries = getTable("test4").getMap().values( sqlQuery );
+                        db.getTable("test4")
+                            .filterMap(x->{
+                                Test t = ((Test)x.getValue());
+                                return t.getUser().equals("Thot");
+                            })
+                            .forEach((entry)->{
+                                System.out.println(((Test)entry.getValue()).getUser());
+                            });
                         System.out.println(System.currentTimeMillis()-time);
-                        for(DataEntry de : entries){
-                            System.out.println(((Test)de).getName());
-                        }
-                    break;
+                        break;
                     case 3:
-                        DataEntry de = getTable("test4").getMap().get("");
+                        DataEntry de = db.getTable("test4").get(latestSave);
                         try {
                             System.out.println(om.writeValueAsString(de));
                         }catch (IOException ex){
                             ex.printStackTrace();
                         }
-                        getTable("test4").save(de, null);
-                    break;
+                        db.getTable("test4").save(de, null);
+                        break;
                     case 4:
                         try {
                             time = System.currentTimeMillis();
-                            Test data = (Test) getTable("test4").getMap().get("53241121-b828-4e7c-848e-a83d93a98ddb");
-                            Test data2 = new Test(data);
-                            data2.setName(data2.getName()+".");
-                            getTable("test4").save(data, data2);
+                            Test data = db.getTable("test4").get(latestSave);
+                            if(data!=null) {
+                                Test data2 = new Test(data);
+                                data2.setName(data2.getName() + ".");
+                                db.getTable("test4").save(data, data2);
+                            }else{
+                                System.out.println("null");
+                            }
                             System.out.println(System.currentTimeMillis()-time);
                         }catch (Exception ex){
                             ex.printStackTrace();
                         }
-                    break;
+                        break;
+                    case 5:
+                        System.out.println(db.getTable("test4").size());
+                        break;
+                    case 6:
+                        time = System.currentTimeMillis();
+                        Set<Test> dataIndex = db.getTable("test4").indexSearch("user", "Thot");
+                        if(dataIndex!=null){
+                            System.out.println("returned: "+dataIndex.size());
+                            dataIndex.parallelStream().forEach(t->System.out.println(t.getKey()));
+                        }
+                        System.out.println(System.currentTimeMillis()-time);
+                        break;
+                    case 7:
+                        db.getTable("test4").flush();
+                        break;
                 }
             }
         }).start();
     }
-    public static Table getTable(String table){
+    public Table getTable(String table){
         return tables.get(table);
     }
-    public static Table launchTable(String bootstrap, String table){
+    public Table launchTable(String bootstrap, String table){
         Table t = new Table(bootstrap, table);
         tables.put(table, t);
         return t;

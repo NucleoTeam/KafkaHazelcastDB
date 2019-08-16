@@ -22,10 +22,13 @@ public class ConsumerHandler implements Runnable {
             ObjectMapper om = new ObjectMapper();
             do {
                 String entry;
-                if ((entry = pop())!=null) {
+
+                this.database.setWriting(true);
+
+                while ((entry = pop())!=null) {
                     String type = entry.substring(0, 6);
                     String data = entry.substring(6);
-                    System.out.println("Action: " + type + " data: "+data);
+                    //System.out.println("Action: " + type + " data: "+data);
                     try {
                         Modification mod = Modification.get(type);
                         database.modify(mod, om.readValue(data, mod.getModification()));
@@ -33,6 +36,9 @@ public class ConsumerHandler implements Runnable {
                         e.printStackTrace();
                     }
                 }
+
+                this.database.setWriting(false);
+
                 try {
                     Thread.sleep(0, 10);
                 }catch (Exception e){
@@ -49,7 +55,7 @@ public class ConsumerHandler implements Runnable {
     }
 
     public synchronized void add(String e){
-        System.out.println("Modification from kafka: "+e);
+        //System.out.println("Modification from kafka: "+e);
         getEntries().add(e);
     }
     @Override
@@ -59,7 +65,7 @@ public class ConsumerHandler implements Runnable {
         do {
             ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofNanos(20));
             if(!rs.isEmpty()){
-                System.out.println("RECEIVED DATA");
+                //System.out.println("RECEIVED DATA");
                 rs.forEach(a->add(a.value()));
             }
             consumer.commitAsync();

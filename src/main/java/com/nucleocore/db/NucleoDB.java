@@ -18,7 +18,7 @@ public class NucleoDB {
 
     public static void main(String... args) {
         NucleoDB db = new NucleoDB();
-        db.launchTable("192.169.1.16:9093,192.169.1.19:9093,192.169.1.17:9093", "test4");
+        db.launchTable(null, "test4");
         db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
         new Thread(()->{
             ObjectMapper om = new ObjectMapper();
@@ -34,7 +34,6 @@ public class NucleoDB {
                             latestSave = d.getKey();
                         });
                         break;
-
                     case 2:
                         time = System.currentTimeMillis();
                         db.getTable("test4")

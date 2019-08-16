@@ -27,6 +27,7 @@ public class Table {
     private TreeMap<String, TreeMap<Object, Set<DataEntry>>> index = new TreeMap<>();
     private TreeMap<String, Consumer<DataEntry>> consumers = new TreeMap<>();
 
+    private TreeMap<String, TreeMap<Object, Set<DataEntry>>> trieIndex = new TreeMap<>();
 
     private TreeMap<Modification, Set<Consumer<DataEntry>>> listeners = new TreeMap<>();
 
@@ -65,9 +66,9 @@ public class Table {
                 if(!map.containsKey(obj)){
                     map.put(obj, new HashSet<>());
                 }
-                //System.out.println("<C, "+name+"["+obj+"] size is now "+map.get(obj).size());
+                System.out.println("<C, "+name+"["+obj+"] size is now "+map.get(obj).size());
                 map.get(obj).add(e);
-                //System.out.println(">C, "+name+"["+obj+"] size is now "+map.get(obj).size());
+                System.out.println(">C, "+name+"["+obj+"] size is now "+map.get(obj).size());
             }catch (IllegalAccessException ex){
                 ex.printStackTrace();
             }

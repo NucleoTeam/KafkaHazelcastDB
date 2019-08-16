@@ -17,7 +17,7 @@ import static org.junit.Assert.*;
 public class TestDatabase {
     @Test
     public void shouldCreateEntry(){
-        Table db = new Table("192.169.1.16:9093,192.169.1.19:9093,192.169.1.17:9093", "test");
+        Table db = new Table(null, "test");
         db.save(null, new com.nucleocore.db.database.utils.Test("tes","Nathaniel", "nathanield"));
         assertTrue(db.size()==1);
         db.flush();
@@ -25,13 +25,14 @@ public class TestDatabase {
 
     @Test
     public void shouldGetCreatedEntry() throws JsonProcessingException {
-        Table db = new Table("192.169.1.16:9093,192.169.1.19:9093,192.169.1.17:9093","test2");
+        Table db = new Table(null,"test2");
         db.save(null, new com.nucleocore.db.database.utils.Test("test","David", "davidl"));
         assertTrue(db.size()==1);
-        Stream<Map.Entry<String, DataEntry>> entries = db.filterMap(d->((com.nucleocore.db.database.utils.Test)d).getName().equals("David"));
+        Stream<Map.Entry<String, DataEntry>> entries = db.filterMap(d->((com.nucleocore.db.database.utils.Test)d.getValue()).getName().equals("David"));
         entries.forEach(entry->{
             System.out.println(((com.nucleocore.db.database.utils.Test)entry.getValue()).getName());
         });
+        assertTrue(db.size()==1);
         db.flush();
     }
 }

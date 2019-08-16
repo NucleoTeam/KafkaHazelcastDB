@@ -11,17 +11,15 @@ import com.nucleocore.db.kafka.ConsumerHandler;
 import com.nucleocore.db.kafka.ProducerHandler;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 public class Table {
 
-    private ProducerHandler producer;
-    private ConsumerHandler consumer;
+    private ProducerHandler producer = null;
+    private ConsumerHandler consumer = null;
 
     private boolean writing = false;
 
@@ -34,10 +32,12 @@ public class Table {
 
     private ObjectMapper om = new ObjectMapper();
 
-    public Table(String bootstrap, String table){
+    public Table(String bootstrap, String table) {
         map = new TreeMap<>();
-        producer = new ProducerHandler(bootstrap, table);
-        consumer = new ConsumerHandler(bootstrap, UUID.randomUUID().toString(), this, table);
+        if (bootstrap!=null){
+            producer = new ProducerHandler(bootstrap, table);
+            consumer = new ConsumerHandler(bootstrap, UUID.randomUUID().toString(), this, table);
+        }
     }
 
     private Map<String, DataEntry> getMap() {
@@ -153,7 +153,10 @@ public class Table {
                 if(consumer!=null){
                     consumers.put(newEntry.getKey(), consumer);
                 }
-                producer.save(createEntry);
+                if(producer!=null)
+                    producer.save(createEntry);
+                else
+                    modify(Modification.CREATE, createEntry);
             }catch (IOException e){
                 e.printStackTrace();
             }
@@ -162,7 +165,10 @@ public class Table {
             if(consumer!=null){
                 consumers.put(oldEntry.getKey(), consumer);
             }
-            producer.save(deleteEntry);
+            if(producer!=null)
+                producer.save(deleteEntry);
+            else
+                modify(Modification.DELETE, deleteEntry);
         }else if(newEntry != null && oldEntry != null){
             Update updateEntry = new Update();
             try {
@@ -180,7 +186,11 @@ public class Table {
                 }
                 if(changed) {
                     System.out.println("Changed");
-                    producer.save(updateEntry);
+
+                    if(producer!=null)
+                        producer.save(updateEntry);
+                    else
+                        modify(Modification.UPDATE, updateEntry);
                     return true;
                 }
                 System.out.println("Nothing changed");

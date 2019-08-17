@@ -1,12 +1,12 @@
 package com.nucleocore.db.database;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hazelcast.core.IMap;
 import com.nucleocore.db.database.modifications.Create;
 import com.nucleocore.db.database.modifications.Delete;
 import com.nucleocore.db.database.modifications.Update;
 import com.nucleocore.db.database.utils.DataEntry;
 import com.nucleocore.db.database.utils.Index;
+import com.nucleocore.db.database.utils.Trie;
 import com.nucleocore.db.kafka.ConsumerHandler;
 import com.nucleocore.db.kafka.ProducerHandler;
 import java.io.IOException;
@@ -27,6 +27,7 @@ public class Table {
     private TreeMap<String, TreeMap<Object, Set<DataEntry>>> index = new TreeMap<>();
     private TreeMap<String, Consumer<DataEntry>> consumers = new TreeMap<>();
 
+    public TreeMap<String, Trie> trieIndex = new TreeMap<>();
 
     private TreeMap<Modification, Set<Consumer<DataEntry>>> listeners = new TreeMap<>();
 
@@ -57,17 +58,19 @@ public class Table {
             }
             try {
                 String name = f.getName();
-                if (!index.containsKey(name)) {
+                if (!index.containsKey(name))
                     index.put(name, new TreeMap<>());
-                }
+                if (!trieIndex.containsKey(name))
+                    trieIndex.put(name, new Trie());
                 Object obj = f.get(e);
                 TreeMap<Object, Set<DataEntry>> map = index.get(name);
                 if(!map.containsKey(obj)){
                     map.put(obj, new HashSet<>());
                 }
-                //System.out.println("<C, "+name+"["+obj+"] size is now "+map.get(obj).size());
+                System.out.println("<C, "+name+"["+obj+"] size is now "+map.get(obj).size());
                 map.get(obj).add(e);
-                //System.out.println(">C, "+name+"["+obj+"] size is now "+map.get(obj).size());
+                trieIndex.get(name).add(obj, e);
+                System.out.println(">C, "+name+"["+obj+"] size is now "+map.get(obj).size());
             }catch (IllegalAccessException ex){
                 ex.printStackTrace();
             }
@@ -81,8 +84,11 @@ public class Table {
                 continue;
             try {
                 String name = f.getName();
+                Object obj = f.get(e);
+                if(trieIndex.containsKey(name)){
+                    trieIndex.get(name).remove(obj, e);
+                }
                 if (index.containsKey(name)) {
-                    Object obj = f.get(e);
                     TreeMap<Object, Set<DataEntry>> map = index.get(name);
                     if(map.containsKey(obj)){
                         System.out.println("<D, "+name+"["+obj+"] size is now "+map.get(obj).size());
@@ -104,7 +110,16 @@ public class Table {
             }
         }
     }
-
+    public <T> T trieIndexSearch(String name, Object obj){
+        try {
+            if (trieIndex.containsKey(name)) {
+                return (T) trieIndex.get(name).search(obj);
+            }
+        }catch (ClassCastException ex){
+            ex.printStackTrace();
+        }
+        return null;
+    }
     public <T> T indexSearch(String name, Object obj){
         try {
             if (index.containsKey(name)) {
@@ -186,7 +201,6 @@ public class Table {
                 }
                 if(changed) {
                     System.out.println("Changed");
-
                     if(producer!=null)
                         producer.save(updateEntry);
                     else
@@ -261,9 +275,6 @@ public class Table {
                 }
             break;
         }
-    }
-    private void setMap(IMap<String, DataEntry> map) {
-        this.map = map;
     }
     public <T> T get(String key){
         try {

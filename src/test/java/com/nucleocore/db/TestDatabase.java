@@ -1,9 +1,6 @@
 package com.nucleocore.db;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.hazelcast.query.EntryObject;
-import com.hazelcast.query.Predicate;
-import com.hazelcast.query.PredicateBuilder;
 import com.nucleocore.db.database.Table;
 import com.nucleocore.db.database.utils.DataEntry;
 import org.junit.Test;

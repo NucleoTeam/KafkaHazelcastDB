@@ -1,9 +1,7 @@
 package com.nucleocore.db;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hazelcast.query.EntryObject;
-import com.hazelcast.query.Predicate;
-import com.hazelcast.query.PredicateBuilder;
 import com.nucleocore.db.database.Modification;
 import com.nucleocore.db.database.Table;
 import com.nucleocore.db.database.utils.DataEntry;
@@ -15,7 +13,18 @@ import java.util.*;
 public class NucleoDB {
     private TreeMap<String, Table> tables = new TreeMap<>();
     static String latestSave = "";
+    static String getSaltString() {
+        String SALTCHARS = "HELLO";
+        StringBuilder salt = new StringBuilder();
+        Random rnd = new Random();
+        while (salt.length() < 5) { // length of the random string.
+            int index = (int) (rnd.nextFloat() * SALTCHARS.length());
+            salt.append(SALTCHARS.charAt(index));
+        }
+        String saltStr = salt.toString();
+        return saltStr;
 
+    }
     public static void main(String... args) {
         NucleoDB db = new NucleoDB();
         db.launchTable(null, "test4");
@@ -29,7 +38,7 @@ public class NucleoDB {
                 long time;
                 switch (i){
                     case 1:
-                        db.getTable("test4").save(null, new Test(UUID.randomUUID().toString(), "This","Thot"), d->{
+                        db.getTable("test4").save(null, new Test(UUID.randomUUID().toString(), "This",getSaltString()), d->{
                             System.out.println("["+d.getKey()+"] Finished save");
                             latestSave = d.getKey();
                         });
@@ -85,6 +94,21 @@ public class NucleoDB {
                         break;
                     case 7:
                         db.getTable("test4").flush();
+                        break;
+                    case 8:
+                        try {
+                            System.out.println(om.writeValueAsString(db.getTable("test4").trieIndexSearch("user", "Thot")));
+                            //System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
+                        }catch (JsonProcessingException e){
+                            e.printStackTrace();
+                        }
+                        break;
+                    case 9:
+                        try {
+                            System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
+                        }catch (JsonProcessingException e){
+                            e.printStackTrace();
+                        }
                         break;
                 }
             }

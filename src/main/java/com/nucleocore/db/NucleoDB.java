@@ -2,7 +2,7 @@ package com.nucleocore.db;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nucleocore.db.database.Modification;
+import com.nucleocore.db.database.utils.Modification;
 import com.nucleocore.db.database.Table;
 import com.nucleocore.db.database.utils.DataEntry;
 import com.nucleocore.db.database.utils.Test;
@@ -13,18 +13,6 @@ import java.util.*;
 public class NucleoDB {
     private TreeMap<String, Table> tables = new TreeMap<>();
     static String latestSave = "";
-    static String getSaltString() {
-        String SALTCHARS = "HELLO";
-        StringBuilder salt = new StringBuilder();
-        Random rnd = new Random();
-        while (salt.length() < 5) { // length of the random string.
-            int index = (int) (rnd.nextFloat() * SALTCHARS.length());
-            salt.append(SALTCHARS.charAt(index));
-        }
-        String saltStr = salt.toString();
-        return saltStr;
-
-    }
     public static void main(String... args) {
         NucleoDB db = new NucleoDB();
         db.launchTable(null, "test4");
@@ -38,7 +26,7 @@ public class NucleoDB {
                 long time;
                 switch (i){
                     case 1:
-                        db.getTable("test4").save(null, new Test(UUID.randomUUID().toString(), "This",getSaltString()), d->{
+                        db.getTable("test4").save(null, new Test(UUID.randomUUID().toString(), "This", "Thot"), d->{
                             System.out.println("["+d.getKey()+"] Finished save");
                             latestSave = d.getKey();
                         });
@@ -85,7 +73,7 @@ public class NucleoDB {
                         break;
                     case 6:
                         time = System.currentTimeMillis();
-                        Set<Test> dataIndex = db.getTable("test4").indexSearch("user", "Thot");
+                        Set<Test> dataIndex = db.getTable("test4").search("user", "Thot");
                         if(dataIndex!=null){
                             System.out.println("returned: "+dataIndex.size());
                             dataIndex.parallelStream().forEach(t->System.out.println(t.getKey()));
@@ -93,22 +81,28 @@ public class NucleoDB {
                         System.out.println(System.currentTimeMillis()-time);
                         break;
                     case 7:
+                        time = System.currentTimeMillis();
                         db.getTable("test4").flush();
+                        System.out.println(System.currentTimeMillis()-time);
                         break;
                     case 8:
+                        time = System.currentTimeMillis();
                         try {
-                            System.out.println(om.writeValueAsString(db.getTable("test4").trieIndexSearch("user", "Thot")));
+                            System.out.println(om.writeValueAsString(db.getTable("test4").search("user", "Thot")));
                             //System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
                         }
+                        System.out.println(System.currentTimeMillis()-time);
                         break;
                     case 9:
+                        time = System.currentTimeMillis();
                         try {
                             System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
                         }
+                        System.out.println(System.currentTimeMillis()-time);
                         break;
                 }
             }

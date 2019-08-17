@@ -4,9 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.db.database.modifications.Create;
 import com.nucleocore.db.database.modifications.Delete;
 import com.nucleocore.db.database.modifications.Update;
-import com.nucleocore.db.database.utils.DataEntry;
-import com.nucleocore.db.database.utils.Index;
-import com.nucleocore.db.database.utils.Trie;
+import com.nucleocore.db.database.utils.*;
 import com.nucleocore.db.kafka.ConsumerHandler;
 import com.nucleocore.db.kafka.ProducerHandler;
 import java.io.IOException;
@@ -47,6 +45,7 @@ public class Table {
     public void flush(){
         getMap().clear();
         index.clear();
+        trieIndex.clear();
         consumers.clear();
     }
     private void addIndexEntries(DataEntry e, String restrictTo){
@@ -56,21 +55,29 @@ public class Table {
             if(!f.isAnnotationPresent(Index.class)) {
                 continue;
             }
+            IndexType indexType = ((Index)f.getAnnotation(Index.class)).value();
             try {
                 String name = f.getName();
-                if (!index.containsKey(name))
-                    index.put(name, new TreeMap<>());
-                if (!trieIndex.containsKey(name))
-                    trieIndex.put(name, new Trie());
                 Object obj = f.get(e);
-                TreeMap<Object, Set<DataEntry>> map = index.get(name);
-                if(!map.containsKey(obj)){
-                    map.put(obj, new HashSet<>());
+                switch(indexType){
+                    case TRIE:
+                        if (!trieIndex.containsKey(name))
+                            trieIndex.put(name, new Trie());
+                        trieIndex.get(name).add(obj, e);
+                        break;
+                    case HASH:
+                        if (!index.containsKey(name))
+                            index.put(name, new TreeMap<>());
+
+                        TreeMap<Object, Set<DataEntry>> map = index.get(name);
+                        if(!map.containsKey(obj)){
+                            map.put(obj, new HashSet<>());
+                        }
+                        //System.out.println("<C, "+name+"["+obj+"] size is now "+map.get(obj).size());
+                        map.get(obj).add(e);
+                        //System.out.println(">C, "+name+"["+obj+"] size is now "+map.get(obj).size());
+                        break;
                 }
-                System.out.println("<C, "+name+"["+obj+"] size is now "+map.get(obj).size());
-                map.get(obj).add(e);
-                trieIndex.get(name).add(obj, e);
-                System.out.println(">C, "+name+"["+obj+"] size is now "+map.get(obj).size());
             }catch (IllegalAccessException ex){
                 ex.printStackTrace();
             }
@@ -82,47 +89,46 @@ public class Table {
                 continue;
             if(!f.isAnnotationPresent(Index.class))
                 continue;
+            IndexType indexType = ((Index)f.getAnnotation(Index.class)).value();
             try {
                 String name = f.getName();
                 Object obj = f.get(e);
-                if(trieIndex.containsKey(name)){
-                    trieIndex.get(name).remove(obj, e);
-                }
-                if (index.containsKey(name)) {
-                    TreeMap<Object, Set<DataEntry>> map = index.get(name);
-                    if(map.containsKey(obj)){
-                        System.out.println("<D, "+name+"["+obj+"] size is now "+map.get(obj).size());
-                        Object[] rems = (Object[])map.get(obj).parallelStream().filter(i->i.key.equals(e.getKey())).toArray();
-                        for(Object rem : rems){
-                            map.get(obj).remove(rem);
+                switch(indexType) {
+                    case TRIE:
+                        if(trieIndex.containsKey(name)){
+                            trieIndex.get(name).remove(obj, e);
                         }
-                        System.out.println(">D, "+name+"["+obj+"] size is now "+map.get(obj).size());
-                        System.out.println(">D, "+name+" total entries "+map.size());
-                        if(map.get(obj).size()==0){
-                            map.remove(obj);
-                            System.out.println("Removed "+obj);
+                        break;
+                    case HASH:
+                        if (index.containsKey(name)) {
+                            TreeMap<Object, Set<DataEntry>> map = index.get(name);
+                            if(map.containsKey(obj)){
+                                System.out.println("<D, "+name+"["+obj+"] size is now "+map.get(obj).size());
+                                Object[] rems = (Object[])map.get(obj).parallelStream().filter(i->i.key.equals(e.getKey())).toArray();
+                                for(Object rem : rems){
+                                    map.get(obj).remove(rem);
+                                }
+                                System.out.println(">D, "+name+"["+obj+"] size is now "+map.get(obj).size());
+                                System.out.println(">D, "+name+" total entries "+map.size());
+                                if(map.get(obj).size()==0){
+                                    map.remove(obj);
+                                    System.out.println("Removed "+obj);
+                                }
+                                System.out.println(">D, "+name+" total entries "+map.size());
+                            }
                         }
-                        System.out.println(">D, "+name+" total entries "+map.size());
-                    }
+                        break;
                 }
             }catch (IllegalAccessException ex){
                 ex.printStackTrace();
             }
         }
     }
-    public <T> T trieIndexSearch(String name, Object obj){
+    public <T> T search(String name, Object obj){
         try {
             if (trieIndex.containsKey(name)) {
                 return (T) trieIndex.get(name).search(obj);
-            }
-        }catch (ClassCastException ex){
-            ex.printStackTrace();
-        }
-        return null;
-    }
-    public <T> T indexSearch(String name, Object obj){
-        try {
-            if (index.containsKey(name)) {
+            }else if (index.containsKey(name)) {
                 TreeMap<Object, Set<DataEntry>> map = index.get(name);
                 if (map.containsKey(obj)) {
                     return (T) map.get(obj);

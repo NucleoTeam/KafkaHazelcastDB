@@ -8,5 +8,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface Index {
-    int value() default 0;
+    IndexType value() default IndexType.HASH;
 }

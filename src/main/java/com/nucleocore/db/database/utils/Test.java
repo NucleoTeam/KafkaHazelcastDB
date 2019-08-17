@@ -5,7 +5,7 @@ public class Test extends DataEntry {
     @Index
     public String name;
 
-    @Index
+    @Index(IndexType.TRIE)
     public String user;
 
     public Test() {

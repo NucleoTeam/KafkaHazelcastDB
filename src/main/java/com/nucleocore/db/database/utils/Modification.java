@@ -1,4 +1,4 @@
-package com.nucleocore.db.database;
+package com.nucleocore.db.database.utils;
 
 public enum Modification {
     DELETE(com.nucleocore.db.database.modifications.Delete.class),

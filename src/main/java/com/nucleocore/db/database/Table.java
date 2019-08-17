@@ -139,7 +139,7 @@ public class Table {
         }
         return null;
     }
-    public Set<DataEntry> in(String name, Set<Object> obj){
+    public <T> Set<T> in(String name, Set<Object> obj){
         Set<DataEntry> tmp = new HashSet<>();
         try {
             if (trieIndex.containsKey(name)) {
@@ -153,7 +153,7 @@ public class Table {
         }catch (ClassCastException ex){
             ex.printStackTrace();
         }
-        return tmp;
+        return (Set<T>) tmp;
     }
 
     public Stream<Map.Entry<String, DataEntry>> filterMap(Predicate<? super Map.Entry<String, DataEntry>> m){

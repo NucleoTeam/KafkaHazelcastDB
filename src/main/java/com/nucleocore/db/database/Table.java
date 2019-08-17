@@ -139,6 +139,15 @@ public class Table {
         }
         return null;
     }
+
+    public <T> T searchOne(String name, Object obj){
+        Set<T> tmp = search(name, obj);
+        if(tmp.size()>0){
+            return (T) tmp.toArray()[0];
+        }
+        return null;
+    }
+
     public <T> Set<T> in(String name, Set<Object> obj){
         Set<DataEntry> tmp = new HashSet<>();
         try {
@@ -154,6 +163,14 @@ public class Table {
             ex.printStackTrace();
         }
         return (Set<T>) tmp;
+    }
+
+    public <T> T inOne(String name, Set<Object> obj){
+        Set<T> tmp = in(name, obj);
+        if(tmp.size()>0){
+            return (T) tmp.toArray()[0];
+        }
+        return null;
     }
 
     public Stream<Map.Entry<String, DataEntry>> filterMap(Predicate<? super Map.Entry<String, DataEntry>> m){

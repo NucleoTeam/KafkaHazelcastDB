@@ -2,7 +2,7 @@ package com.nucleocore.db.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.db.database.Table;
-import com.nucleocore.db.database.Modification;
+import com.nucleocore.db.database.utils.Modification;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.serialization.*;
 

@@ -1,7 +1,5 @@
 package com.nucleocore.db.database.modifications;
 
-import com.nucleocore.db.database.Modification;
-
 public class Delete extends Modify {
     public String key;
 

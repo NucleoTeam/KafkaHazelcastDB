@@ -1,7 +1,5 @@
 package com.nucleocore.db.database.modifications;
 
-import com.nucleocore.db.database.Modification;
-
 import java.util.Map;
 import java.util.TreeMap;
 

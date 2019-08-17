@@ -103,18 +103,18 @@ public class Table {
                         if (index.containsKey(name)) {
                             TreeMap<Object, Set<DataEntry>> map = index.get(name);
                             if(map.containsKey(obj)){
-                                System.out.println("<D, "+name+"["+obj+"] size is now "+map.get(obj).size());
+                                //System.out.println("<D, "+name+"["+obj+"] size is now "+map.get(obj).size());
                                 Object[] rems = (Object[])map.get(obj).parallelStream().filter(i->i.key.equals(e.getKey())).toArray();
                                 for(Object rem : rems){
                                     map.get(obj).remove(rem);
                                 }
-                                System.out.println(">D, "+name+"["+obj+"] size is now "+map.get(obj).size());
-                                System.out.println(">D, "+name+" total entries "+map.size());
+                                //System.out.println(">D, "+name+"["+obj+"] size is now "+map.get(obj).size());
+                                //System.out.println(">D, "+name+" total entries "+map.size());
                                 if(map.get(obj).size()==0){
                                     map.remove(obj);
                                     System.out.println("Removed "+obj);
                                 }
-                                System.out.println(">D, "+name+" total entries "+map.size());
+                                //System.out.println(">D, "+name+" total entries "+map.size());
                             }
                         }
                         break;
@@ -138,6 +138,22 @@ public class Table {
             ex.printStackTrace();
         }
         return null;
+    }
+    public Set<DataEntry> in(String name, Set<Object> obj){
+        Set<DataEntry> tmp = new HashSet<>();
+        try {
+            if (trieIndex.containsKey(name)) {
+                tmp.addAll(trieIndex.get(name).search(obj));
+            }else if (index.containsKey(name)) {
+                TreeMap<Object, Set<DataEntry>> map = index.get(name);
+                if (map.containsKey(obj)) {
+                    tmp.addAll(map.get(obj));
+                }
+            }
+        }catch (ClassCastException ex){
+            ex.printStackTrace();
+        }
+        return tmp;
     }
 
     public Stream<Map.Entry<String, DataEntry>> filterMap(Predicate<? super Map.Entry<String, DataEntry>> m){

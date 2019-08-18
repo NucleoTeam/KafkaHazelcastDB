@@ -142,7 +142,7 @@ public class Table {
 
     public <T> T searchOne(String name, Object obj){
         Set<T> tmp = search(name, obj);
-        if(tmp.size()>0){
+        if(tmp!=null && tmp.size()>0){
             return (T) tmp.toArray()[0];
         }
         return null;
@@ -167,7 +167,7 @@ public class Table {
 
     public <T> T inOne(String name, Set<Object> obj){
         Set<T> tmp = in(name, obj);
-        if(tmp.size()>0){
+        if(tmp!=null && tmp.size()>0){
             return (T) tmp.toArray()[0];
         }
         return null;

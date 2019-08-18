@@ -148,15 +148,22 @@ public class Table {
         return null;
     }
 
-    public <T> Set<T> in(String name, Set<Object> obj){
+    public <T> Set<T> in(String name, Set<Object> objs){
         Set<DataEntry> tmp = new HashSet<>();
+        Set<DataEntry> tmpList;
         try {
-            if (trieIndex.containsKey(name)) {
-                tmp.addAll(trieIndex.get(name).search(obj));
-            }else if (index.containsKey(name)) {
-                TreeMap<Object, Set<DataEntry>> map = index.get(name);
-                if (map.containsKey(obj)) {
-                    tmp.addAll(map.get(obj));
+            for (Object obj : objs){
+                if (trieIndex.containsKey(name)) {
+                    if ((tmpList = trieIndex.get(name).search(obj)) != null) {
+                        tmp.addAll(tmpList);
+                    }
+                } else if (index.containsKey(name)) {
+                    TreeMap<Object, Set<DataEntry>> map = index.get(name);
+                    if (map.containsKey(obj)) {
+                        if ((tmpList = map.get(obj)) != null) {
+                            tmp.addAll(tmpList);
+                        }
+                    }
                 }
             }
         }catch (ClassCastException ex){

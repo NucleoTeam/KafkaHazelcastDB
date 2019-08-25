@@ -2,10 +2,11 @@ package com.nucleocore.db;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nucleocore.db.database.utils.Modification;
+import com.nucleocore.db.database.utils.*;
 import com.nucleocore.db.database.Table;
-import com.nucleocore.db.database.utils.DataEntry;
-import com.nucleocore.db.database.utils.Test;
+import org.supercsv.cellprocessor.*;
+import org.supercsv.cellprocessor.Optional;
+import org.supercsv.cellprocessor.constraint.NotNull;
 
 import java.io.IOException;
 import java.util.*;
@@ -16,7 +17,9 @@ public class NucleoDB {
     public static void main(String... args) {
         NucleoDB db = new NucleoDB();
         db.launchTable(null, "test4");
+        db.launchTable(null, "userDataTest");
         db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
+        db.getTable("userDataTest").addListener(Modification.CREATE, (d)->System.out.println("Created "+d.getClass().getName()));
         new Thread(()->{
             ObjectMapper om = new ObjectMapper();
             Scanner sc = new Scanner(System.in);
@@ -99,6 +102,48 @@ public class NucleoDB {
                         time = System.currentTimeMillis();
                         try {
                             System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
+                        }catch (JsonProcessingException e){
+                            e.printStackTrace();
+                        }
+                        System.out.println(System.currentTimeMillis()-time);
+                        break;
+                    case 10:
+                        int x = new Importer()
+                            .addMap(new ParseLong()) // id
+                            .addMap(new NotNull()) // user
+                            .addMap("pass", null, new Optional()) // pass
+                            .addMap(new Optional()) // email
+                            .addMap("api_key","apiKey", new NotNull())
+                            .addMap(new ParseDate("yyyy-MM-dd"))  //joined
+                            .addMap(new ParseLong()) // player
+                            .addMap(new ParseBool()) // mod
+                            .addMap(new Optional()) // ip
+                            .addMap(new Optional())
+                            .addMap(new Optional())
+                            .addMap(new Optional())
+                            .addMap(new ParseBool()) // premium
+                            .addMap(new ParseInt()) // level
+                            .addMap(new Optional()) // position
+                            .addMap(new Optional()) // registerip
+                            .addMap(new Optional())
+                            .addMap(new Optional())
+                            .addMap(new ParseInt()) // disputeclosurecount
+                            .addMap("staff_flags","staffFlags", new NotNull()) // staffFlags
+                            .addMap(new ParseBool()) // recentiplock
+                            .addMap(new ParseBool()) // iplock
+                            .addMap("pass2","pass", new Optional()) // pass
+                            .addMap(new ParseLong()) // lastAction
+                            .addMap(new Optional())
+                            .addMap(new Optional()) // reports
+                            .addMap(new Optional())
+                            .addMap(new Optional())
+                            .readIntoStream("G:/users.csv", db.getTable("userDataTest"), User.class);
+                        System.out.println("Created "+x+" users.");
+                        break;
+                    case 11:
+                        time = System.currentTimeMillis();
+                        try {
+                            System.out.println(om.writeValueAsString(db.getTable("userDataTest").search("user", "Firestar")));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
                         }

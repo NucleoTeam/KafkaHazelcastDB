@@ -56,7 +56,7 @@ public class ProducerHandler implements Runnable {
                         mod.getClass().getSimpleName() + om.writeValueAsString(mod)
                     );
                     getProducer().send(record);
-                    System.out.println("Sending to " + table + " datagram: " + mod.getClass().getSimpleName() + om.writeValueAsString(mod));
+                    //System.out.println("Sending to " + table + " datagram: " + mod.getClass().getSimpleName() + om.writeValueAsString(mod));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

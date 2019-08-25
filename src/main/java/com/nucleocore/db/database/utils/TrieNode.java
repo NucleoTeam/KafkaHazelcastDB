@@ -27,11 +27,11 @@ public class TrieNode {
         System.arraycopy(path, 0, tmpPath, 0, length);
         System.arraycopy(new NodeInner[]{new NodeInner(c, node)}, 0, tmpPath, length, 1);
 
-        try {
+        /*try {
             System.out.println(new ObjectMapper().writeValueAsString(tmpPath));
         }catch (JsonProcessingException e){
             e.printStackTrace();
-        }
+        }*/
         Arrays.sort(tmpPath, Comparator.comparingInt(NodeInner::getItem));
         path = tmpPath;
     }
@@ -74,7 +74,7 @@ public class TrieNode {
 
         if(pos>0)
             System.arraycopy(path, 0, tmpPath, 0, pos);
-        try {
+        /*try {
             System.out.println(new ObjectMapper().writeValueAsString(path));
             System.out.println(pos + 1);
             System.out.println(new ObjectMapper().writeValueAsString(tmpPath));
@@ -82,7 +82,7 @@ public class TrieNode {
             System.out.println(length - pos);
         }catch (Exception e){
             e.printStackTrace();
-        }
+        }*/
         if(pos+1<length)
             System.arraycopy(path, pos+1, tmpPath, pos, length-pos-1);
         try {
@@ -90,7 +90,7 @@ public class TrieNode {
         }catch (Exception e){
             e.printStackTrace();
         }
-        System.out.println("=============================================================");
+        //System.out.println("=============================================================");
         Arrays.sort(tmpPath, Comparator.comparingInt(NodeInner::getItem));
         path = tmpPath;
     }

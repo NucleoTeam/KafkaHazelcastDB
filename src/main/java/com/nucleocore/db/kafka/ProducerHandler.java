@@ -35,13 +35,15 @@ public class ProducerHandler implements Runnable {
     }
 
     public synchronized void save(Modify modify){
-        pendingSaves.add(modify);
+        synchronized(pendingSaves) {
+            pendingSaves.add(modify);
+        }
     }
 
     public Modify pop(){
-        if(pendingSaves.isEmpty())
-            return null;
-        return pendingSaves.remove();
+        synchronized(pendingSaves) {
+            return (pendingSaves.isEmpty()) ? null : pendingSaves.remove();
+        }
     }
     @Override
     public void run() {

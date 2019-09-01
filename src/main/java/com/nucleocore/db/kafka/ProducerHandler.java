@@ -64,7 +64,7 @@ public class ProducerHandler implements Runnable {
                 }
             }
             try {
-                Thread.sleep(0, 10);
+                Thread.sleep(0, 100);
             }catch (Exception e){
                 e.printStackTrace();
             }

@@ -40,7 +40,7 @@ public class ConsumerHandler implements Runnable {
                 this.database.setWriting(false);
 
                 try {
-                    Thread.sleep(0, 10);
+                    Thread.sleep(0, 100);
                 }catch (Exception e){
                     e.printStackTrace();
                 }
@@ -70,7 +70,7 @@ public class ConsumerHandler implements Runnable {
             }
             consumer.commitAsync();
             try {
-                Thread.sleep(0, 10);
+                Thread.sleep(0, 100);
             }catch (Exception e){
                 e.printStackTrace();
             }

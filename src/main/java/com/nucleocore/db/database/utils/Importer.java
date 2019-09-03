@@ -41,8 +41,10 @@ public class Importer {
     public int readIntoStream(String file, Table table, Class<?> clazz) {
         int i = 0;
         ICsvMapReader mapReader = null;
+        FileReader fr = null;
         try {
-            mapReader = new CsvMapReader(new FileReader(file), CsvPreference.STANDARD_PREFERENCE);
+            fr = new FileReader(file);
+            mapReader = new CsvMapReader(fr, CsvPreference.STANDARD_PREFERENCE);
 
             final String[] header = mapReader.getHeader(true);
             Map<String, Object> customerMap = null;
@@ -75,9 +77,10 @@ public class Importer {
                     }
 
                 }
+                customerMap.clear();
                 //System.out.println(new ObjectMapper().writeValueAsString(obj));
                 if(table!=null){
-                    table.save(null, (DataEntry) obj);
+                    table.multiImport((DataEntry) obj);
                 }
                 try {
                     customerMap = mapReader.read(header, this.processors);
@@ -95,7 +98,17 @@ public class Importer {
         } finally {
             if (mapReader != null) {
                 try {
+
                     mapReader.close();
+                    System.gc();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            if(fr !=null) {
+                try{
+                    fr.close();
+                    System.gc();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

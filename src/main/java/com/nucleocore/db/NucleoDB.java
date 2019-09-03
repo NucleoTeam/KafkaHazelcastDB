@@ -19,7 +19,7 @@ public class NucleoDB {
         db.launchTable(null, "test4");
         db.launchTable(null, "userDataTest");
         db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
-        db.getTable("userDataTest").addListener(Modification.CREATE, (d)->System.out.println("Created "+d.getClass().getName()));
+       // db.getTable("userDataTest").addListener(Modification.CREATE, (d)->System.out.println("Created "+d.getClass().getName()));
         new Thread(()->{
             ObjectMapper om = new ObjectMapper();
             Scanner sc = new Scanner(System.in);
@@ -150,18 +150,41 @@ public class NucleoDB {
                         System.out.println(System.currentTimeMillis()-time);
                         break;
                     case 12:
-                        int create = sc.nextInt();
-                        Random rand = new Random();
-                        System.out.println("Scaling to "+create);
-                        while(create>0) {
-                            db.getTable("test4").save(null, new Test(
-                                UUID.randomUUID().toString().substring(0, (int)Math.random()*27+4),
-                                UUID.randomUUID().toString().substring(0, (int)Math.random()*27+4),
-                                UUID.randomUUID().toString().substring(0, (int)Math.random()*27+4)
-                            ));
-                            create--;
+                        time = System.currentTimeMillis();
+                        System.out.println("READING IN DATA");
+                        db.getTable("test4").startImportThreads();
+                        int y = new Importer()
+                            .addMap("player_id", "playerId", new ParseLong()) // pass
+                            .addMap(new Optional()) // name
+                            .addMap(new Optional()) // id
+                            .readIntoStream("G:/players.csv", db.getTable("test4"), Player.class);
+                        //db.getTable("test4").stopImportThreads();
+                        System.out.println("Created "+y+" players.");
+                        System.out.println("time: "+(System.currentTimeMillis()-time));
+                        break;
+                    case 13:
+                        time = System.currentTimeMillis();
+                        String name = "firestarthe";
+                        System.out.println("searching for player "+name);
+                        try {
+                            System.out.println(om.writeValueAsString(db.getTable("test4").search("name", name)));
+                            //System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
+                        }catch (JsonProcessingException e){
+                            e.printStackTrace();
                         }
-                        System.out.println("finished scaling.");
+                        System.out.println("time: "+(System.currentTimeMillis()-time));
+                        break;
+                    case 14:
+                        time = System.currentTimeMillis();
+                        name = "darkshadow8891";
+                        System.out.println("searching for player "+name);
+                        try {
+                            System.out.println(om.writeValueAsString(db.getTable("test4").search("name", name)));
+                            //System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
+                        }catch (JsonProcessingException e){
+                            e.printStackTrace();
+                        }
+                        System.out.println("time: "+(System.currentTimeMillis()-time));
                         break;
                 }
             }

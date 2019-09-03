@@ -21,17 +21,21 @@ public class Table {
 
     private boolean writing = false;
 
-    private TreeMap<String, DataEntry> map;
-    private TreeMap<String, TreeMap<Object, List<String>>> index = new TreeMap<>();
-    private TreeMap<String, Consumer<DataEntry>> consumers = new TreeMap<>();
-    public TreeMap<String, Trie> trieIndex = new TreeMap<>();
+    private HashMap<String, DataEntry> map;
+    private HashMap<String, TreeMap<Object, List<String>>> index = new HashMap<>();
+    private HashMap<String, Consumer<DataEntry>> consumers = new HashMap<>();
+    public  HashMap<String, Trie> trieIndex = new HashMap<>();
 
-    private TreeMap<Modification, Set<Consumer<DataEntry>>> listeners = new TreeMap<>();
+    private HashMap<Modification, Set<Consumer<DataEntry>>> listeners = new HashMap<>();
 
     private ObjectMapper om = new ObjectMapper();
 
+    private int size = 0;
+
+    private Stack<DataEntry> importList = new Stack<>();
+
     public Table(String bootstrap, String table) {
-        map = new TreeMap<>();
+        map = new HashMap<>();
         if (bootstrap!=null){
             producer = new ProducerHandler(bootstrap, table);
             consumer = new ConsumerHandler(bootstrap, UUID.randomUUID().toString(), this, table);
@@ -39,7 +43,7 @@ public class Table {
         new Thread(()->{
             System.gc();
             try{
-                Thread.sleep(0, 100);
+                Thread.sleep(100, 0);
             }catch (Exception e){
                 e.printStackTrace();
             }
@@ -50,10 +54,10 @@ public class Table {
         return map;
     }
     public void flush(){
-        map = new TreeMap<>();
-        index = new TreeMap<>();
-        trieIndex = new TreeMap<>();
-        consumers = new TreeMap<>();
+        map = new HashMap<>();
+        index = new HashMap<>();
+        trieIndex = new HashMap<>();
+        consumers = new HashMap<>();
         System.gc();
     }
     private void addIndexEntries(DataEntry e, String restrictTo){
@@ -69,20 +73,28 @@ public class Table {
                 Object obj = f.get(e);
                 switch(indexType){
                     case TRIE:
-                        if (!trieIndex.containsKey(name))
-                            trieIndex.put(name, new Trie());
+                        synchronized (trieIndex) {
+                            if (!trieIndex.containsKey(name))
+                                trieIndex.put(name, new Trie());
+                        }
                         trieIndex.get(name).add(obj, e.getKey());
                         break;
                     case HASH:
-                        if (!index.containsKey(name))
-                            index.put(name, new TreeMap<>());
-
-                        TreeMap<Object, List<String>> map = index.get(name);
-                        if(!map.containsKey(obj)){
-                            map.put(obj, new ArrayList<>());
+                        synchronized (index) {
+                            if (!index.containsKey(name))
+                                index.put(name, new TreeMap<>());
+                        }
+                        TreeMap<Object, List<String>> map;
+                        synchronized (index.get(name)) {
+                            map = index.get(name);
+                            if (!map.containsKey(obj)) {
+                                map.put(obj, new ArrayList<>());
+                            }
                         }
                         //System.out.println("<C, "+name+"["+obj+"] size is now "+map.get(obj).size());
-                        map.get(obj).add(e.getKey());
+                        synchronized (map.get(obj)) {
+                            map.get(obj).add(e.getKey());
+                        }
                         //System.out.println(">C, "+name+"["+obj+"] size is now "+map.get(obj).size());
                         break;
                 }
@@ -103,26 +115,29 @@ public class Table {
                 Object obj = f.get(e);
                 switch(indexType) {
                     case TRIE:
-                        if(trieIndex.containsKey(name)){
-                            trieIndex.get(name).remove(obj, e.getKey());
+                        synchronized (trieIndex) {
+                            if (trieIndex.containsKey(name)) {
+                                trieIndex.get(name).remove(obj, e.getKey());
+                            }
                         }
                         break;
                     case HASH:
-                        if (index.containsKey(name)) {
-                            TreeMap<Object, List<String>> map = index.get(name);
-                            if(map.containsKey(obj)){
-                                //System.out.println("<D, "+name+"["+obj+"] size is now "+map.get(obj).size());
-                                Object[] rems = (Object[])map.get(obj).parallelStream().filter(i->i.equals(e.getKey())).toArray();
-                                for(Object rem : rems){
-                                    map.get(obj).remove(rem);
+                        synchronized (index) {
+                            if (index.containsKey(name)) {
+                                TreeMap<Object, List<String>> map = index.get(name);
+                                if (map.containsKey(obj)) {
+                                    //System.out.println("<D, "+name+"["+obj+"] size is now "+map.get(obj).size());
+                                    Object[] rems = (Object[]) map.get(obj).parallelStream().filter(i -> i.equals(e.getKey())).toArray();
+                                    for (Object rem : rems) {
+                                        map.get(obj).remove(rem);
+                                    }
+                                    //System.out.println(">D, "+name+"["+obj+"] size is now "+map.get(obj).size());
+                                    //System.out.println(">D, "+name+" total entries "+map.size());
+                                    if (map.get(obj).size() == 0) {
+                                        map.remove(obj);
+                                    }
+                                    //System.out.println(">D, "+name+" total entries "+map.size());
                                 }
-                                //System.out.println(">D, "+name+"["+obj+"] size is now "+map.get(obj).size());
-                                //System.out.println(">D, "+name+" total entries "+map.size());
-                                if(map.get(obj).size()==0){
-                                    map.remove(obj);
-                                    System.out.println("Removed "+obj);
-                                }
-                                //System.out.println(">D, "+name+" total entries "+map.size());
                             }
                         }
                         break;
@@ -135,17 +150,28 @@ public class Table {
     public <T> T search(String name, Object obj){
         try {
             if (trieIndex.containsKey(name)) {
-                return (T) trieIndex.get(name).search(obj);
-            }else if (index.containsKey(name)) {
-                TreeMap<Object, List<String>> mapX = index.get(name);
-                if (mapX.containsKey(obj)) {
+                synchronized (trieIndex) {
                     Set<DataEntry> tmpList = new HashSet<>();
-                    for(String key : mapX.get(obj)){
+                    List<String> listX = trieIndex.get(name).search(obj);
+                    for (String key : listX) {
                         DataEntry de = map.get(key);
-                        if(de!=null)
+                        if (de != null)
                             tmpList.add(de);
                     }
                     return (T) tmpList;
+                }
+            }else if (index.containsKey(name)) {
+                synchronized (index) {
+                    TreeMap<Object, List<String>> mapX = index.get(name);
+                    if (mapX.containsKey(obj)) {
+                        Set<DataEntry> tmpList = new HashSet<>();
+                        for (String key : mapX.get(obj)) {
+                            DataEntry de = map.get(key);
+                            if (de != null)
+                                tmpList.add(de);
+                        }
+                        return (T) tmpList;
+                    }
                 }
             }
         }catch (ClassCastException ex){
@@ -167,24 +193,27 @@ public class Table {
         try {
             for (Object obj : objs){
                 if (trieIndex.containsKey(name)) {
-                    List<String> tmpListKeys;
-                    if ((tmpListKeys = trieIndex.get(name).search(obj)) != null) {
-                        for(String key : tmpListKeys){
-                            DataEntry de = map.get(key);
-                            if(de!=null)
-                                tmp.add(de);
+                    synchronized (trieIndex) {
+                        List<String> tmpListKeys;
+                        if ((tmpListKeys = trieIndex.get(name).search(obj)) != null) {
+                            for (String key : tmpListKeys) {
+                                DataEntry de = map.get(key);
+                                if (de != null)
+                                    tmp.add(de);
+                            }
                         }
                     }
                 } else if (index.containsKey(name)) {
-                    TreeMap<Object, List<String>> mapX = index.get(name);
-
-                    if (mapX.containsKey(obj)) {
-                        List<String> tmpListKeys;
-                        if ((tmpListKeys = mapX.get(obj)) != null) {
-                            for(String key : tmpListKeys){
-                                DataEntry de = map.get(key);
-                                if(de!=null)
-                                    tmp.add(de);
+                    synchronized (index) {
+                        TreeMap<Object, List<String>> mapX = index.get(name);
+                        if (mapX.containsKey(obj)) {
+                            List<String> tmpListKeys;
+                            if ((tmpListKeys = mapX.get(obj)) != null) {
+                                for (String key : tmpListKeys) {
+                                    DataEntry de = map.get(key);
+                                    if (de != null)
+                                        tmp.add(de);
+                                }
                             }
                         }
                     }
@@ -205,16 +234,12 @@ public class Table {
     }
 
     public Stream<Map.Entry<String, DataEntry>> filterMap(Predicate<? super Map.Entry<String, DataEntry>> m){
-        if(writing){
-            return null;
+        synchronized (map) {
+            return map.entrySet().parallelStream().filter(m);
         }
-        return getMap().entrySet().parallelStream().filter(m);
     }
     public int size(){
-        if(writing){
-            return -1;
-        }
-        return getMap().size();
+        return size;
     }
 
 
@@ -295,7 +320,10 @@ public class Table {
                 //System.out.println("Create statement called");
                 if(c!=null){
                     try {
-                        getMap().put(c.getKey(), c.getValue());
+                        synchronized (map) {
+                            map.put(c.getKey(), c.getValue());
+                        }
+                        size++;
                         if(consumers.containsKey(c.getValue().getKey())){
                             consumers.remove(c.getValue().getKey()).accept(c.getValue());
                         }
@@ -311,6 +339,7 @@ public class Table {
                 //System.out.println("Delete statement called");
                 if(d!=null){
                     DataEntry de = getMap().remove(d.getKey());
+                    size--;
                     if(consumers.containsKey(de.getKey())){
                         consumers.remove(de.getKey()).accept(de);
                     }
@@ -365,6 +394,36 @@ public class Table {
                 }
             });
         }
+    }
+    public void multiImport(DataEntry newEntry){
+        synchronized (importList) {
+            importList.add(newEntry);
+        }
+    }
+    List<Thread> threads = new ArrayList<>();
+    public void startImportThreads(){
+        for(int i=0;i<25;i++) {
+            Thread t = new Thread(() -> {
+                while(!Thread.interrupted()){
+                    DataEntry de = null;
+                    synchronized (importList) {
+                        if(importList.size()>0)
+                            de = importList.pop();
+                    }
+                    if(de!=null){
+                        this.save(null, de);
+                    }
+                }
+            });
+            t.start();
+            threads.add(t);
+        }
+    }
+    public void stopImportThreads(){
+        while(threads.size()>0){
+            threads.remove(0).interrupt();
+        }
+        threads.clear();
     }
 
     public void addListener(Modification m, Consumer<DataEntry> method){

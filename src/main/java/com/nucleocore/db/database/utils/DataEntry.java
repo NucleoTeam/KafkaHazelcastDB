@@ -1,11 +1,15 @@
 package com.nucleocore.db.database.utils;
 
 import java.io.Serializable;
+import java.util.UUID;
 
 public abstract class DataEntry implements Serializable {
-    public String key = "";
+    private static int incrementId = 0;
+    public String key;
 
     public DataEntry() {
+        incrementId++;
+        this.key = ""+incrementId;
     }
 
     public DataEntry(String key) {

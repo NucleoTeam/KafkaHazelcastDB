@@ -2,6 +2,7 @@ package com.nucleocore.db.database.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -23,19 +24,19 @@ public class TrieNode {
         NodeInner[] tmpPath = new NodeInner[length+1];
         System.arraycopy(path, 0, tmpPath, 0, length);
         System.arraycopy(new NodeInner[]{new NodeInner(c, node)}, 0, tmpPath, length, 1);
-        /*try {
-            System.out.println(new ObjectMapper().writeValueAsString(tmpPath));
-        }catch (JsonProcessingException e){
-            e.printStackTrace();
-        }*/
         Arrays.sort(tmpPath, Comparator.comparingInt(NodeInner::getItem));
         path = tmpPath;
     }
-    public void add(String string, String de) {
+    public void add(String string, String key) {
         if (string.length() == 0) {
-            if (entries == null)
+            if (entries != null) {
+                entries = Lists.newArrayList();
+            } else {
                 entries = new ArrayList<>();
-            entries.add(de);
+            }
+            synchronized (entries) {
+                entries.add(key);
+            }
             return;
         }
         char s = string.charAt(0);
@@ -43,10 +44,14 @@ public class TrieNode {
         int nInt;
         if ((nInt = get(s)) > -1) {
             n = path[nInt].getNode();
-            n.add(string.substring(1), de);
+            synchronized (n) {
+                n.add(string.substring(1), key);
+            }
         }else{
             n = new TrieNode();
-            n.add(string.substring(1), de);
+            synchronized (n) {
+                n.add(string.substring(1), key);
+            }
             set(s, n);
         }
     }
@@ -94,15 +99,12 @@ public class TrieNode {
     public boolean remove(String left, String key){
         if(left.length()==0){
             if(entries!=null) {
-                Set<String> nodes = entries.parallelStream().filter(i -> i.equals(key)).collect(Collectors.toSet());
-                for (String nodeToDelete : nodes) {
-                    entries.remove(nodeToDelete);
-                }
-                if (entries.size() == 0){
-                    System.gc();
+                List<String> nodes = entries.parallelStream().filter(i ->!i.equals(key)).collect(Collectors.toList());
+                if (nodes.size() == 0){
+                    entries=null;
                     return true;
                 }
-
+                entries = nodes;
             }
             return false;
         }
@@ -114,7 +116,6 @@ public class TrieNode {
             if(n.remove(left.substring(1), key)){
                 if(n.path.length==0 && (entries==null || entries.size()==0)){
                     deleteFromArray(nInt);
-                    System.gc();
                     return true;
                 }
             }

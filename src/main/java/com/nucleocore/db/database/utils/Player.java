@@ -16,9 +16,9 @@ public class Player extends DataEntry {
     public String id;
 
     public Player(){
-
+        super();
     }
-    public Player(long playerId, String name, double reputation, String server, Timestamp since, String assocString, String id, Date updated) {
+    public Player(long playerId, String name,  String id) {
         super();
         this.playerId = playerId;
         this.name = name;

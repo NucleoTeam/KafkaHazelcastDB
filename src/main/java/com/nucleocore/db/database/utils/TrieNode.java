@@ -8,24 +8,16 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class TrieNode {
-    public NodeInner[] path = {};
+    public List<NodeInner> path = new ArrayList<>();
     public List<String> entries = null;
     int get(int c){
-        int i = Arrays.binarySearch(path, new NodeInner(c, null), Comparator.comparingInt(NodeInner::getItem));
+        int i = Collections.binarySearch(path, new NodeInner(c, null), Comparator.comparingInt(NodeInner::getItem));
         //System.out.println("search result: "+i);
         return i;
     }
     void set(int c, TrieNode node){
-        int length = path.length;
-        if(length==0){
-            path = new NodeInner[]{new NodeInner(c, node)};
-            return;
-        }
-        NodeInner[] tmpPath = new NodeInner[length+1];
-        System.arraycopy(path, 0, tmpPath, 0, length);
-        System.arraycopy(new NodeInner[]{new NodeInner(c, node)}, 0, tmpPath, length, 1);
-        Arrays.sort(tmpPath, Comparator.comparingInt(NodeInner::getItem));
-        path = tmpPath;
+        path.add(new NodeInner(c, node));
+        Collections.sort(path, Comparator.comparingInt(NodeInner::getItem));
     }
     public void add(String string, String key) {
         if (string.length() == 0) {
@@ -43,7 +35,7 @@ public class TrieNode {
         TrieNode n = null;
         int nInt;
         if ((nInt = get(s)) > -1) {
-            n = path[nInt].getNode();
+            n = path.get(nInt).getNode();
             synchronized (n) {
                 n.add(string.substring(1), key);
             }
@@ -63,38 +55,13 @@ public class TrieNode {
         int nInt;
         char s = left.charAt(0);
         if((nInt=get(s))>-1){
-            n = path[nInt].getNode();
+            n = path.get(nInt).getNode();
             return n.search(left.substring(1));
         }
         return null;
     }
     public void deleteFromArray(int pos){
-        int length = path.length;
-
-        NodeInner[] tmpPath = new NodeInner[length-1];
-
-        if(pos>0)
-            System.arraycopy(path, 0, tmpPath, 0, pos);
-        /*try {
-            System.out.println(new ObjectMapper().writeValueAsString(path));
-            System.out.println(pos + 1);
-            System.out.println(new ObjectMapper().writeValueAsString(tmpPath));
-            System.out.println(pos);
-            System.out.println(length - pos);
-        }catch (Exception e){
-            e.printStackTrace();
-        }*/
-        if(pos+1<length)
-            System.arraycopy(path, pos+1, tmpPath, pos, length-pos-1);
-        try {
-            System.out.println(new ObjectMapper().writeValueAsString(tmpPath));
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-        //System.out.println("=============================================================");
-        Arrays.sort(tmpPath, Comparator.comparingInt(NodeInner::getItem));
-
-        path = tmpPath;
+        path.remove(pos);
     }
     public boolean remove(String left, String key){
         if(left.length()==0){
@@ -112,9 +79,9 @@ public class TrieNode {
         TrieNode n;
         char s = left.charAt(0);
         if((nInt=get(s))>-1){
-            n = path[nInt].getNode();
+            n = path.get(nInt).getNode();
             if(n.remove(left.substring(1), key)){
-                if(n.path.length==0 && (entries==null || entries.size()==0)){
+                if(n.path.size()==0 && (entries==null || entries.size()==0)){
                     deleteFromArray(nInt);
                     return true;
                 }

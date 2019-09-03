@@ -21,7 +21,7 @@ public class Table {
 
     private boolean writing = false;
 
-    private HashMap<String, DataEntry> map;
+    private HashMap<String, DataEntry> map = new HashMap<>();
     private HashMap<String, TreeMap<Object, List<String>>> index = new HashMap<>();
     private HashMap<String, Consumer<DataEntry>> consumers = new HashMap<>();
     public  HashMap<String, Trie> trieIndex = new HashMap<>();
@@ -35,29 +35,21 @@ public class Table {
     private Stack<DataEntry> importList = new Stack<>();
 
     public Table(String bootstrap, String table) {
-        map = new HashMap<>();
         if (bootstrap!=null){
             producer = new ProducerHandler(bootstrap, table);
             consumer = new ConsumerHandler(bootstrap, UUID.randomUUID().toString(), this, table);
         }
-        new Thread(()->{
-            System.gc();
-            try{
-                Thread.sleep(100, 0);
-            }catch (Exception e){
-                e.printStackTrace();
-            }
-        }).start();
     }
 
     private Map<String, DataEntry> getMap() {
         return map;
     }
     public void flush(){
-        map = new HashMap<>();
-        index = new HashMap<>();
-        trieIndex = new HashMap<>();
-        consumers = new HashMap<>();
+        map = null;
+        index = null;
+        trieIndex = null;
+        consumers = null;
+        size=0;
         System.gc();
     }
     private void addIndexEntries(DataEntry e, String restrictTo){
@@ -153,10 +145,12 @@ public class Table {
                 synchronized (trieIndex) {
                     Set<DataEntry> tmpList = new HashSet<>();
                     List<String> listX = trieIndex.get(name).search(obj);
-                    for (String key : listX) {
-                        DataEntry de = map.get(key);
-                        if (de != null)
-                            tmpList.add(de);
+                    if(listX!=null) {
+                        for (String key : listX) {
+                            DataEntry de = map.get(key);
+                            if (de != null)
+                                tmpList.add(de);
+                        }
                     }
                     return (T) tmpList;
                 }

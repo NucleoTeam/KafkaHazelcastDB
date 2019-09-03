@@ -67,6 +67,7 @@ public class Importer {
                         try {
                             field = clazz.getField(key);
                         } catch (NoSuchFieldException e) {
+                            e.printStackTrace();
                         }
                     }
                     if (field != null) {

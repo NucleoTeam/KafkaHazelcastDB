@@ -20,9 +20,4 @@ public abstract class DataEntry implements Serializable {
         this.key = key;
     }
 
-    public DataEntry clone() throws
-        CloneNotSupportedException
-    {
-        return (DataEntry)super.clone();
-    }
 }

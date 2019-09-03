@@ -3,15 +3,12 @@ package com.nucleocore.db.database.utils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class TrieNode {
     public NodeInner[] path = {};
-    public Set<DataEntry> entries = null;
+    public List<String> entries = null;
     int get(int c){
         int i = Arrays.binarySearch(path, new NodeInner(c, null), Comparator.comparingInt(NodeInner::getItem));
         //System.out.println("search result: "+i);
@@ -26,7 +23,6 @@ public class TrieNode {
         NodeInner[] tmpPath = new NodeInner[length+1];
         System.arraycopy(path, 0, tmpPath, 0, length);
         System.arraycopy(new NodeInner[]{new NodeInner(c, node)}, 0, tmpPath, length, 1);
-
         /*try {
             System.out.println(new ObjectMapper().writeValueAsString(tmpPath));
         }catch (JsonProcessingException e){
@@ -35,10 +31,10 @@ public class TrieNode {
         Arrays.sort(tmpPath, Comparator.comparingInt(NodeInner::getItem));
         path = tmpPath;
     }
-    public void add(String string, DataEntry de) {
+    public void add(String string, String de) {
         if (string.length() == 0) {
             if (entries == null)
-                entries = new HashSet<>();
+                entries = new ArrayList<>();
             entries.add(de);
             return;
         }
@@ -54,7 +50,7 @@ public class TrieNode {
             set(s, n);
         }
     }
-    public Set<DataEntry> search(String left){
+    public List<String> search(String left){
         if(left.length()==0){
             return entries;
         }
@@ -92,17 +88,21 @@ public class TrieNode {
         }
         //System.out.println("=============================================================");
         Arrays.sort(tmpPath, Comparator.comparingInt(NodeInner::getItem));
+
         path = tmpPath;
     }
-    public boolean remove(String left, DataEntry de){
+    public boolean remove(String left, String key){
         if(left.length()==0){
             if(entries!=null) {
-                Set<DataEntry> nodes = entries.parallelStream().filter(i -> i.getKey().equals(de.getKey())).collect(Collectors.toSet());
-                for (DataEntry nodeToDelete : nodes) {
+                Set<String> nodes = entries.parallelStream().filter(i -> i.equals(key)).collect(Collectors.toSet());
+                for (String nodeToDelete : nodes) {
                     entries.remove(nodeToDelete);
                 }
-                if (entries.size() == 0)
+                if (entries.size() == 0){
+                    System.gc();
                     return true;
+                }
+
             }
             return false;
         }
@@ -111,9 +111,10 @@ public class TrieNode {
         char s = left.charAt(0);
         if((nInt=get(s))>-1){
             n = path[nInt].getNode();
-            if(n.remove(left.substring(1), de)){
+            if(n.remove(left.substring(1), key)){
                 if(n.path.length==0 && (entries==null || entries.size()==0)){
                     deleteFromArray(nInt);
+                    System.gc();
                     return true;
                 }
             }

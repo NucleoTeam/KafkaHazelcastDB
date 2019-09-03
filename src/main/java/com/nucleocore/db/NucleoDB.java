@@ -137,7 +137,7 @@ public class NucleoDB {
                             .addMap(new Optional()) // reports
                             .addMap(new Optional())
                             .addMap(new Optional())
-                            .readIntoStream("G:/users.csv", db.getTable("userDataTest"), User.class);
+                            .readIntoStream("G:/test.csv", db.getTable("userDataTest"), User.class);
                         System.out.println("Created "+x+" users.");
                         break;
                     case 11:
@@ -148,6 +148,20 @@ public class NucleoDB {
                             e.printStackTrace();
                         }
                         System.out.println(System.currentTimeMillis()-time);
+                        break;
+                    case 12:
+                        int create = sc.nextInt();
+                        Random rand = new Random();
+                        System.out.println("Scaling to "+create);
+                        while(create>0) {
+                            db.getTable("test4").save(null, new Test(
+                                UUID.randomUUID().toString().substring(0, (int)Math.random()*27+4),
+                                UUID.randomUUID().toString().substring(0, (int)Math.random()*27+4),
+                                UUID.randomUUID().toString().substring(0, (int)Math.random()*27+4)
+                            ));
+                            create--;
+                        }
+                        System.out.println("finished scaling.");
                         break;
                 }
             }

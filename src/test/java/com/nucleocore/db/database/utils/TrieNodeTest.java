@@ -24,10 +24,10 @@ public class TrieNodeTest {
         DataEntry de2 = new com.nucleocore.db.database.utils.Test(){{setKey("popcorn");}};
         DataEntry de3 = new com.nucleocore.db.database.utils.Test(){{setKey("corn");}};
         TrieNode node = new TrieNode();
-        node.add("test", de1);
-        node.add("tax", de2);
-        node.add("text", de3);
-        node.remove("tax", de2);
+        node.add("test", de1.getKey());
+        node.add("tax", de2.getKey());
+        node.add("text", de3.getKey());
+        node.remove("tax", de2.getKey());
         assertTrue(node.search("test").size()==1);
         assertTrue(node.path.length==1);
         assertTrue(node.path[0].node.path.length==1);
@@ -40,11 +40,11 @@ public class TrieNodeTest {
         DataEntry de3 = new com.nucleocore.db.database.utils.Test(){{setKey("corn");}};
         DataEntry de4 = new com.nucleocore.db.database.utils.Test(){{setKey("icy");}};
         TrieNode node = new TrieNode();
-        node.add("popcorn", de1);
-        node.add("poppy", de2);
-        node.add("pass", de3);
-        node.add("plank", de4);
-        node.remove("plank", de4);
+        node.add("popcorn", de1.getKey());
+        node.add("poppy", de2.getKey());
+        node.add("pass", de3.getKey());
+        node.add("plank", de4.getKey());
+        node.remove("plank", de4.getKey());
         try {
             System.out.println(new ObjectMapper().writeValueAsString(node));
         }catch (Exception e){

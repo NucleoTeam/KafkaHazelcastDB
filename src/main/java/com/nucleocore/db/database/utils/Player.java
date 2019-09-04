@@ -5,14 +5,14 @@ import java.sql.Timestamp;
 
 public class Player extends DataEntry {
 
-    @Index(IndexType.TRIE)
+    @Index()
     public long playerId; // legacy player id
 
-    @Index(IndexType.TRIE)
+    @Index()
     public String name;
 
 
-    @Index(IndexType.TRIE)
+    @Index()
     public String id;
 
     public Player(){

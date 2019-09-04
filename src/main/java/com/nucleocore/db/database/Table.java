@@ -63,6 +63,9 @@ public class Table {
             try {
                 String name = f.getName();
                 Object obj = f.get(e);
+                if(obj==null){
+                    continue;
+                }
                 switch(indexType){
                     case TRIE:
                         synchronized (trieIndex) {
@@ -72,21 +75,18 @@ public class Table {
                         trieIndex.get(name).add(obj, e.getKey());
                         break;
                     case HASH:
+                        TreeMap<Object, List<String>> map;
                         synchronized (index) {
                             if (!index.containsKey(name))
                                 index.put(name, new TreeMap<>());
-                        }
-                        TreeMap<Object, List<String>> map;
-                        synchronized (index.get(name)) {
                             map = index.get(name);
                             if (!map.containsKey(obj)) {
                                 map.put(obj, new ArrayList<>());
                             }
-                        }
-                        //System.out.println("<C, "+name+"["+obj+"] size is now "+map.get(obj).size());
-                        synchronized (map.get(obj)) {
                             map.get(obj).add(e.getKey());
                         }
+                        //System.out.println("<C, "+name+"["+obj+"] size is now "+map.get(obj).size());
+
                         //System.out.println(">C, "+name+"["+obj+"] size is now "+map.get(obj).size());
                         break;
                 }
@@ -284,8 +284,10 @@ public class Table {
                 updateEntry.setMasterClass(newEntry.getClass().getName());
                 for (Field f : newEntry.getClass().getDeclaredFields()) {
                     if (!cast(f.get(newEntry), f.get(oldEntry))) {
-                        updateEntry.getChange().put(f.getName(), f.get(newEntry));
-                        changed = true;
+                        if(f.get(newEntry)!=null) {
+                            updateEntry.getChange().put(f.getName(), f.get(newEntry));
+                            changed = true;
+                        }
                     }
                 }
                 if(changed) {

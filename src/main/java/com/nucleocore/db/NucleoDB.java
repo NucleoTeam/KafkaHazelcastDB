@@ -152,7 +152,6 @@ public class NucleoDB {
                     case 12:
                         time = System.currentTimeMillis();
                         System.out.println("READING IN DATA");
-                        //db.getTable("test4").startImportThreads();
                         db.getTable("test4").save(null, new Player(1,"firestarthe","piou4t3o78thgiudnsjkvn7824h"));
                         for(int y=2;y<5000002;y++){
                             db.getTable("test4").save(null, new Player(
@@ -161,13 +160,14 @@ public class NucleoDB {
                               UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)Math.random()*27+4)
                             ));
                         }
-                        /*int y = new Importer()
+                        /*db.getTable("test4").startImportThreads();
+                        int y = new Importer()
                             .addMap("player_id", "playerId", new ParseLong()) // pass
                             .addMap(new Optional()) // name
                             .addMap(new Optional()) // id
-                            .readIntoStream("G:/players.csv", db.getTable("test4"), Player.class);*/
+                            .readIntoStream("G:/players.csv", db.getTable("test4"), Player.class);
                         //db.getTable("test4").stopImportThreads();
-                        //System.out.println("Created "+y+" players.");
+                        System.out.println("Created "+y+" players.");*/
                         System.out.println("Exec Time: "+(System.currentTimeMillis()-time));
                         break;
                     case 13:

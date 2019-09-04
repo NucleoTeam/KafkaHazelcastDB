@@ -14,8 +14,8 @@ public class TrieNodeTest {
         node.add("tax", null);
         node.add("text", null);
         assertTrue(node.search("test").size()==1);
-        assertTrue(node.path.length==1);
-        assertTrue(node.path[0].node.path.length==2);
+        assertTrue(node.path.size()==1);
+        assertTrue(node.path.get(0).node.path.size()==2);
     }
 
     @Test
@@ -29,8 +29,8 @@ public class TrieNodeTest {
         node.add("text", de3.getKey());
         node.remove("tax", de2.getKey());
         assertTrue(node.search("test").size()==1);
-        assertTrue(node.path.length==1);
-        assertTrue(node.path[0].node.path.length==1);
+        assertTrue(node.path.size()==1);
+        assertTrue(node.path.get(0).node.path.size()==1);
     }
 
     @Test
@@ -51,8 +51,8 @@ public class TrieNodeTest {
             e.printStackTrace();
         }
         assertTrue(node.search("pass").size()==1);
-        assertTrue(node.path.length==1);
-        assertTrue(node.path[0].node.path.length==2);
+        assertTrue(node.path.size()==1);
+        assertTrue(node.path.get(0).node.path.size()==2);
     }
 
     @Test

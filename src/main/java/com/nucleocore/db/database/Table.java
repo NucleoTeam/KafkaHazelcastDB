@@ -197,6 +197,9 @@ public class Table {
           synchronized (setIndex) {
             Set<DataEntry> tmpList = new HashSet<>();
             Set<Integer> mapX = setIndex.search(name, (String) obj);
+            if(mapX==null){
+              return null;
+            }
             for (Integer key : mapX) {
               DataEntry de = map.get(key + "");
               if (de != null)

@@ -8,7 +8,7 @@ public class Player extends DataEntry {
     @Index()
     public long playerId; // legacy player id
 
-    @Index()
+    @Index(IndexType.SETFULLTEXT)
     public String name;
 
 

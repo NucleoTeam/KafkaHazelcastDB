@@ -2,7 +2,8 @@ package com.nucleocore.db.database.utils;
 
 public enum IndexType {
     HASH(1),
-    TRIE(2);
+    TRIE(2),
+    SETFULLTEXT(3);
 
     private final int type;
     IndexType(int type){

@@ -76,7 +76,7 @@ public class NucleoDB {
                         break;
                     case 6:
                         time = System.currentTimeMillis();
-                        Set<Test> dataIndex = db.getTable("test4").search("user", "Thot");
+                        Set<Test> dataIndex = db.getTable("test4").search("user", "Thot", Test.class);
                         if(dataIndex!=null){
                             System.out.println("returned: "+dataIndex.size());
                             dataIndex.parallelStream().forEach(t->System.out.println(t.getKey()));
@@ -91,7 +91,7 @@ public class NucleoDB {
                     case 8:
                         time = System.currentTimeMillis();
                         try {
-                            System.out.println(om.writeValueAsString(db.getTable("test4").search("user", "Thot")));
+                            System.out.println(om.writeValueAsString(db.getTable("test4").search("user", "Thot", Test.class)));
                             //System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
@@ -143,7 +143,7 @@ public class NucleoDB {
                     case 11:
                         time = System.currentTimeMillis();
                         try {
-                            System.out.println(om.writeValueAsString(db.getTable("userDataTest").search("user", "Firestar")));
+                            System.out.println(om.writeValueAsString(db.getTable("userDataTest").search("user", "Firestar", Player.class)));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
                         }
@@ -153,7 +153,7 @@ public class NucleoDB {
                         time = System.currentTimeMillis();
                         System.out.println("READING IN DATA");
                         db.getTable("test4").save(null, new Player(1,"firestarthe","piou4t3o78thgiudnsjkvn7824h"));
-                        for(int y=2;y<5000002;y++){
+                        for(int y=2;y<500002;y++){
                             db.getTable("test4").save(null, new Player(
                               y,
                               UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)Math.random()*27+4),
@@ -175,7 +175,7 @@ public class NucleoDB {
                         String name = "firestarthe";
                         System.out.println("searching for player "+name);
                         try {
-                            System.out.println(om.writeValueAsString(db.getTable("test4").search("name", name)));
+                            System.out.println(om.writeValueAsString(db.getTable("test4").search("name", name, Player.class)));
                             //System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
@@ -187,7 +187,7 @@ public class NucleoDB {
                         name = "darkshadow8891";
                         System.out.println("searching for player "+name);
                         try {
-                            System.out.println(om.writeValueAsString(db.getTable("test4").search("name", name)));
+                            System.out.println(om.writeValueAsString(db.getTable("test4").search("name", name, Player.class)));
                             //System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();

@@ -42,7 +42,7 @@ public class SetIndex {
         return null;
       }
       if (charFieldIndex.containsKey(position)) {
-        Optional<CharacterIndex> characterList = charFieldIndex.get(position).parallelStream().filter(y -> y.character == x).findFirst();
+        Optional<CharacterIndex> characterList = charFieldIndex.get(position).parallelStream().parallel().filter(y -> y.character == x).findFirst();
         if (characterList.isPresent()) {
           return characterList.get();
         }else{
@@ -60,9 +60,9 @@ public class SetIndex {
     }
     return null;
   }
-  public Set<Integer> search(String variable, String word){
+  public Set<Integer> search(String variable, String word, int startIndex){
     Set<Integer> entries = null;
-    int x = 0;
+    int x = startIndex;
     for(char c :word.toCharArray()){
       CharacterIndex ci = getCharacterIndex(variable, x, c, false);
       if(ci!=null){
@@ -86,5 +86,13 @@ public class SetIndex {
       }
       return false;
     }).collect(Collectors.toSet());
+  }
+  public void delete(String variable, String word, Integer id){
+    int x = 0;
+    for(char c :word.toCharArray()){
+      CharacterIndex ci = getCharacterIndex(variable, x, c, false);
+      ci.entries.remove(id);
+      x++;
+    }
   }
 }

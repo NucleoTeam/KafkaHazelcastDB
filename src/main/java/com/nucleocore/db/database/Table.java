@@ -14,6 +14,7 @@ import java.lang.reflect.Field;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Table {
@@ -97,7 +98,7 @@ public class Table {
             break;
           case SETFULLTEXT:
             synchronized (setIndex) {
-              setIndex.add(name, (String) obj, Integer.valueOf(e.getKey()));
+              setIndex.add(name, obj.toString(), Integer.valueOf(e.getKey()));
             }
             break;
         }
@@ -147,8 +148,7 @@ public class Table {
             break;
           case SETFULLTEXT:
             synchronized (setIndex) {
-
-              Set<Integer> map = setIndex.search(name, (String) obj);
+              setIndex.delete(name, obj.toString(), Integer.valueOf(e.key));
             }
             break;
         }
@@ -195,8 +195,9 @@ public class Table {
           break;
         case SETFULLTEXT:
           synchronized (setIndex) {
+            int len = obj.toString().length();
             Set<DataEntry> tmpList = new HashSet<>();
-            Set<Integer> mapX = setIndex.search(name, (String) obj);
+            Set<Integer> mapX = setIndex.search(name, obj.toString(), 0);
             if(mapX==null){
               return null;
             }
@@ -205,7 +206,12 @@ public class Table {
               if (de != null)
                 tmpList.add(de);
             }
-            return (Set<T>) tmpList;
+            return (Set<T>) tmpList.parallelStream().filter(x->{
+              try {
+                return cast(f.get(x), obj);
+              }catch (Exception c){}
+              return false;
+            }).collect(Collectors.toSet());
           }
       }
     } catch (Exception ex) {
@@ -222,9 +228,11 @@ public class Table {
     return null;
   }
 
-  public <T> Set<T> in(String name, Set<Object> objs) {
+  public <T> Set<T> in(String name, Set<Object> objs, Class clazz) {
     List<DataEntry> tmp = new ArrayList<>();
     try {
+      Field f = clazz.getDeclaredField(name);
+      IndexType indexType = ((Index)f.getAnnotation(Index.class)).value();
       for (Object obj : objs) {
         if (trieIndex.containsKey(name)) {
           synchronized (trieIndex) {
@@ -253,14 +261,14 @@ public class Table {
           }
         }
       }
-    } catch (ClassCastException ex) {
+    } catch (ClassCastException | NoSuchFieldException ex) {
       ex.printStackTrace();
     }
     return (Set<T>) tmp;
   }
 
-  public <T> T inOne(String name, Set<Object> obj) {
-    Set<T> tmp = in(name, obj);
+  public <T> T inOne(String name, Set<Object> obj, Class clazz) {
+    Set<T> tmp = in(name, obj, clazz);
     if (tmp != null && tmp.size() > 0) {
       return (T) tmp.toArray()[0];
     }

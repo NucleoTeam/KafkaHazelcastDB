@@ -153,7 +153,7 @@ public class NucleoDB {
                         time = System.currentTimeMillis();
                         System.out.println("READING IN DATA");
                         db.getTable("test4").save(null, new Player(1,"firestarthe","piou4t3o78thgiudnsjkvn7824h"));
-                        for(int y=2;y<500002;y++){
+                        for(int y=2;y<5000002;y++){
                             db.getTable("test4").save(null, new Player(
                               y,
                               UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)Math.random()*27+4),
@@ -172,7 +172,7 @@ public class NucleoDB {
                         break;
                     case 13:
                         time = System.currentTimeMillis();
-                        String name = "firestarthe";
+                        String name = "fir";
                         System.out.println("searching for player "+name);
                         try {
                             System.out.println(om.writeValueAsString(db.getTable("test4").search("name", name, Player.class)));

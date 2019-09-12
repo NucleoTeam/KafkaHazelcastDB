@@ -1,11 +1,9 @@
 package com.nucleocore.db.database.utils;
 
 import com.google.common.collect.Sets;
-import com.nucleocore.db.database.Table;
-
-import java.io.IOException;
+import com.google.common.collect.Maps;
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class SetIndex {
   public class CharacterIndex {
@@ -14,13 +12,12 @@ public class SetIndex {
     private Set<Integer> entries;
     public CharacterIndex(char id) {
       this.character = id;
-      this.entries = new LinkedHashSet<>();
+      this.entries = Sets.newTreeSet();
     }
   }
-  private Table table;
   private HashMap<String, TreeMap<Integer, List<CharacterIndex>>> characters = new HashMap<>();
-  public SetIndex(Table table) {
-    this.table = table;
+  public SetIndex() {
+
   }
   public void add(String field, String word, Integer id){
     int x = 0;
@@ -36,13 +33,15 @@ public class SetIndex {
       if (characters.containsKey(field)) {
         charFieldIndex = characters.get(field);
       } else if (create) {
-        characters.put(field, new TreeMap<>());
+        characters.put(field, Maps.newTreeMap());
         charFieldIndex = characters.get(field);
       } else {
         return null;
       }
       if (charFieldIndex.containsKey(position)) {
-        Optional<CharacterIndex> characterList = charFieldIndex.get(position).parallelStream().parallel().filter(y -> y.character == x).findFirst();
+        Stream<CharacterIndex> stream = charFieldIndex.get(position).stream();
+        Optional<CharacterIndex> characterList = stream.filter(y -> y.character == x).findFirst();
+        stream.close();
         if (characterList.isPresent()) {
           return characterList.get();
         }else{
@@ -76,23 +75,37 @@ public class SetIndex {
       }
       x++;
     }
-    return entries.parallelStream().filter(e->{
-      try {
-        if (table.getMap().containsKey("" + e)) {
-          DataEntry de = table.getMap().get("" + e);
-          return ((String) de.getClass().getField(variable).get(de)).contains(word);
+    return entries;
+  }
+  public void deleteCharIndex(String field, int position, char character){
+    synchronized (characters) {
+      TreeMap<Integer, List<CharacterIndex>> charFieldIndex = null;
+      if (characters.containsKey(field)) {
+        charFieldIndex = characters.get(field);
+        if (charFieldIndex.containsKey(position)) {
+          List<CharacterIndex> ci = charFieldIndex.get(position);
+          Stream<CharacterIndex> stream = ci.stream();
+          Optional<CharacterIndex> characterList = stream.filter(y -> y.character == character).findFirst();
+          stream.close();
+          if (characterList.isPresent()) {
+            ci.remove(characterList.get());
+            if(ci.size()==0){
+              charFieldIndex.remove(position);
+            }
+          }
         }
-      }catch (NoSuchFieldException | IllegalAccessException a){
       }
-      return false;
-    }).collect(Collectors.toSet());
+    }
   }
   public void delete(String variable, String word, Integer id){
-    int x = 0;
-    for(char c :word.toCharArray()){
-      CharacterIndex ci = getCharacterIndex(variable, x, c, false);
+    int position = 0;
+    for(char character :word.toCharArray()){
+      CharacterIndex ci = getCharacterIndex(variable, position, character, false);
       ci.entries.remove(id);
-      x++;
+      if(ci.entries.size()==0){
+        deleteCharIndex(variable, position, character);
+      }
+      position++;
     }
   }
 }

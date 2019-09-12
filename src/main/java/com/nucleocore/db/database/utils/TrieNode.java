@@ -1,11 +1,9 @@
 package com.nucleocore.db.database.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class TrieNode {
     public List<NodeInner> path = new ArrayList<>();
@@ -66,7 +64,9 @@ public class TrieNode {
     public boolean remove(String left, String key){
         if(left.length()==0){
             if(entries!=null) {
-                List<String> nodes = entries.parallelStream().filter(i ->!i.equals(key)).collect(Collectors.toList());
+                Stream<String> stream = entries.stream();
+                List<String> nodes = stream.filter(i ->!i.equals(key)).collect(Collectors.toList());
+                stream.close();
                 if (nodes.size() == 0){
                     entries=null;
                     return true;

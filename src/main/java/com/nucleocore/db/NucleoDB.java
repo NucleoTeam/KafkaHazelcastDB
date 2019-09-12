@@ -7,7 +7,6 @@ import com.nucleocore.db.database.Table;
 import org.supercsv.cellprocessor.*;
 import org.supercsv.cellprocessor.Optional;
 import org.supercsv.cellprocessor.constraint.NotNull;
-
 import java.io.IOException;
 import java.util.*;
 
@@ -18,9 +17,9 @@ public class NucleoDB {
         NucleoDB db = new NucleoDB();
         db.launchTable(null, "test4");
         db.launchTable(null, "userDataTest");
-        db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
+        //db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
        // db.getTable("userDataTest").addListener(Modification.CREATE, (d)->System.out.println("Created "+d.getClass().getName()));
-        new Thread(()->{
+
             ObjectMapper om = new ObjectMapper();
             Scanner sc = new Scanner(System.in);
             int i = 0;
@@ -79,7 +78,7 @@ public class NucleoDB {
                         Set<Test> dataIndex = db.getTable("test4").search("user", "Thot", Test.class);
                         if(dataIndex!=null){
                             System.out.println("returned: "+dataIndex.size());
-                            dataIndex.parallelStream().forEach(t->System.out.println(t.getKey()));
+                            dataIndex.stream().forEach(t->System.out.println(t.getKey()));
                         }
                         System.out.println(System.currentTimeMillis()-time);
                         break;
@@ -172,7 +171,7 @@ public class NucleoDB {
                         break;
                     case 13:
                         time = System.currentTimeMillis();
-                        String name = "fir";
+                        String name = "firestarthe";
                         System.out.println("searching for player "+name);
                         try {
                             System.out.println(om.writeValueAsString(db.getTable("test4").search("name", name, Player.class)));
@@ -196,7 +195,6 @@ public class NucleoDB {
                         break;
                 }
             }
-        }).start();
     }
     public Table getTable(String table){
         return tables.get(table);

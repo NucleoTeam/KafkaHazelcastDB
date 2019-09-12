@@ -7,8 +7,6 @@ import com.nucleocore.db.database.modifications.Update;
 import com.nucleocore.db.database.utils.*;
 import com.nucleocore.db.kafka.ConsumerHandler;
 import com.nucleocore.db.kafka.ProducerHandler;
-
-import javax.xml.crypto.Data;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
@@ -39,7 +37,7 @@ public class Table {
   private Stack<DataEntry> importList = new Stack<>();
 
   public Table(String bootstrap, String table) {
-    setIndex = new SetIndex(this);
+    setIndex = new SetIndex();
     if (bootstrap != null) {
       producer = new ProducerHandler(bootstrap, table);
       consumer = new ConsumerHandler(bootstrap, UUID.randomUUID().toString(), this, table);
@@ -51,11 +49,20 @@ public class Table {
   }
 
   public void flush() {
-    map = null;
-    index = null;
-    trieIndex = null;
-    consumers = null;
-    size = 0;
+    try {
+      synchronized (map) {
+        map.forEach((i, it) -> {
+          this.save(it, null);
+        });
+      }
+    }catch (Exception e){
+      //e.printStackTrace();
+    }
+    map = new HashMap<>();
+    index = new HashMap<>();
+    consumers = new HashMap<>();
+    trieIndex = new HashMap<>();
+    listeners = new HashMap<>();
     System.gc();
   }
 
@@ -132,7 +139,9 @@ public class Table {
                 TreeMap<Object, List<String>> map = index.get(name);
                 if (map.containsKey(obj)) {
                   //System.out.println("<D, "+name+"["+obj+"] size is now "+map.get(obj).size());
-                  Object[] rems = (Object[]) map.get(obj).parallelStream().filter(i -> i.equals(e.getKey())).toArray();
+                  Stream<String> stream = map.get(obj).stream();
+                  Object[] rems = (Object[]) stream.filter(i -> i.equals(e.getKey())).toArray();
+                  stream.close();
                   for (Object rem : rems) {
                     map.get(obj).remove(rem);
                   }
@@ -206,12 +215,15 @@ public class Table {
               if (de != null)
                 tmpList.add(de);
             }
-            return (Set<T>) tmpList.parallelStream().filter(x->{
+            Stream stream = tmpList.stream();
+            Set<T> data = (Set<T>) stream.filter(x->{
               try {
                 return cast(f.get(x), obj);
               }catch (Exception c){}
               return false;
             }).collect(Collectors.toSet());
+            stream.close();
+            return data;
           }
       }
     } catch (Exception ex) {
@@ -277,7 +289,7 @@ public class Table {
 
   public Stream<Map.Entry<String, DataEntry>> filterMap(Predicate<? super Map.Entry<String, DataEntry>> m) {
     synchronized (map) {
-      return map.entrySet().parallelStream().filter(m);
+      return map.entrySet().stream().filter(m);
     }
   }
 
@@ -385,7 +397,10 @@ public class Table {
         Delete d = (Delete) modification;
         //System.out.println("Delete statement called");
         if (d != null) {
-          DataEntry de = getMap().remove(d.getKey());
+          DataEntry de;
+          synchronized (map) {
+             de = map.remove(d.getKey());
+          }
           size--;
           if (consumers.containsKey(de.getKey())) {
             consumers.remove(de.getKey()).accept(de);

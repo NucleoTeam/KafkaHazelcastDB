@@ -51,7 +51,7 @@ public class Importer {
             try {
                 customerMap = mapReader.read(header, this.processors);
             }catch (SuperCsvCellProcessorException e){
-                e.printStackTrace();
+                //e.printStackTrace();
             }
             while (customerMap!=null) {
                 i++;
@@ -69,7 +69,7 @@ public class Importer {
                         try {
                             field = clazz.getField(key);
                         } catch (NoSuchFieldException e) {
-                            e.printStackTrace();
+                            //e.printStackTrace();
                         }
                     }
                     if (field != null) {
@@ -85,7 +85,7 @@ public class Importer {
                 try {
                     customerMap = mapReader.read(header, this.processors);
                 }catch (SuperCsvCellProcessorException e){
-                    e.printStackTrace();
+                    //e.printStackTrace();
                 }
             }
         } catch (IOException |
@@ -110,7 +110,7 @@ public class Importer {
                     fr.close();
                     System.gc();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    //e.printStackTrace();
                 }
             }
         }

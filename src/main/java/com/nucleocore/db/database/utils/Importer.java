@@ -1,7 +1,9 @@
 package com.nucleocore.db.database.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nucleocore.db.database.LargeDataTable;
 import com.nucleocore.db.database.Table;
+import com.nucleocore.db.database.TableTemplate;
 import org.supercsv.cellprocessor.ift.CellProcessor;
 import org.supercsv.exception.SuperCsvCellProcessorException;
 import org.supercsv.io.CsvMapReader;
@@ -38,7 +40,7 @@ public class Importer {
         return this;
     }
 
-    public int readIntoStream(String file, Table table, Class<?> clazz) {
+    public int readIntoStream(String file, TableTemplate table, Class<?> clazz) {
         int i = 0;
         ICsvMapReader mapReader = null;
         FileReader fr = null;

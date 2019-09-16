@@ -2,6 +2,8 @@ package com.nucleocore.db;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nucleocore.db.database.LargeDataTable;
+import com.nucleocore.db.database.TableTemplate;
 import com.nucleocore.db.database.utils.*;
 import com.nucleocore.db.database.Table;
 import org.supercsv.cellprocessor.*;
@@ -11,11 +13,11 @@ import java.io.IOException;
 import java.util.*;
 
 public class NucleoDB {
-    private TreeMap<String, Table> tables = new TreeMap<>();
+    private TreeMap<String, TableTemplate> tables = new TreeMap<>();
     static String latestSave = "";
     public static void main(String... args) {
         NucleoDB db = new NucleoDB();
-        db.launchTable(null, "test4");
+        db.launchLargeTable(null, "test4");
         db.launchTable(null, "userDataTest");
         //db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
        // db.getTable("userDataTest").addListener(Modification.CREATE, (d)->System.out.println("Created "+d.getClass().getName()));
@@ -35,7 +37,7 @@ public class NucleoDB {
                         break;
                     case 2:
                         time = System.currentTimeMillis();
-                        db.getTable("test4")
+                        ((Table)db.getTable("test4"))
                             .filterMap(x->{
                                 Test t = ((Test)x.getValue());
                                 return t.getUser().equals("Thot");
@@ -46,7 +48,7 @@ public class NucleoDB {
                         System.out.println(System.currentTimeMillis()-time);
                         break;
                     case 3:
-                        DataEntry de = db.getTable("test4").get(latestSave);
+                        DataEntry de = ((Table)db.getTable("test4")).get(latestSave);
                         try {
                             System.out.println(om.writeValueAsString(de));
                         }catch (IOException ex){
@@ -57,7 +59,7 @@ public class NucleoDB {
                     case 4:
                         try {
                             time = System.currentTimeMillis();
-                            Test data = db.getTable("test4").get(latestSave);
+                            Test data = ((Table)db.getTable("test4")).get(latestSave);
                             if(data!=null) {
                                 Test data2 = new Test(data);
                                 data2.setName(data2.getName() + ".");
@@ -71,7 +73,7 @@ public class NucleoDB {
                         }
                         break;
                     case 5:
-                        System.out.println(db.getTable("test4").size());
+                        System.out.println(((Table)db.getTable("test4")).size());
                         break;
                     case 6:
                         time = System.currentTimeMillis();
@@ -84,7 +86,7 @@ public class NucleoDB {
                         break;
                     case 7:
                         time = System.currentTimeMillis();
-                        db.getTable("test4").flush();
+                        ((Table)db.getTable("test4")).flush();
                         System.out.println(System.currentTimeMillis()-time);
                         break;
                     case 8:
@@ -100,7 +102,7 @@ public class NucleoDB {
                     case 9:
                         time = System.currentTimeMillis();
                         try {
-                            System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
+                            System.out.println(om.writeValueAsString(((Table)db.getTable("test4")).trieIndex));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
                         }
@@ -136,7 +138,7 @@ public class NucleoDB {
                             .addMap(new Optional()) // reports
                             .addMap(new Optional())
                             .addMap(new Optional())
-                            .readIntoStream("G:/test.csv", db.getTable("userDataTest"), User.class);
+                            .readIntoStream("G:/test.csv", (Table)db.getTable("userDataTest"), User.class);
                         System.out.println("Created "+x+" users.");
                         break;
                     case 11:
@@ -151,22 +153,25 @@ public class NucleoDB {
                     case 12:
                         time = System.currentTimeMillis();
                         System.out.println("READING IN DATA");
-                        db.getTable("test4").save(null, new Player(1,"firestarthe","piou4t3o78thgiudnsjkvn7824h"));
-                        for(int y=2;y<5000002;y++){
+                        /*db.getTable("test4").save(null, new Player(1,"firestarthe","piou4t3o78thgiudnsjkvn7824h"));
+                        for(int y=2;y<25;y++){
                             db.getTable("test4").save(null, new Player(
                               y,
-                              UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)Math.random()*27+4),
-                              UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)Math.random()*27+4)
+                              UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)(Math.random()*27)+4),
+                              UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)(Math.random()*27)+4)
                             ));
-                        }
-                        /*db.getTable("test4").startImportThreads();
+
+                        }*/
+                        db.getTable("test4").startImportThreads();
                         int y = new Importer()
                             .addMap("player_id", "playerId", new ParseLong()) // pass
                             .addMap(new Optional()) // name
                             .addMap(new Optional()) // id
                             .readIntoStream("G:/players.csv", db.getTable("test4"), Player.class);
+
                         //db.getTable("test4").stopImportThreads();
-                        System.out.println("Created "+y+" players.");*/
+                        db.getTable("test4").updateIndex(Player.class);
+                        //System.out.println("Created "+y+" players.");
                         System.out.println("Exec Time: "+(System.currentTimeMillis()-time));
                         break;
                     case 13:
@@ -196,11 +201,16 @@ public class NucleoDB {
                 }
             }
     }
-    public Table getTable(String table){
+    public TableTemplate getTable(String table){
         return tables.get(table);
     }
-    public Table launchTable(String bootstrap, String table){
+    public TableTemplate launchTable(String bootstrap, String table){
         Table t = new Table(bootstrap, table);
+        tables.put(table, t);
+        return t;
+    }
+    public TableTemplate launchLargeTable(String bootstrap, String table){
+        LargeDataTable t = new LargeDataTable(bootstrap, table);
         tables.put(table, t);
         return t;
     }

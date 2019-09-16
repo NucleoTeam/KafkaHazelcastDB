@@ -15,12 +15,10 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class Table {
+public class Table implements TableTemplate {
 
   private ProducerHandler producer = null;
   private ConsumerHandler consumer = null;
-
-  private boolean writing = false;
 
   private HashMap<String, DataEntry> map = new HashMap<>();
   private HashMap<String, TreeMap<Object, List<String>>> index = new HashMap<>();
@@ -465,6 +463,11 @@ public class Table {
     }
   }
 
+  @Override
+  public void updateIndex(Class clazz) {
+
+  }
+
   List<Thread> threads = new ArrayList<>();
 
   public void startImportThreads() {
@@ -498,13 +501,5 @@ public class Table {
       listeners.put(m, new HashSet<>());
     }
     listeners.get(m).add(method);
-  }
-
-  public boolean isWriting() {
-    return writing;
-  }
-
-  public void setWriting(boolean writing) {
-    this.writing = writing;
   }
 }

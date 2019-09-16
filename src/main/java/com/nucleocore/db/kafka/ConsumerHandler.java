@@ -2,6 +2,7 @@ package com.nucleocore.db.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.db.database.Table;
+import com.nucleocore.db.database.TableTemplate;
 import com.nucleocore.db.database.utils.Modification;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.serialization.*;
@@ -12,9 +13,9 @@ import java.util.*;
 public class ConsumerHandler implements Runnable {
     private Queue<String> entries = new LinkedList();
     private KafkaConsumer consumer;
-    private Table database;
+    private TableTemplate database;
 
-    public ConsumerHandler(String bootstrap, String groupName, Table database, String table) {
+    public ConsumerHandler(String bootstrap, String groupName, TableTemplate database, String table) {
         this.database = database;
         this.consumer = createConsumer(bootstrap, groupName);
         this.subscribe(table.split(","));
@@ -23,7 +24,6 @@ public class ConsumerHandler implements Runnable {
             do {
                 String entry;
 
-                this.database.setWriting(true);
 
                 while ((entry = pop())!=null) {
                     String type = entry.substring(0, 6);
@@ -37,8 +37,6 @@ public class ConsumerHandler implements Runnable {
                     }
                 }
 
-                this.database.setWriting(false);
-
                 try {
                     Thread.sleep(0, 100);
                 }catch (Exception e){
@@ -48,6 +46,7 @@ public class ConsumerHandler implements Runnable {
         }).start();
         new Thread(this).start();
     }
+
     public synchronized String pop(){
         if(entries.isEmpty())
             return null;
@@ -111,11 +110,11 @@ public class ConsumerHandler implements Runnable {
         this.entries = entries;
     }
 
-    public Table getDatabase() {
+    public TableTemplate getDatabase() {
         return database;
     }
 
-    public void setDatabase(Table database) {
+    public void setDatabase(TableTemplate database) {
         this.database = database;
     }
 }

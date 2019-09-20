@@ -16,4 +16,6 @@ public interface TableTemplate {
     void multiImport(DataEntry newEntry);
     void updateIndex(Class clazz);
     void startImportThreads();
+    void resetIndex(Class clazz);
+    void updateIndex(DataEntry de, Class clazz);
 }

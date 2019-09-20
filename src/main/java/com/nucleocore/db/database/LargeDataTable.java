@@ -78,14 +78,54 @@ public class LargeDataTable implements TableTemplate {
         }
     }
 
-    public void updateIndex(Class clazz){
+    public void updateIndex(DataEntry de, Class clazz){
         for (Field f: clazz.getDeclaredFields()) {
             String fieldName = f.getName();
-            System.out.println(fieldName+" sorting");
+            //System.out.println(fieldName+" sorting");
             if (!sortedIndex.containsKey(fieldName)) {
                 sortedIndex.put(fieldName, Lists.newArrayList());
                 sortedIndex.get(fieldName).addAll(entries);
             }
+            List<DataEntry> deList = sortedIndex.get(fieldName);
+            synchronized (deList) {
+                try {
+                    int end = deList.size();
+                    int pos = (int)Math.floor(end/2);
+                    int start=0;
+                    while(start<pos){
+                        int val = compare(f.get(de), f.get(deList.get(pos)));
+                        //System.out.println("direction: "+val+" start: "+start +" end: "+end+" pos:"+pos);
+                        if(val>0){
+                            start = pos;
+                            pos = start+(int)Math.floor((end-pos)/2);
+                        }else if(val<0){
+                            end = pos;
+                            pos = (int)Math.floor((pos-start)/2);
+                        }else if(val==0){
+                            break;
+                        }
+                    }
+
+                    //System.out.println(pos);
+                    deList.add(pos, de);
+                }catch (Exception e){
+
+                }
+            }
+        }
+    }
+
+
+
+    public void resetIndex(Class clazz){
+        for (Field f: clazz.getDeclaredFields()) {
+            String fieldName = f.getName();
+            //System.out.println(fieldName+" sorting");
+            if (sortedIndex.containsKey(fieldName)) {
+                sortedIndex.get(fieldName).clear();
+            }
+            sortedIndex.put(fieldName, Lists.newArrayList());
+            sortedIndex.get(fieldName).addAll(entries);
             Collections.sort(sortedIndex.get(fieldName), new SortByElement(f));
         }
     }
@@ -96,16 +136,16 @@ public class LargeDataTable implements TableTemplate {
             Field f = clazz.getField(name);
             if (sortedIndex.containsKey(name)) {
                 List<DataEntry> deList = sortedIndex.get(name);
-                System.out.println(new ObjectMapper().writeValueAsString(deList));
+                //System.out.println(new ObjectMapper().writeValueAsString(deList));
                 int end = deList.size();
                 int pos = (int)Math.floor(end/2);
                 int start=0;
                 Set<DataEntry> set = Sets.newHashSet();
                 while(start<pos){
                     int val = compare(obj, f.get(deList.get(pos)));
-                    System.out.println("direction: "+val+" start: "+start +" end: "+end+" pos:"+pos);
-                    System.out.println(f.get(deList.get(pos)));
-                    System.out.println(obj);
+                    //System.out.println("direction: "+val+" start: "+start +" end: "+end+" pos:"+pos);
+                    //System.out.println(f.get(deList.get(pos)));
+                    //System.out.println(obj);
                     if(val>0){
                         start = pos;
                         pos = start+(int)Math.floor((end-pos)/2);
@@ -245,6 +285,7 @@ public class LargeDataTable implements TableTemplate {
                     try {
                         synchronized (entries) {
                             entries.add(c.getValue());
+                            //updateIndex(c.getValue(), c.getValue().getClass());
                         }
                         size++;
                         if (consumers.containsKey(c.getValue().getKey())) {
@@ -261,15 +302,15 @@ public class LargeDataTable implements TableTemplate {
                 //System.out.println("Delete statement called");
                 if (d != null) {
                     synchronized (entries) {
-                        Optional<DataEntry> entry = entries.stream().filter(x->x.getKey().equals(d.getKey())).findFirst();
-                        entries.removeIf(x->x.getKey().equals(d.getKey()));
-                        size--;
-                        if(entry.isPresent()) {
-                            DataEntry de = entry.get();
-                            if (consumers.containsKey(d.getKey())) {
-                                consumers.remove(d.getKey()).accept(de);
+                        Set<DataEntry> results = search("key", d.getKey(), DataEntry.class);
+                        if(results!=null) {
+                            for(DataEntry de : results) {
+                                entries.remove(de);
+                                size--;
+                                for(Map.Entry<String, List<DataEntry>> entry : sortedIndex.entrySet()){
+                                    entry.getValue().remove(de);
+                                }
                             }
-                            fireListeners(Modification.DELETE, de);
                         }
                     }
                 }
@@ -320,6 +361,11 @@ public class LargeDataTable implements TableTemplate {
         synchronized (importList) {
             this.save(null, newEntry);
         }
+    }
+
+    @Override
+    public void updateIndex(Class clazz) {
+        resetIndex(clazz);
     }
 
     List<Thread> threads = new ArrayList<>();

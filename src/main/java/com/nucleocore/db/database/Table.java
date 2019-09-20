@@ -489,6 +489,16 @@ public class Table implements TableTemplate {
     }
   }
 
+  @Override
+  public void resetIndex(Class clazz) {
+
+  }
+
+  @Override
+  public void updateIndex(DataEntry de, Class clazz) {
+
+  }
+
   public void stopImportThreads() {
     while (threads.size() > 0) {
       threads.remove(0).interrupt();

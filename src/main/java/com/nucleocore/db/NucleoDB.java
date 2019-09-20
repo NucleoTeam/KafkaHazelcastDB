@@ -153,24 +153,23 @@ public class NucleoDB {
                     case 12:
                         time = System.currentTimeMillis();
                         System.out.println("READING IN DATA");
-                        /*db.getTable("test4").save(null, new Player(1,"firestarthe","piou4t3o78thgiudnsjkvn7824h"));
-                        for(int y=2;y<25;y++){
+                        db.getTable("test4").save(null, new Player(1,"firestarthe","piou4t3o78thgiudnsjkvn7824h"));
+                        for(int y=2;y<10000000;y++){
                             db.getTable("test4").save(null, new Player(
                               y,
                               UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)(Math.random()*27)+4),
                               UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)(Math.random()*27)+4)
                             ));
 
-                        }*/
+                        }/*
                         db.getTable("test4").startImportThreads();
                         int y = new Importer()
                             .addMap("player_id", "playerId", new ParseLong()) // pass
                             .addMap(new Optional()) // name
                             .addMap(new Optional()) // id
                             .readIntoStream("G:/players.csv", db.getTable("test4"), Player.class);
-
+*/
                         //db.getTable("test4").stopImportThreads();
-                        db.getTable("test4").updateIndex(Player.class);
                         //System.out.println("Created "+y+" players.");
                         System.out.println("Exec Time: "+(System.currentTimeMillis()-time));
                         break;

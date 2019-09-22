@@ -80,6 +80,21 @@ public class LargeDataTable implements TableTemplate {
         }
     }
 
+    public <T> List<T> in(String name, Set<Object> objs, Class clazz) {
+        List<DataEntry> tmp = Lists.newArrayList();
+        try {
+            for(Object obj : objs){
+                DataEntry de = searchOne(name, obj, clazz);
+                if(de!=null){
+                    tmp.add(de);
+                }
+            }
+        } catch (ClassCastException ex) {
+            ex.printStackTrace();
+        }
+        return (List<T>) tmp;
+    }
+
     public void updateIndex(DataEntry de, Class clazz) {
         for (Field f : clazz.getDeclaredFields()) {
             String fieldName = f.getName();
@@ -148,8 +163,12 @@ public class LargeDataTable implements TableTemplate {
         }
     }
 
+    @Override
+    public <T> List<T> search(String name, Object obj, Class clazz) {
+        return (List<T>) Lists.newArrayList(searchOne(name, obj, clazz));
+    }
 
-    public Set<DataEntry> search(String name, Object obj, Class clazz) {
+    public DataEntry searchOne(String name, Object obj, Class clazz) {
         try {
             Field f = clazz.getField(name);
             if (sortedIndex.containsKey(name)) {
@@ -171,13 +190,12 @@ public class LargeDataTable implements TableTemplate {
                         end = pos;
                         pos = (int) Math.floor((start + end) / 2);
                     } else if (val == 0) {
-                        set.add(deList.get(pos));
-                        break;
+                        return deList.get(pos);
                     }
                 }
-                return set;
+                return null;
             }
-            return entries.parallelStream().filter(i -> {
+            Optional<DataEntry> entry = entries.parallelStream().filter(i -> {
                 try {
                     return cast(f.get(i), obj);
                 } catch (Exception e) {
@@ -186,13 +204,16 @@ public class LargeDataTable implements TableTemplate {
                     System.exit(-1);
                 }
                 return false;
-            }).collect(Collectors.toSet());
+            }).findFirst();
+            if(entry.isPresent()){
+                return entry.get();
+            }
         } catch (Exception e) {
             e.printStackTrace();
             System.out.println("ERRR 4");
             System.exit(-1);
-            return null;
         }
+        return null;
     }
 
     public int size() {
@@ -336,14 +357,12 @@ public class LargeDataTable implements TableTemplate {
                 //System.out.println("Delete statement called");
                 if (d != null) {
                     synchronized (entries) {
-                        Set<DataEntry> results = search("key", d.getKey(), DataEntry.class);
-                        if (results != null) {
-                            for (DataEntry de : results) {
-                                entries.remove(de);
-                                size--;
-                                for (Map.Entry<String, List<DataEntry>> entry : sortedIndex.entrySet()) {
-                                    entry.getValue().remove(de);
-                                }
+                        DataEntry de = searchOne("key", d.getKey(), DataEntry.class);
+                        if (de != null) {
+                            entries.remove(de);
+                            size--;
+                            for (Map.Entry<String, List<DataEntry>> entry : sortedIndex.entrySet()) {
+                                entry.getValue().remove(de);
                             }
                         }
                     }
@@ -356,15 +375,14 @@ public class LargeDataTable implements TableTemplate {
                 if (u != null) {
                     try {
                         Class clazz = Class.forName(u.getMasterClass());
-                        Optional<DataEntry> obj = entries.stream().filter(x -> x.getKey().equals(u.getKey())).findFirst();
-                        if (obj.isPresent()) {
-                            DataEntry de = obj.get();
+                        DataEntry de = searchOne("key", u.getKey(), DataEntry.class);
+                        if (de!=null) {
                             if (consumers.containsKey(de.getKey())) {
                                 consumers.remove(de.getKey()).accept(de);
                             }
                             u.getChange().forEach((String key, Object val) -> {
                                 try {
-                                    clazz.getDeclaredField(key).set(obj, val);
+                                    clazz.getDeclaredField(key).set(de, val);
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                 }

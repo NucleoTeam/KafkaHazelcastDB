@@ -1,6 +1,7 @@
 package com.nucleocore.db.database;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import com.nucleocore.db.database.modifications.Create;
 import com.nucleocore.db.database.modifications.Delete;
 import com.nucleocore.db.database.modifications.Update;
@@ -165,14 +166,14 @@ public class DataTable implements TableTemplate {
     }
   }
 
-  public <T> Set<T> search(String name, Object obj, Class clazz) {
+  public <T> List<T> search(String name, Object obj, Class clazz) {
     try {
       Field f = clazz.getDeclaredField(name);
       IndexType indexType = ((Index)f.getAnnotation(Index.class)).value();
       switch (indexType) {
         case TRIE:
           synchronized (trieIndex) {
-            Set<DataEntry> tmpList = new HashSet<>();
+            List<DataEntry> tmpList = Lists.newArrayList();
             List<String> listX = trieIndex.get(name).search(obj);
             if (listX != null) {
               for (String key : listX) {
@@ -181,7 +182,7 @@ public class DataTable implements TableTemplate {
                   tmpList.add(de);
               }
             }
-            return (Set<T>) tmpList;
+            return (List<T>) tmpList;
           }
         case HASH:
           synchronized (index) {
@@ -196,7 +197,7 @@ public class DataTable implements TableTemplate {
                 if (de != null)
                   tmpList.add(de);
               }
-              return (Set<T>) tmpList;
+              return (List<T>) tmpList;
             }
           }
           break;
@@ -214,12 +215,12 @@ public class DataTable implements TableTemplate {
                 tmpList.add(de);
             }
             Stream stream = tmpList.stream();
-            Set<T> data = (Set<T>) stream.filter(x->{
+            List<T> data = (List<T>) stream.filter(x->{
               try {
                 return cast(f.get(x), obj);
               }catch (Exception c){}
               return false;
-            }).collect(Collectors.toSet());
+            }).collect(Collectors.toList());
             stream.close();
             return data;
           }
@@ -231,15 +232,15 @@ public class DataTable implements TableTemplate {
   }
 
   public DataEntry searchOne(String name, Object obj, Class clazz) {
-    Set<DataEntry> tmp = search(name, obj, clazz);
+    List<DataEntry> tmp = search(name, obj, clazz);
     if (tmp != null && tmp.size() > 0) {
       return (DataEntry) tmp.toArray()[0];
     }
     return null;
   }
 
-  public <T> Set<T> in(String name, Set<Object> objs, Class clazz) {
-    List<DataEntry> tmp = new ArrayList<>();
+  public <T> List<T> in(String name, Set<Object> objs, Class clazz) {
+    List<DataEntry> tmp = Lists.newArrayList();
     try {
       Field f = clazz.getDeclaredField(name);
       IndexType indexType = ((Index)f.getAnnotation(Index.class)).value();
@@ -274,11 +275,11 @@ public class DataTable implements TableTemplate {
     } catch (ClassCastException | NoSuchFieldException ex) {
       ex.printStackTrace();
     }
-    return (Set<T>) tmp;
+    return (List<T>) tmp;
   }
 
   public <T> T inOne(String name, Set<Object> obj, Class clazz) {
-    Set<T> tmp = in(name, obj, clazz);
+    List<T> tmp = in(name, obj, clazz);
     if (tmp != null && tmp.size() > 0) {
       return (T) tmp.toArray()[0];
     }
@@ -542,4 +543,5 @@ public class DataTable implements TableTemplate {
   public void setUnsavedIndexModifications(boolean unsavedIndexModifications) {
 
   }
+
 }

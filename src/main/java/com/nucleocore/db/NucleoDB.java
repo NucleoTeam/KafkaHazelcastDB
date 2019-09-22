@@ -93,7 +93,7 @@ public class NucleoDB {
                         time = System.currentTimeMillis();
                         try {
                             System.out.println(om.writeValueAsString(db.getTable("test4").search("user", "Thot", Test.class)));
-                            //System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
+                            //System.out.println(om.writeValueAsString(((LargeDataTable)db.getTable("test4")).entries));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
                         }
@@ -153,22 +153,22 @@ public class NucleoDB {
                     case 12:
                         time = System.currentTimeMillis();
                         System.out.println("READING IN DATA");
-                        db.getTable("test4").save(null, new Player(1,"firestarthe","piou4t3o78thgiudnsjkvn7824h"));
-                        for(int y=2;y<10000000;y++){
+                        /*db.getTable("test4").save(null, new Player(1,"firestarthe","piou4t3o78thgiudnsjkvn7824h"));
+                        for(int y=2;y<10;y++){
                             db.getTable("test4").save(null, new Player(
                               y,
                               UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)(Math.random()*27)+4),
                               UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)(Math.random()*27)+4)
                             ));
+                        }*/
 
-                        }/*
                         db.getTable("test4").startImportThreads();
                         int y = new Importer()
                             .addMap("player_id", "playerId", new ParseLong()) // pass
                             .addMap(new Optional()) // name
                             .addMap(new Optional()) // id
                             .readIntoStream("G:/players.csv", db.getTable("test4"), Player.class);
-*/
+
                         //db.getTable("test4").stopImportThreads();
                         //System.out.println("Created "+y+" players.");
                         System.out.println("Exec Time: "+(System.currentTimeMillis()-time));
@@ -179,7 +179,7 @@ public class NucleoDB {
                         System.out.println("searching for player "+name);
                         try {
                             System.out.println(om.writeValueAsString(db.getTable("test4").search("name", name, Player.class)));
-                            //System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
+                            //System.out.println(om.writeValueAsString(((LargeDataTable)db.getTable("test4")).sortedIndex));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
                         }

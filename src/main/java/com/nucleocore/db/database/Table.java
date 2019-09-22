@@ -31,7 +31,7 @@ public class Table implements TableTemplate {
   private ObjectMapper om = new ObjectMapper();
 
   private int size = 0;
-
+  private boolean buildIndex = false;
   private Stack<DataEntry> importList = new Stack<>();
 
   public Table(String bootstrap, String table) {
@@ -511,5 +511,20 @@ public class Table implements TableTemplate {
       listeners.put(m, new HashSet<>());
     }
     listeners.get(m).add(method);
+  }
+
+  public int getSize() {
+    return size;
+  }
+
+  public void setSize(int size) {
+    this.size = size;
+  }
+  public boolean isBuildIndex() {
+    return buildIndex;
+  }
+
+  public void setBuildIndex(boolean buildIndex) {
+    this.buildIndex = buildIndex;
   }
 }

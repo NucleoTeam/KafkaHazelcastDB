@@ -55,6 +55,7 @@ public class Importer {
             }catch (SuperCsvCellProcessorException e){
                 //e.printStackTrace();
             }
+            table.setBuildIndex(true);
             while (customerMap!=null) {
                 i++;
                 Object obj = clazz.getDeclaredConstructor().newInstance();
@@ -82,6 +83,7 @@ public class Importer {
                 customerMap.clear();
                 //System.out.println(new ObjectMapper().writeValueAsString(obj));
                 if(table!=null){
+
                     table.multiImport((DataEntry) obj);
                 }
                 try {
@@ -90,6 +92,9 @@ public class Importer {
                     //e.printStackTrace();
                 }
             }
+            table.setBuildIndex(false);
+            table.resetIndex(clazz);
+            System.out.println("Finished import: "+table.getSize());
         } catch (IOException |
             NoSuchMethodException |
             IllegalAccessException |

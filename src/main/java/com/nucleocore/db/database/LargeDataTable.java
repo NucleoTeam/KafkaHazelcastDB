@@ -36,6 +36,7 @@ public class LargeDataTable implements TableTemplate {
     private ObjectMapper om = new ObjectMapper();
 
     private int size = 0;
+    private boolean buildIndex = true;
 
     private Stack<DataEntry> importList = new Stack<>();
 
@@ -51,7 +52,7 @@ public class LargeDataTable implements TableTemplate {
             synchronized (entries) {
                 entries.clear();
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             //e.printStackTrace();
         }
         consumers = new HashMap<>();
@@ -59,66 +60,66 @@ public class LargeDataTable implements TableTemplate {
         System.gc();
     }
 
-    class SortByElement implements Comparator<Object>
-    {
+    class SortByElement implements Comparator<Object> {
         Field f;
-        public SortByElement(Field f){
+
+        public SortByElement(Field f) {
             this.f = f;
         }
+
         // Used for sorting in ascending order of
         // roll name
-        public int compare(Object a, Object b)
-        {
+        public int compare(Object a, Object b) {
             try {
                 return LargeDataTable.this.compare(f.get(a), f.get(b));
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
             }
             return 0;
         }
     }
 
-    public void updateIndex(DataEntry de, Class clazz){
-        for (Field f: clazz.getDeclaredFields()) {
+    public void updateIndex(DataEntry de, Class clazz) {
+        for (Field f : clazz.getDeclaredFields()) {
             String fieldName = f.getName();
             //System.out.println(fieldName+" sorting");
             if (!sortedIndex.containsKey(fieldName)) {
                 sortedIndex.put(fieldName, Lists.newArrayList());
-                sortedIndex.get(fieldName).addAll(entries);
             }
-            List<DataEntry> deList = sortedIndex.get(fieldName);
-            synchronized (deList) {
-                try {
-                    int end = deList.size();
-                    int pos = (int)Math.floor(end/2);
-                    int start=0;
-                    while(start<pos){
-                        int val = compare(f.get(de), f.get(deList.get(pos)));
-                        //System.out.println("direction: "+val+" start: "+start +" end: "+end+" pos:"+pos);
-                        if(val>0){
-                            start = pos;
-                            pos = start+(int)Math.floor((end-pos)/2);
-                        }else if(val<0){
-                            end = pos;
-                            pos = (int)Math.floor((pos-start)/2);
-                        }else if(val==0){
-                            break;
+            if (f.isAnnotationPresent(Index.class)) {
+                List<DataEntry> deList = sortedIndex.get(fieldName);
+                synchronized (deList) {
+                    try {
+                        int end = deList.size();
+                        int pos = (int) Math.floor(end / 2);
+                        int start = 0;
+                        while (start < pos) {
+                            int val = compare(f.get(de), f.get(deList.get(pos)));
+                            //System.out.println("direction: "+val+" start: "+start +" end: "+end+" pos:"+pos);
+                            if (val > 0) {
+                                start = pos;
+                                pos = (int) Math.floor((end + pos) / 2);
+                            } else if (val < 0) {
+                                end = pos;
+                                pos = (int) Math.floor((start + end) / 2);
+                            } else if (val == 0) {
+                                break;
+                            }
                         }
+                        //System.out.println("val: "+f.get(de));
+                        //System.out.println(pos);
+                        deList.add(pos, de);
+                    } catch (Exception e) {
+
                     }
-
-                    //System.out.println(pos);
-                    deList.add(pos, de);
-                }catch (Exception e){
-
                 }
             }
         }
     }
 
 
-
-    public void resetIndex(Class clazz){
-        for (Field f: clazz.getDeclaredFields()) {
+    public synchronized void resetIndex(Class clazz) {
+        for (Field f : clazz.getDeclaredFields()) {
             String fieldName = f.getName();
             //System.out.println(fieldName+" sorting");
             if (sortedIndex.containsKey(fieldName)) {
@@ -126,7 +127,14 @@ public class LargeDataTable implements TableTemplate {
             }
             sortedIndex.put(fieldName, Lists.newArrayList());
             sortedIndex.get(fieldName).addAll(entries);
-            Collections.sort(sortedIndex.get(fieldName), new SortByElement(f));
+
+            try {
+                Collections.sort(sortedIndex.get(fieldName), new SortByElement(f));
+                System.out.println("Sorted for field "+fieldName);
+            }catch (Exception x){
+                System.out.println("Failed for field "+fieldName);
+                x.printStackTrace();
+            }
         }
     }
 
@@ -138,21 +146,21 @@ public class LargeDataTable implements TableTemplate {
                 List<DataEntry> deList = sortedIndex.get(name);
                 //System.out.println(new ObjectMapper().writeValueAsString(deList));
                 int end = deList.size();
-                int pos = (int)Math.floor(end/2);
-                int start=0;
+                int pos = (int) Math.floor(end / 2);
+                int start = 0;
                 Set<DataEntry> set = Sets.newHashSet();
-                while(start<pos){
+                while (start < pos) {
                     int val = compare(obj, f.get(deList.get(pos)));
                     //System.out.println("direction: "+val+" start: "+start +" end: "+end+" pos:"+pos);
                     //System.out.println(f.get(deList.get(pos)));
                     //System.out.println(obj);
-                    if(val>0){
+                    if (val > 0) {
                         start = pos;
-                        pos = start+(int)Math.floor((end-pos)/2);
-                    }else if(val<0){
+                        pos = (int) Math.floor((end + pos) / 2);
+                    } else if (val < 0) {
                         end = pos;
-                        pos = (int)Math.floor((pos-start)/2);
-                    }else if(val==0){
+                        pos = (int) Math.floor((start + end) / 2);
+                    } else if (val == 0) {
                         set.add(deList.get(pos));
                         break;
                     }
@@ -161,7 +169,7 @@ public class LargeDataTable implements TableTemplate {
             }
             return entries.parallelStream().filter(i -> {
                 try {
-                    return cast(f.get(i),obj);
+                    return cast(f.get(i), obj);
                 } catch (Exception e) {
                     e.printStackTrace();
                     System.out.println("ERRR 3");
@@ -169,7 +177,7 @@ public class LargeDataTable implements TableTemplate {
                 }
                 return false;
             }).collect(Collectors.toSet());
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             System.out.println("ERRR 4");
             System.exit(-1);
@@ -194,20 +202,27 @@ public class LargeDataTable implements TableTemplate {
         }
         return false;
     }
+
     public <T> int compare(T a, T b) {
         try {
-            if(a==null || b==null)
+            if (a == null)
                 return -1;
+            if (b == null)
+                return 1;
             if (a.getClass() == String.class && b.getClass() == String.class) {
                 return ((String) a).compareTo((String) b);
             } else if (a.getClass() == int.class && b.getClass() == int.class) {
                 return Integer.valueOf((int) a).compareTo(Integer.valueOf((int) b));
             } else if (a.getClass() == long.class && b.getClass() == long.class) {
                 return Long.valueOf((long) a).compareTo(Long.valueOf((long) b));
+            } else if (a.getClass() == Long.class && b.getClass() == Long.class) {
+                return ((Long) a).compareTo((Long) b);
+            } else if (a.getClass() == Integer.class && b.getClass() == Integer.class) {
+                return ((Integer) a).compareTo(((Integer) b));
             } else if (a.getClass() == boolean.class && b.getClass() == boolean.class) {
                 return Boolean.valueOf((boolean) a).compareTo(Boolean.valueOf((boolean) b));
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return 0;
@@ -285,7 +300,9 @@ public class LargeDataTable implements TableTemplate {
                     try {
                         synchronized (entries) {
                             entries.add(c.getValue());
-                            //updateIndex(c.getValue(), c.getValue().getClass());
+                            if (!buildIndex) {
+                                updateIndex(c.getValue(), c.getValue().getClass());
+                            }
                         }
                         size++;
                         if (consumers.containsKey(c.getValue().getKey())) {
@@ -303,11 +320,11 @@ public class LargeDataTable implements TableTemplate {
                 if (d != null) {
                     synchronized (entries) {
                         Set<DataEntry> results = search("key", d.getKey(), DataEntry.class);
-                        if(results!=null) {
-                            for(DataEntry de : results) {
+                        if (results != null) {
+                            for (DataEntry de : results) {
                                 entries.remove(de);
                                 size--;
-                                for(Map.Entry<String, List<DataEntry>> entry : sortedIndex.entrySet()){
+                                for (Map.Entry<String, List<DataEntry>> entry : sortedIndex.entrySet()) {
                                     entry.getValue().remove(de);
                                 }
                             }
@@ -322,8 +339,8 @@ public class LargeDataTable implements TableTemplate {
                 if (u != null) {
                     try {
                         Class clazz = Class.forName(u.getMasterClass());
-                        Optional<DataEntry> obj = entries.stream().filter(x->x.getKey().equals(u.getKey())).findFirst();
-                        if(obj.isPresent()) {
+                        Optional<DataEntry> obj = entries.stream().filter(x -> x.getKey().equals(u.getKey())).findFirst();
+                        if (obj.isPresent()) {
                             DataEntry de = obj.get();
                             if (consumers.containsKey(de.getKey())) {
                                 consumers.remove(de.getKey()).accept(de);
@@ -358,9 +375,7 @@ public class LargeDataTable implements TableTemplate {
     }
 
     public void multiImport(DataEntry newEntry) {
-        synchronized (importList) {
-            this.save(null, newEntry);
-        }
+        this.save(null, newEntry);
     }
 
     @Override
@@ -371,31 +386,8 @@ public class LargeDataTable implements TableTemplate {
     List<Thread> threads = new ArrayList<>();
 
     public void startImportThreads() {
-        for (int i = 0; i < 1; i++) {
-            Thread t = new Thread(() -> {
-                while (!Thread.interrupted()) {
-                    DataEntry de = null;
-                    synchronized (importList) {
-                        if (importList.size() > 0)
-                            de = importList.pop();
-                    }
-                    if (de != null) {
-                        this.save(null, de);
-                    }
-                }
-            });
-            t.start();
-            threads.add(t);
-        }
-    }
 
-    public void stopImportThreads() {
-        while (threads.size() > 0) {
-            threads.remove(0).interrupt();
-        }
-        threads.clear();
     }
-
     public void addListener(Modification m, Consumer<DataEntry> method) {
         if (!listeners.containsKey(m)) {
             listeners.put(m, new HashSet<>());
@@ -403,4 +395,27 @@ public class LargeDataTable implements TableTemplate {
         listeners.get(m).add(method);
     }
 
+    public List<DataEntry> getEntries() {
+        return entries;
+    }
+
+    public void setEntries(List<DataEntry> entries) {
+        this.entries = entries;
+    }
+
+    public int getSize() {
+        return size;
+    }
+
+    public void setSize(int size) {
+        this.size = size;
+    }
+
+    public boolean isBuildIndex() {
+        return buildIndex;
+    }
+
+    public void setBuildIndex(boolean buildIndex) {
+        this.buildIndex = buildIndex;
+    }
 }

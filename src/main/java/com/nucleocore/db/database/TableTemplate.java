@@ -18,4 +18,7 @@ public interface TableTemplate {
     void startImportThreads();
     void resetIndex(Class clazz);
     void updateIndex(DataEntry de, Class clazz);
+    boolean isBuildIndex();
+    int getSize();
+    void setBuildIndex(boolean buildIndex);
 }

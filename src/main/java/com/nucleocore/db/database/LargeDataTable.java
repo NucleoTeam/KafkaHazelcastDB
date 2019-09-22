@@ -213,7 +213,7 @@ public class LargeDataTable implements TableTemplate {
         return false;
     }
 
-    public <T> int compare(T a, T b) {
+    public  int compare(Object a, Object b) {
         try {
             if (a == null && b == null)
                 return 0;

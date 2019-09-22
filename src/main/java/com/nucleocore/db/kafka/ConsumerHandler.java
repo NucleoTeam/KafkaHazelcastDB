@@ -1,7 +1,7 @@
 package com.nucleocore.db.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nucleocore.db.database.Table;
+import com.google.common.collect.Queues;
 import com.nucleocore.db.database.TableTemplate;
 import com.nucleocore.db.database.utils.Modification;
 import org.apache.kafka.clients.consumer.*;
@@ -11,7 +11,7 @@ import java.time.Duration;
 import java.util.*;
 
 public class ConsumerHandler implements Runnable {
-    private Queue<String> entries = new LinkedList();
+    private Queue<String> entries = Queues.newArrayDeque();
     private KafkaConsumer consumer;
     private TableTemplate database;
 
@@ -23,20 +23,22 @@ public class ConsumerHandler implements Runnable {
             ObjectMapper om = new ObjectMapper();
             do {
                 String entry;
-
-
                 while ((entry = pop())!=null) {
                     String type = entry.substring(0, 6);
                     String data = entry.substring(6);
                     //System.out.println("Action: " + type + " data: "+data);
                     try {
                         Modification mod = Modification.get(type);
+                        database.setBuildIndex(true);
                         database.modify(mod, om.readValue(data, mod.getModification()));
+                        database.setBuildIndex(false);
                     }catch (Exception e){
                         e.printStackTrace();
                     }
                 }
-
+                if(database.isUnsavedIndexModifications()){
+                    database.resetIndex();
+                }
                 try {
                     Thread.sleep(0, 100);
                 }catch (Exception e){
@@ -65,7 +67,10 @@ public class ConsumerHandler implements Runnable {
             ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofNanos(20));
             if(!rs.isEmpty()){
                 //System.out.println("RECEIVED DATA");
-                rs.forEach(a->add(a.value()));
+                Iterator<ConsumerRecord<Integer, String>> iter = rs.iterator();
+                while(iter.hasNext()){
+                    add(iter.next().value());
+                }
             }
             consumer.commitAsync();
             try {

@@ -1,8 +1,5 @@
 package com.nucleocore.db.database.utils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nucleocore.db.database.LargeDataTable;
-import com.nucleocore.db.database.Table;
 import com.nucleocore.db.database.TableTemplate;
 import org.supercsv.cellprocessor.ift.CellProcessor;
 import org.supercsv.exception.SuperCsvCellProcessorException;
@@ -14,8 +11,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 

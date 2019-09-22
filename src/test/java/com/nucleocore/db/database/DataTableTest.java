@@ -4,7 +4,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class TableTest {
+public class DataTableTest {
 
     @Test
     public void modify() {

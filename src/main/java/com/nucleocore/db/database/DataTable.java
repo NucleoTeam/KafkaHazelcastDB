@@ -15,7 +15,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class Table implements TableTemplate {
+public class DataTable implements TableTemplate {
 
   private ProducerHandler producer = null;
   private ConsumerHandler consumer = null;
@@ -34,7 +34,7 @@ public class Table implements TableTemplate {
   private boolean buildIndex = false;
   private Stack<DataEntry> importList = new Stack<>();
 
-  public Table(String bootstrap, String table) {
+  public DataTable(String bootstrap, String table) {
     setIndex = new SetIndex();
     if (bootstrap != null) {
       producer = new ProducerHandler(bootstrap, table);
@@ -513,6 +513,16 @@ public class Table implements TableTemplate {
     listeners.get(m).add(method);
   }
 
+  @Override
+  public boolean isUnsavedIndexModifications() {
+    return false;
+  }
+
+  @Override
+  public void resetIndex() {
+
+  }
+
   public int getSize() {
     return size;
   }
@@ -526,5 +536,10 @@ public class Table implements TableTemplate {
 
   public void setBuildIndex(boolean buildIndex) {
     this.buildIndex = buildIndex;
+  }
+
+  @Override
+  public void setUnsavedIndexModifications(boolean unsavedIndexModifications) {
+
   }
 }

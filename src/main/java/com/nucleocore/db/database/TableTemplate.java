@@ -21,4 +21,7 @@ public interface TableTemplate {
     boolean isBuildIndex();
     int getSize();
     void setBuildIndex(boolean buildIndex);
+    boolean isUnsavedIndexModifications();
+    void resetIndex();
+    void setUnsavedIndexModifications(boolean unsavedIndexModifications);
 }

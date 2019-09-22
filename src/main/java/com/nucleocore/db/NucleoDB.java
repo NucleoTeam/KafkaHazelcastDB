@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.db.database.LargeDataTable;
 import com.nucleocore.db.database.TableTemplate;
 import com.nucleocore.db.database.utils.*;
-import com.nucleocore.db.database.Table;
+import com.nucleocore.db.database.DataTable;
 import org.supercsv.cellprocessor.*;
 import org.supercsv.cellprocessor.Optional;
 import org.supercsv.cellprocessor.constraint.NotNull;
@@ -17,7 +17,7 @@ public class NucleoDB {
     static String latestSave = "";
     public static void main(String... args) {
         NucleoDB db = new NucleoDB();
-        db.launchLargeTable(null, "test4");
+        db.launchLargeTable("192.168.1.7:9092,192.168.1.6:9092", "test4");
         db.launchTable(null, "userDataTest");
         //db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
        // db.getTable("userDataTest").addListener(Modification.CREATE, (d)->System.out.println("Created "+d.getClass().getName()));
@@ -37,7 +37,7 @@ public class NucleoDB {
                         break;
                     case 2:
                         time = System.currentTimeMillis();
-                        ((Table)db.getTable("test4"))
+                        ((DataTable)db.getTable("test4"))
                             .filterMap(x->{
                                 Test t = ((Test)x.getValue());
                                 return t.getUser().equals("Thot");
@@ -48,7 +48,7 @@ public class NucleoDB {
                         System.out.println(System.currentTimeMillis()-time);
                         break;
                     case 3:
-                        DataEntry de = ((Table)db.getTable("test4")).get(latestSave);
+                        DataEntry de = ((DataTable)db.getTable("test4")).get(latestSave);
                         try {
                             System.out.println(om.writeValueAsString(de));
                         }catch (IOException ex){
@@ -59,7 +59,7 @@ public class NucleoDB {
                     case 4:
                         try {
                             time = System.currentTimeMillis();
-                            Test data = ((Table)db.getTable("test4")).get(latestSave);
+                            Test data = ((DataTable)db.getTable("test4")).get(latestSave);
                             if(data!=null) {
                                 Test data2 = new Test(data);
                                 data2.setName(data2.getName() + ".");
@@ -73,7 +73,7 @@ public class NucleoDB {
                         }
                         break;
                     case 5:
-                        System.out.println(((Table)db.getTable("test4")).size());
+                        System.out.println(((DataTable)db.getTable("test4")).size());
                         break;
                     case 6:
                         time = System.currentTimeMillis();
@@ -86,7 +86,7 @@ public class NucleoDB {
                         break;
                     case 7:
                         time = System.currentTimeMillis();
-                        ((Table)db.getTable("test4")).flush();
+                        ((DataTable)db.getTable("test4")).flush();
                         System.out.println(System.currentTimeMillis()-time);
                         break;
                     case 8:
@@ -102,7 +102,7 @@ public class NucleoDB {
                     case 9:
                         time = System.currentTimeMillis();
                         try {
-                            System.out.println(om.writeValueAsString(((Table)db.getTable("test4")).trieIndex));
+                            System.out.println(om.writeValueAsString(((DataTable)db.getTable("test4")).trieIndex));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
                         }
@@ -138,7 +138,7 @@ public class NucleoDB {
                             .addMap(new Optional()) // reports
                             .addMap(new Optional())
                             .addMap(new Optional())
-                            .readIntoStream("G:/test.csv", (Table)db.getTable("userDataTest"), User.class);
+                            .readIntoStream("G:/test.csv", (DataTable)db.getTable("userDataTest"), User.class);
                         System.out.println("Created "+x+" users.");
                         break;
                     case 11:
@@ -204,7 +204,7 @@ public class NucleoDB {
         return tables.get(table);
     }
     public TableTemplate launchTable(String bootstrap, String table){
-        Table t = new Table(bootstrap, table);
+        DataTable t = new DataTable(bootstrap, table);
         tables.put(table, t);
         return t;
     }

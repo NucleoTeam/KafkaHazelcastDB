@@ -35,6 +35,7 @@ public class LargeDataTable implements TableTemplate {
 
     private ObjectMapper om = new ObjectMapper();
 
+    private boolean unsavedIndexModifications = false;
     private int size = 0;
     private boolean buildIndex = true;
 
@@ -117,6 +118,15 @@ public class LargeDataTable implements TableTemplate {
         }
     }
 
+    @Override
+    public synchronized void resetIndex() {
+        synchronized(entries) {
+            if (entries.size() > 0 && !buildIndex) {
+                resetIndex(entries.get(0).getClass());
+                setUnsavedIndexModifications(false);
+            }
+        }
+    }
 
     public synchronized void resetIndex(Class clazz) {
         for (Field f : clazz.getDeclaredFields()) {
@@ -205,6 +215,8 @@ public class LargeDataTable implements TableTemplate {
 
     public <T> int compare(T a, T b) {
         try {
+            if (a == null && b == null)
+                return 0;
             if (a == null)
                 return -1;
             if (b == null)
@@ -221,6 +233,9 @@ public class LargeDataTable implements TableTemplate {
                 return ((Integer) a).compareTo(((Integer) b));
             } else if (a.getClass() == boolean.class && b.getClass() == boolean.class) {
                 return Boolean.valueOf((boolean) a).compareTo(Boolean.valueOf((boolean) b));
+            }else{
+                System.out.println(a.getClass().getName());
+                System.out.println(b.getClass().getName());
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -302,6 +317,8 @@ public class LargeDataTable implements TableTemplate {
                             entries.add(c.getValue());
                             if (!buildIndex) {
                                 updateIndex(c.getValue(), c.getValue().getClass());
+                            }else{
+                                unsavedIndexModifications = true;
                             }
                         }
                         size++;
@@ -417,5 +434,13 @@ public class LargeDataTable implements TableTemplate {
 
     public void setBuildIndex(boolean buildIndex) {
         this.buildIndex = buildIndex;
+    }
+
+    public boolean isUnsavedIndexModifications() {
+        return unsavedIndexModifications;
+    }
+
+    public void setUnsavedIndexModifications(boolean unsavedIndexModifications) {
+        this.unsavedIndexModifications = unsavedIndexModifications;
     }
 }

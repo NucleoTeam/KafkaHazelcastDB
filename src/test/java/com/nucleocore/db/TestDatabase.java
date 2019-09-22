@@ -1,11 +1,10 @@
 package com.nucleocore.db;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.nucleocore.db.database.Table;
+import com.nucleocore.db.database.DataTable;
 import com.nucleocore.db.database.utils.DataEntry;
 import org.junit.Test;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -14,7 +13,7 @@ import static org.junit.Assert.*;
 public class TestDatabase {
     @Test
     public void shouldCreateEntry(){
-        Table db = new Table(null, "test");
+        DataTable db = new DataTable(null, "test");
         db.save(null, new com.nucleocore.db.database.utils.Test("tes","Nathaniel", "nathanield"));
         assertTrue(db.size()==1);
         db.flush();
@@ -22,7 +21,7 @@ public class TestDatabase {
 
     @Test
     public void shouldGetCreatedEntry() throws JsonProcessingException {
-        Table db = new Table(null,"test2");
+        DataTable db = new DataTable(null,"test2");
         db.save(null, new com.nucleocore.db.database.utils.Test("test","David", "davidl"));
         assertTrue(db.size()==1);
         Stream<Map.Entry<String, DataEntry>> entries = db.filterMap(d->((com.nucleocore.db.database.utils.Test)d.getValue()).getName().equals("David"));

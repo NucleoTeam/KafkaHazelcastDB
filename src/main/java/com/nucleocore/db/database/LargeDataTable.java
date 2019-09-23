@@ -41,9 +41,18 @@ public class LargeDataTable implements TableTemplate {
 
     private Stack<DataEntry> importList = new Stack<>();
 
+    private String bootstrap;
+    private String table;
     public LargeDataTable(String bootstrap, String table) {
+        this.bootstrap = bootstrap;
+        this.table = table;
         if (bootstrap != null) {
             producer = new ProducerHandler(bootstrap, table);
+        }
+    }
+
+    public void consume(){
+        if (bootstrap != null) {
             consumer = new ConsumerHandler(bootstrap, UUID.randomUUID().toString(), this, table);
         }
     }

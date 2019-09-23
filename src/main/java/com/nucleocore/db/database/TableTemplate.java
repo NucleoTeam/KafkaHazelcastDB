@@ -27,4 +27,5 @@ public interface TableTemplate {
     void setUnsavedIndexModifications(boolean unsavedIndexModifications);
     DataEntry searchOne(String name, Object obj, Class clazz);
     <T> List<T> in(String name, List<Object> objs, Class clazz);
+    void consume();
 }

@@ -17,7 +17,7 @@ public class NucleoDB {
     static String latestSave = "";
     public static void main(String... args) {
         NucleoDB db = new NucleoDB();
-        db.launchLargeTable("192.168.1.7:9092,192.168.1.6:9092", "test4");
+        db.launchLargeTable("192.168.1.7:9092,192.168.1.6:9092", "playerlist");
         db.launchTable(null, "userDataTest");
         //db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
        // db.getTable("userDataTest").addListener(Modification.CREATE, (d)->System.out.println("Created "+d.getClass().getName()));
@@ -162,12 +162,11 @@ public class NucleoDB {
                             ));
                         }*/
 
-                        db.getTable("test4").startImportThreads();
                         int y = new Importer()
                             .addMap("player_id", "playerId", new ParseLong()) // pass
                             .addMap(new Optional()) // name
                             .addMap(new Optional()) // id
-                            .readIntoStream("G:/players.csv", db.getTable("test4"), Player.class);
+                            .readIntoStream("G:/players.csv", db.getTable("playerlist"), Player.class);
 
                         //db.getTable("test4").stopImportThreads();
                         //System.out.println("Created "+y+" players.");
@@ -178,7 +177,7 @@ public class NucleoDB {
                         String name = "firestarthe";
                         System.out.println("searching for player "+name);
                         try {
-                            System.out.println(om.writeValueAsString(db.getTable("test4").search("name", name, Player.class)));
+                            System.out.println(om.writeValueAsString(db.getTable("playerlist").search("name", name, Player.class)));
                             //System.out.println(om.writeValueAsString(((LargeDataTable)db.getTable("test4")).sortedIndex));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();

@@ -77,7 +77,7 @@ public class NucleoDB {
                         break;
                     case 6:
                         time = System.currentTimeMillis();
-                        Set<Test> dataIndex = db.getTable("test4").search("user", "Thot", Test.class);
+                        List<Test> dataIndex = db.getTable("test4").search("user", "Thot", Test.class);
                         if(dataIndex!=null){
                             System.out.println("returned: "+dataIndex.size());
                             dataIndex.stream().forEach(t->System.out.println(t.getKey()));

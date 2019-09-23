@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'nucleodb'
-version '1.03.19'
+version '1.03.20'
 
 sourceCompatibility = 1.8
 

@@ -80,7 +80,7 @@ public class LargeDataTable implements TableTemplate {
         }
     }
 
-    public <T> List<T> in(String name, Set<Object> objs, Class clazz) {
+    public <T> List<T> in(String name, List<Object> objs, Class clazz) {
         List<DataEntry> tmp = Lists.newArrayList();
         try {
             for(Object obj : objs){

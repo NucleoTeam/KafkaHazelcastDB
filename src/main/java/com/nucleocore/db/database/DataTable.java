@@ -239,7 +239,7 @@ public class DataTable implements TableTemplate {
     return null;
   }
 
-  public <T> List<T> in(String name, Set<Object> objs, Class clazz) {
+  public <T> List<T> in(String name, List<Object> objs, Class clazz) {
     List<DataEntry> tmp = Lists.newArrayList();
     try {
       Field f = clazz.getDeclaredField(name);
@@ -278,7 +278,7 @@ public class DataTable implements TableTemplate {
     return (List<T>) tmp;
   }
 
-  public <T> T inOne(String name, Set<Object> obj, Class clazz) {
+  public <T> T inOne(String name, List<Object> obj, Class clazz) {
     List<T> tmp = in(name, obj, clazz);
     if (tmp != null && tmp.size() > 0) {
       return (T) tmp.toArray()[0];

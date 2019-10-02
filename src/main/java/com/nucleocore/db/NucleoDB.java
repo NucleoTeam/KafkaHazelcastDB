@@ -167,7 +167,7 @@ public class NucleoDB {
                             .addMap(new Optional()) // name
                             .addMap(new Optional()) // id
                             .readIntoStream("G:/players.csv", db.getTable("playerlist"), Player.class);
-
+                        db.getTable("playerlist").consume();
                         //db.getTable("test4").stopImportThreads();
                         //System.out.println("Created "+y+" players.");
                         System.out.println("Exec Time: "+(System.currentTimeMillis()-time));
@@ -189,12 +189,15 @@ public class NucleoDB {
                         name = "darkshadow8891";
                         System.out.println("searching for player "+name);
                         try {
-                            System.out.println(om.writeValueAsString(db.getTable("test4").search("name", name, Player.class)));
+                            System.out.println(om.writeValueAsString(db.getTable("playerlist").search("name", name, Player.class)));
                             //System.out.println(om.writeValueAsString(db.getTable("test4").trieIndex));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
                         }
                         System.out.println("time: "+(System.currentTimeMillis()-time));
+                        break;
+                    case 15:
+                        db.getTable("playerlist").consume();
                         break;
                 }
             }

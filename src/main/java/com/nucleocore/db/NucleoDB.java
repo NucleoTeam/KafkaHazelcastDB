@@ -17,7 +17,7 @@ public class NucleoDB {
     static String latestSave = "";
     public static void main(String... args) {
         NucleoDB db = new NucleoDB();
-        db.launchLargeTable("192.168.1.7:9092,192.168.1.6:9092", "playerlist");
+        db.launchLargeTable(null, "playerlist");
         db.launchTable(null, "userDataTest");
         //db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
        // db.getTable("userDataTest").addListener(Modification.CREATE, (d)->System.out.println("Created "+d.getClass().getName()));
@@ -138,13 +138,14 @@ public class NucleoDB {
                             .addMap(new Optional()) // reports
                             .addMap(new Optional())
                             .addMap(new Optional())
-                            .readIntoStream("G:/test.csv", (DataTable)db.getTable("userDataTest"), User.class);
+                            .readIntoStream("G:/users.csv", db.getTable("userDataTest"), User.class);
+                        db.getTable("userDataTest").consume();
                         System.out.println("Created "+x+" users.");
                         break;
                     case 11:
                         time = System.currentTimeMillis();
                         try {
-                            System.out.println(om.writeValueAsString(db.getTable("userDataTest").search("user", "Firestar", Player.class)));
+                            System.out.println(om.writeValueAsString(db.getTable("userDataTest").search("user", "Firestar", User.class)));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
                         }

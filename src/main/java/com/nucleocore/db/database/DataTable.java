@@ -11,6 +11,7 @@ import com.nucleocore.db.kafka.ProducerHandler;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -75,7 +76,11 @@ public class DataTable implements TableTemplate {
   }
 
   private void addIndexEntries(DataEntry e, String restrictTo) {
-    for (Field f : e.getClass().getDeclaredFields()) {
+    List<Field> fields = new ArrayList<Field>(){{
+      addAll(Arrays.asList(e.getClass().getSuperclass().getDeclaredFields()));
+      addAll(Arrays.asList(e.getClass().getDeclaredFields()));
+    }};
+    for (Field f : fields) {
       if (restrictTo != null && !f.getName().equals(restrictTo))
         continue;
       if (!f.isAnnotationPresent(Index.class)) {
@@ -124,7 +129,11 @@ public class DataTable implements TableTemplate {
   }
 
   private void deleteIndexEntries(DataEntry e, String restrictTo) {
-    for (Field f : e.getClass().getDeclaredFields()) {
+    List<Field> fields = new ArrayList<Field>(){{
+      addAll(Arrays.asList(e.getClass().getSuperclass().getDeclaredFields()));
+      addAll(Arrays.asList(e.getClass().getDeclaredFields()));
+    }};
+    for (Field f : fields) {
       if (restrictTo != null && !f.getName().equals(restrictTo))
         continue;
       if (!f.isAnnotationPresent(Index.class))
@@ -177,7 +186,11 @@ public class DataTable implements TableTemplate {
 
   public <T> List<T> search(String name, Object obj, Class clazz) {
     try {
-      Field f = clazz.getDeclaredField(name);
+      List<Field> fields = new ArrayList<Field>(){{
+        addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
+        addAll(Arrays.asList(clazz.getDeclaredFields()));
+      }};
+      Field f = fields.stream().filter(u->u.getName().equals(name)).findFirst().get();
       IndexType indexType = ((Index)f.getAnnotation(Index.class)).value();
       switch (indexType) {
         case TRIE:
@@ -251,7 +264,11 @@ public class DataTable implements TableTemplate {
   public <T> List<T> in(String name, List<Object> objs, Class clazz) {
     List<DataEntry> tmp = Lists.newArrayList();
     try {
-      Field f = clazz.getDeclaredField(name);
+      List<Field> fields = new ArrayList<Field>(){{
+        addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
+        addAll(Arrays.asList(clazz.getDeclaredFields()));
+      }};
+      Field f = fields.stream().filter(u->u.getName().equals(name)).findFirst().get();
       IndexType indexType = ((Index)f.getAnnotation(Index.class)).value();
       for (Object obj : objs) {
         if (trieIndex.containsKey(name)) {
@@ -281,7 +298,7 @@ public class DataTable implements TableTemplate {
           }
         }
       }
-    } catch (ClassCastException | NoSuchFieldException ex) {
+    } catch (ClassCastException ex) {
       ex.printStackTrace();
     }
     return (List<T>) tmp;
@@ -468,9 +485,7 @@ public class DataTable implements TableTemplate {
   }
 
   public void multiImport(DataEntry newEntry) {
-    synchronized (importList) {
-      importList.add(newEntry);
-    }
+    this.save(null, newEntry);
   }
 
   @Override
@@ -481,22 +496,7 @@ public class DataTable implements TableTemplate {
   List<Thread> threads = new ArrayList<>();
 
   public void startImportThreads() {
-    for (int i = 0; i < 25; i++) {
-      Thread t = new Thread(() -> {
-        while (!Thread.interrupted()) {
-          DataEntry de = null;
-          synchronized (importList) {
-            if (importList.size() > 0)
-              de = importList.pop();
-          }
-          if (de != null) {
-            this.save(null, de);
-          }
-        }
-      });
-      t.start();
-      threads.add(t);
-    }
+
   }
 
   @Override

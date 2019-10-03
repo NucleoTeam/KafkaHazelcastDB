@@ -4,14 +4,12 @@ import java.io.Serializable;
 import java.util.UUID;
 
 public abstract class DataEntry implements Serializable {
-    private static int incrementId = 0;
 
     @Index
     public String key;
 
     public DataEntry() {
-        incrementId++;
-        this.key = ""+incrementId;
+        this.key = UUID.randomUUID().toString().replaceAll("-","");
     }
 
     public DataEntry(String key) {

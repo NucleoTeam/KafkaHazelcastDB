@@ -105,7 +105,11 @@ public class LargeDataTable implements TableTemplate {
     }
 
     public void updateIndex(DataEntry de, Class clazz) {
-        for (Field f : clazz.getDeclaredFields()) {
+        List<Field> fields = new ArrayList<Field>(){{
+            addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
+            addAll(Arrays.asList(clazz.getDeclaredFields()));
+        }};
+        for (Field f : fields) {
             String fieldName = f.getName();
             //System.out.println(fieldName+" sorting");
             if (!sortedIndex.containsKey(fieldName)) {
@@ -153,7 +157,11 @@ public class LargeDataTable implements TableTemplate {
     }
 
     public synchronized void resetIndex(Class clazz) {
-        for (Field f : clazz.getDeclaredFields()) {
+        List<Field> fields = new ArrayList<Field>(){{
+            addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
+            addAll(Arrays.asList(clazz.getDeclaredFields()));
+        }};
+        for (Field f : fields) {
             String fieldName = f.getName();
             //System.out.println(fieldName+" sorting");
             if (sortedIndex.containsKey(fieldName)) {
@@ -179,7 +187,11 @@ public class LargeDataTable implements TableTemplate {
 
     public DataEntry searchOne(String name, Object obj, Class clazz) {
         try {
-            Field f = clazz.getField(name);
+            List<Field> fields = new ArrayList<Field>(){{
+                addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
+                addAll(Arrays.asList(clazz.getDeclaredFields()));
+            }};
+            Field f = fields.stream().filter(u->u.getName().equals(name)).findFirst().get();
             if (sortedIndex.containsKey(name)) {
                 List<DataEntry> deList = sortedIndex.get(name);
                 //System.out.println(new ObjectMapper().writeValueAsString(deList));

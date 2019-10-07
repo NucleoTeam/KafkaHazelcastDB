@@ -48,7 +48,7 @@ public class Importer {
             try {
                 customerMap = mapReader.read(header, this.processors);
             }catch (SuperCsvCellProcessorException e){
-                //e.printStackTrace();
+                e.printStackTrace();
             }
             table.setBuildIndex(true);
             while (customerMap!=null) {
@@ -67,7 +67,7 @@ public class Importer {
                         try {
                             field = clazz.getField(key);
                         } catch (NoSuchFieldException e) {
-                            //e.printStackTrace();
+                            e.printStackTrace();
                         }
                     }
                     if (field != null) {
@@ -84,7 +84,7 @@ public class Importer {
                 try {
                     customerMap = mapReader.read(header, this.processors);
                 }catch (SuperCsvCellProcessorException e){
-                    //e.printStackTrace();
+                    e.printStackTrace();
                 }
             }
             table.setBuildIndex(false);

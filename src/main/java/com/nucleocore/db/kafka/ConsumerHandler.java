@@ -9,38 +9,49 @@ import org.apache.kafka.common.serialization.*;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 
 public class ConsumerHandler implements Runnable {
     private Queue<String> entries = Queues.newArrayDeque();
     private KafkaConsumer consumer;
     private TableTemplate database;
+    private CountDownLatch countDownLatch = new CountDownLatch(1);
 
     public ConsumerHandler(String bootstrap, String groupName, TableTemplate database, String table) {
         this.database = database;
         this.consumer = createConsumer(bootstrap, groupName);
+
         this.subscribe(table.split(","));
         new Thread(()->{
             ObjectMapper om = new ObjectMapper();
             do {
-                String entry;
-                while ((entry = pop())!=null) {
-                    String type = entry.substring(0, 6);
-                    String data = entry.substring(6);
-                    //System.out.println("Action: " + type + " data: "+data);
-                    try {
-                        Modification mod = Modification.get(type);
-                        database.setBuildIndex(true);
-                        database.modify(mod, om.readValue(data, mod.getModification()));
-                        database.setBuildIndex(false);
-                    }catch (Exception e){
-                        e.printStackTrace();
-                    }
-                }
-                if(database.isUnsavedIndexModifications()){
-                    database.resetIndex();
-                }
                 try {
-                    Thread.sleep(0, 100);
+                    String entry;
+                    countDownLatch.await();
+                    long lastAdd = 0;
+                    while ((entry = pop())!=null) {
+                        String type = entry.substring(0, 6);
+                        String data = entry.substring(6);
+                        //System.out.println("Action: " + type + " data: "+data);
+                        try {
+                            Modification mod = Modification.get(type);
+                            if(lastAdd+5>System.currentTimeMillis()) {
+                                database.setBuildIndex(false);
+                                lastAdd = System.currentTimeMillis();
+                            }else{
+                                database.setBuildIndex(true);
+                                lastAdd = System.currentTimeMillis();
+                            }
+                            database.modify(mod, om.readValue(data, mod.getModification()));
+
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                    }
+                    if(database.isUnsavedIndexModifications()){
+                        database.setBuildIndex(true);
+                        database.resetIndex();
+                    }
                 }catch (Exception e){
                     e.printStackTrace();
                 }
@@ -49,15 +60,16 @@ public class ConsumerHandler implements Runnable {
         new Thread(this).start();
     }
 
-    public synchronized String pop(){
+    public String pop(){
         if(entries.isEmpty())
             return null;
         return entries.remove();
     }
 
-    public synchronized void add(String e){
+    public void add(String e){
         //System.out.println("Modification from kafka: "+e);
         getEntries().add(e);
+        countDownLatch.countDown();
     }
     @Override
     public void run() {
@@ -73,11 +85,6 @@ public class ConsumerHandler implements Runnable {
                 }
             }
             consumer.commitAsync();
-            try {
-                Thread.sleep(0, 100);
-            }catch (Exception e){
-                e.printStackTrace();
-            }
         } while(!Thread.interrupted());
     }
 

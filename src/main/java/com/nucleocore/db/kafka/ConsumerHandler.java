@@ -27,6 +27,7 @@ public class ConsumerHandler implements Runnable {
         new Thread(()->{
             ObjectMapper om = new ObjectMapper();
             do {
+                Class clazz = null;
                 try {
                     String entry;
                     countDownLatch.await();
@@ -42,10 +43,15 @@ public class ConsumerHandler implements Runnable {
                         Modification mod = Modification.get(type);
                         if(mod!=null) {
                             database.modify(mod, om.readValue(data, mod.getModification()));
+                            clazz = mod.getModification();
                         }
                     }
                     if(database.isUnsavedIndexModifications()){
-                        database.resetIndex();
+                        if(clazz!=null) {
+                            database.resetIndex(clazz);
+                        }else{
+                            database.resetIndex();
+                        }
                     }
                 }catch (Exception e){
                     e.printStackTrace();

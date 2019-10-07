@@ -182,7 +182,52 @@ public class LargeDataTable implements TableTemplate {
 
     @Override
     public <T> List<T> search(String name, Object obj, Class clazz) {
-        return (List<T>) Lists.newArrayList(searchOne(name, obj, clazz));
+        try {
+            List<Field> fields = new ArrayList<Field>(){{
+                addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
+                addAll(Arrays.asList(clazz.getDeclaredFields()));
+            }};
+            List<T> output = new ArrayList<>();
+            Field f = fields.stream().filter(u->u.getName().equals(name)).findFirst().get();
+            if (sortedIndex.containsKey(name)) {
+                List<DataEntry> deList = sortedIndex.get(name);
+                //System.out.println(new ObjectMapper().writeValueAsString(deList));
+                int end = deList.size();
+                int pos = (int) Math.floor(end / 2);
+                int start = 0;
+                while (start < pos) {
+                    int val = compare(obj, f.get(deList.get(pos)));
+                    //System.out.println("direction: "+val+" start: "+start +" end: "+end+" pos:"+pos);
+                    //System.out.println(f.get(deList.get(pos)));
+                    //System.out.println(obj);
+                    if (val > 0) {
+                        start = pos;
+                        pos = (int) Math.floor((end + pos) / 2);
+                    } else if (val < 0) {
+                        end = pos;
+                        pos = (int) Math.floor((start + end) / 2);
+                    } else if (val == 0) {
+                        output.add((T)deList.get(pos));
+                        int scan=pos-1;
+                        while(scan>=0 && compare(obj, f.get(deList.get(scan)))==0){
+                            output.add((T)deList.get(scan));
+                            scan-=1;
+                        }
+                        scan=pos+1;
+                        while(scan<deList.size() && compare(obj, f.get(deList.get(scan)))==0){
+                            output.add((T)deList.get(scan));
+                            scan+=1;
+                        }
+                    }
+                }
+                return output;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("ERRR 4");
+            System.exit(-1);
+        }
+        return null;
     }
 
     public DataEntry searchOne(String name, Object obj, Class clazz) {

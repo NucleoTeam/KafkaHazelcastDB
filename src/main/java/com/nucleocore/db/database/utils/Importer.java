@@ -61,11 +61,11 @@ public class Importer {
                     if (columnToMap.containsKey(key)) {
                         String newKey = columnToMap.get(key);
                         if(newKey!=null) {
-                            field = clazz.getField(newKey);
+                            field = clazz.getDeclaredField(newKey);
                         }
                     }else {
                         try {
-                            field = clazz.getField(key);
+                            field = clazz.getDeclaredField(key);
                         } catch (NoSuchFieldException e) {
                             e.printStackTrace();
                         }

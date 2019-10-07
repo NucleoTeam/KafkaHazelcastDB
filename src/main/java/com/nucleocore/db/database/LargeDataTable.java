@@ -218,9 +218,9 @@ public class LargeDataTable implements TableTemplate {
                             output.add((T)deList.get(scan));
                             scan+=1;
                         }
+                        return output;
                     }
                 }
-                return output;
             }
         } catch (Exception e) {
             e.printStackTrace();

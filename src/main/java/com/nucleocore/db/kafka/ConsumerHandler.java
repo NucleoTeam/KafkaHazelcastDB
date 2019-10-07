@@ -3,6 +3,7 @@ package com.nucleocore.db.kafka;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Queues;
 import com.nucleocore.db.database.TableTemplate;
+import com.nucleocore.db.database.utils.DataEntry;
 import com.nucleocore.db.database.utils.Modification;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.serialization.*;
@@ -13,6 +14,7 @@ import java.util.concurrent.CountDownLatch;
 
 public class ConsumerHandler implements Runnable {
     private Queue<String> entries = Queues.newArrayDeque();
+    private Queue<String> toIndex = Queues.newArrayDeque();
     private KafkaConsumer consumer;
     private TableTemplate database;
     private CountDownLatch countDownLatch = new CountDownLatch(1);
@@ -28,28 +30,21 @@ public class ConsumerHandler implements Runnable {
                 try {
                     String entry;
                     countDownLatch.await();
-                    long lastAdd = 0;
                     while ((entry = pop())!=null) {
+                        if(entries.size()>10){
+                            database.setBuildIndex(false);
+                        }else{
+                            database.setBuildIndex(true);
+                        }
                         String type = entry.substring(0, 6);
                         String data = entry.substring(6);
                         //System.out.println("Action: " + type + " data: "+data);
-                        try {
-                            Modification mod = Modification.get(type);
-                            if(lastAdd+5>System.currentTimeMillis()) {
-                                database.setBuildIndex(false);
-                                lastAdd = System.currentTimeMillis();
-                            }else{
-                                database.setBuildIndex(true);
-                                lastAdd = System.currentTimeMillis();
-                            }
+                        Modification mod = Modification.get(type);
+                        if(mod!=null) {
                             database.modify(mod, om.readValue(data, mod.getModification()));
-
-                        }catch (Exception e){
-                            e.printStackTrace();
                         }
                     }
                     if(database.isUnsavedIndexModifications()){
-                        database.setBuildIndex(true);
                         database.resetIndex();
                     }
                 }catch (Exception e){

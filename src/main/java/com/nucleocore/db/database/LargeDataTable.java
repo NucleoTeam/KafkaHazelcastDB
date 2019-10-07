@@ -172,9 +172,9 @@ public class LargeDataTable implements TableTemplate {
 
             try {
                 Collections.sort(sortedIndex.get(fieldName), new SortByElement(f));
-                System.out.println("Sorted for field "+fieldName);
+                //System.out.println("Sorted for field "+fieldName);
             }catch (Exception x){
-                System.out.println("Failed for field "+fieldName);
+                //System.out.println("Failed for field "+fieldName);
                 x.printStackTrace();
             }
         }
@@ -276,8 +276,8 @@ public class LargeDataTable implements TableTemplate {
             } else if (a.getClass() == boolean.class && b.getClass() == boolean.class) {
                 return Boolean.valueOf((boolean) a).compareTo(Boolean.valueOf((boolean) b));
             }else{
-                System.out.println(a.getClass().getName());
-                System.out.println(b.getClass().getName());
+                //System.out.println(a.getClass().getName());
+                //System.out.println(b.getClass().getName());
             }
         } catch (Exception e) {
             e.printStackTrace();

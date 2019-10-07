@@ -379,14 +379,14 @@ public class DataTable implements TableTemplate {
           }
         }
         if (changed) {
-          System.out.println("Changed");
+          //System.out.println("Changed");
           if (producer != null)
             producer.save(updateEntry);
           else
             modify(Modification.UPDATE, updateEntry);
           return true;
         }
-        System.out.println("Nothing changed");
+        //System.out.println("Nothing changed");
         return false;
       } catch (Exception e) {
         e.printStackTrace();

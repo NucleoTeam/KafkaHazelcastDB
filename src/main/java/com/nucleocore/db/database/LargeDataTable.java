@@ -133,9 +133,9 @@ public class LargeDataTable implements TableTemplate {
         List<DataEntry> tmp = Lists.newArrayList();
         try {
             for (Object obj : objs) {
-                DataEntry de = searchOne(name, obj, clazz);
+                List<DataEntry> de = search(name, obj, clazz);
                 if (de != null) {
-                    tmp.add(de);
+                    tmp.addAll(de);
                 }
             }
         } catch (ClassCastException ex) {

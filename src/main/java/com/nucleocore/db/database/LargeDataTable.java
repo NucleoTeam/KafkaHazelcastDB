@@ -295,7 +295,6 @@ public class LargeDataTable implements TableTemplate {
                         end = pos;
                         pos = (int) Math.floor((start + end) / 2);
                     } else if (val == 0) {
-                        System.out.println("FOUND");
                         output.add((T) deList.get(pos));
                         int scan = pos - 1;
                         while (scan >= 0 && cast(obj, f.get(deList.get(scan)))) {
@@ -311,7 +310,6 @@ public class LargeDataTable implements TableTemplate {
                     }
 
                 }
-                System.out.println("NEVER FOUND!");
             } else {
                 System.out.println("NO INDEX FOUND");
             }

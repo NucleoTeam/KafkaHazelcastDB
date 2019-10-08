@@ -8,8 +8,8 @@ import com.nucleocore.db.database.utils.DataEntry;
 import java.io.IOException;
 
 public class Create extends Modify {
-    private String data;
-    private String key;
+    public String data;
+    public String key;
     public String masterClass;
     private static ObjectMapper om = new ObjectMapper();
 

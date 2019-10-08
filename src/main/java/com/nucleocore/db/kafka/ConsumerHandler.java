@@ -27,15 +27,16 @@ public class ConsumerHandler implements Runnable {
         new Thread(()->{
             ObjectMapper om = new ObjectMapper();
             do {
-                Class clazz = null;
                 try {
                     String entry;
+                    database.setBuildIndex(true);
                     countDownLatch.await();
                     while ((entry = pop())!=null) {
                         if(entries.size()>10){
                             database.setBuildIndex(false);
-                        }else{
-                            database.setBuildIndex(true);
+                        }
+                        if(Thread.currentThread().interrupted()){
+                            return;
                         }
                         String type = entry.substring(0, 6);
                         String data = entry.substring(6);
@@ -43,20 +44,15 @@ public class ConsumerHandler implements Runnable {
                         Modification mod = Modification.get(type);
                         if(mod!=null) {
                             database.modify(mod, om.readValue(data, mod.getModification()));
-                            clazz = mod.getModification();
                         }
                     }
                     if(database.isUnsavedIndexModifications()){
-                        if(clazz!=null) {
-                            database.resetIndex(clazz);
-                        }else{
-                            database.resetIndex();
-                        }
+                        database.resetIndex();
                     }
                 }catch (Exception e){
                     e.printStackTrace();
                 }
-            } while(!Thread.interrupted());
+            } while(!Thread.currentThread().interrupted());
         }).start();
         new Thread(this).start();
     }
@@ -92,7 +88,7 @@ public class ConsumerHandler implements Runnable {
     private KafkaConsumer createConsumer(String bootstrap, String groupName) {
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
-        System.out.println(groupName);
+        //System.out.println(groupName);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupName);
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 100);
@@ -103,7 +99,7 @@ public class ConsumerHandler implements Runnable {
         return consumer;
     }
     public void subscribe(String[] topics){
-        System.out.print("Subscribed to topic "+Arrays.asList(topics).toString());
+        System.out.println("Subscribed to topic "+Arrays.asList(topics).toString());
         consumer.subscribe(Arrays.asList(topics));
     }
 

@@ -43,6 +43,7 @@ public class LargeDataTable implements TableTemplate {
 
     private String bootstrap;
     private String table;
+
     public LargeDataTable(String bootstrap, String table) {
         this.bootstrap = bootstrap;
         this.table = table;
@@ -51,7 +52,7 @@ public class LargeDataTable implements TableTemplate {
         }
     }
 
-    public void consume(){
+    public void consume() {
         if (bootstrap != null) {
             consumer = new ConsumerHandler(bootstrap, UUID.randomUUID().toString(), this, table);
         }
@@ -89,12 +90,51 @@ public class LargeDataTable implements TableTemplate {
         }
     }
 
+    public void clear() {
+        for (int x : new int[20])
+            System.out.println("");
+    }
+
+    public void display(int start, int end, int pos, int direction, int size) {
+        System.out.print("");
+        for (int x = 0; x < size; x++) {
+            if (pos == x) {
+                System.out.print(((direction > 0) ? "➡" : ((direction < 0) ? "⬅" : "❌")));
+            } else if (start == x) {
+                System.out.print("⏩");
+            } else if (end == x) {
+                System.out.print("⏪");
+            } else {
+                System.out.print("⏺");
+            }
+        }
+        if (end == size) {
+            System.out.println(" size:" + size);
+        } else {
+            System.out.println(" size:" + size);
+        }
+    }
+
+    public void displayInsert(int compared, int pos, int size) {
+        System.out.print("");
+        for (int x = 0; x < size; x++) {
+            if (pos == x) {
+                System.out.print("❌");
+            } else if (compared == x) {
+                System.out.print("⏹");
+            } else {
+                System.out.print("⏺");
+            }
+        }
+        System.out.println(" size:" + size);
+    }
+
     public <T> List<T> in(String name, List<Object> objs, Class clazz) {
         List<DataEntry> tmp = Lists.newArrayList();
         try {
-            for(Object obj : objs){
+            for (Object obj : objs) {
                 DataEntry de = searchOne(name, obj, clazz);
-                if(de!=null){
+                if (de != null) {
                     tmp.add(de);
                 }
             }
@@ -104,60 +144,109 @@ public class LargeDataTable implements TableTemplate {
         return (List<T>) tmp;
     }
 
-    public void updateIndex(DataEntry de, Class clazz) {
-        List<Field> fields = new ArrayList<Field>(){{
+    private long counter=0;
+    private long lastReq=0;
+    public synchronized void updateIndex(DataEntry de, Class clazz) {
+        if(System.currentTimeMillis()>lastReq+100){
+            counter=0;
+        }else{
+            counter++;
+        }
+        if(counter>100){
+            setUnsavedIndexModifications(true);
+            return;
+        }
+        lastReq = System.currentTimeMillis();
+        List<Field> fields = new ArrayList<Field>() {{
             addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
             addAll(Arrays.asList(clazz.getDeclaredFields()));
         }};
+
         for (Field f : fields) {
             String fieldName = f.getName();
-            //System.out.println(fieldName+" sorting");
             if (!sortedIndex.containsKey(fieldName)) {
                 sortedIndex.put(fieldName, Lists.newArrayList());
             }
             if (f.isAnnotationPresent(Index.class)) {
                 List<DataEntry> deList = sortedIndex.get(fieldName);
-                synchronized (deList) {
-                    try {
-                        int end = deList.size();
-                        int pos = (int) Math.floor(end / 2);
-                        int start = 0;
-                        while (start < pos) {
-                            int val = compare(f.get(de), f.get(deList.get(pos)));
-                            //System.out.println("direction: "+val+" start: "+start +" end: "+end+" pos:"+pos);
-                            if (val > 0) {
-                                start = pos;
-                                pos = (int) Math.floor((end + pos) / 2);
-                            } else if (val < 0) {
-                                end = pos;
-                                pos = (int) Math.floor((start + end) / 2);
-                            } else if (val == 0) {
-                                break;
-                            }
-                        }
-                        //System.out.println("val: "+f.get(de));
+                if (deList.size() == 0) {
+                    deList.add(de);
+                    return;
+                }
+                try {
+                    int end = deList.size();
+                    int pos = (int) Math.floor(end / 2);
+                    int start = 0;
+                    //clear();
+                    while (start < pos && pos < end) {
                         //System.out.println(pos);
-                        deList.add(pos, de);
-                    } catch (Exception e) {
-
+                        int val = compare(f.get(de), f.get(deList.get(pos)));
+                        //display(start, end, pos, val, deList.size());
+                        //System.out.println(f.get(de));
+                        //System.out.println(f.get(deList.get(pos)));
+                        if (val > 0) {
+                            start = pos;
+                            pos = (int) Math.floor((end + pos) / 2);
+                        } else if (val < 0) {
+                            end = pos;
+                            pos = (int) Math.floor((start + end) / 2);
+                        } else if (val == 0) {
+                            break;
+                        }
+                        //display(start, end, pos, 0, deList.size());
+                        //System.out.println(pos);
+                        try {
+                            //Thread.sleep(5000);
+                            //clear();
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
                     }
+                    //System.out.println("val: "+f.get(de));
+                    if (compare(f.get(de), f.get(deList.get(pos))) < 0) {
+                        //System.out.print(f.get(de));
+                        //System.out.print(","+f.get(deList.get(pos)));
+                        //System.out.println("");
+                        deList.add(pos, de);
+                        //System.out.println("Inserted at: "+pos);
+                        //displayInsert(pos+1, pos, deList.size());
+                    } else if (compare(f.get(de), f.get(deList.get(pos))) > 0) {
+                        //System.out.print(f.get(deList.get(pos)));
+                        //System.out.print(","+f.get(de));
+                        //System.out.println("");
+                        deList.add(pos + 1, de);
+                        //System.out.println("Inserted at: "+(pos+1));
+                        //displayInsert(pos, pos+1, deList.size());
+                    } else {
+                        //System.out.print(f.get(de));
+                        //System.out.print(","+f.get(deList.get(pos)));
+                        //System.out.println("");
+                        deList.add(pos, de);
+                        //System.out.println("Inserted at: "+pos);
+                        //displayInsert(pos+1, pos, deList.size());
+                    }
+                        /*try{
+                            Thread.sleep(10000);
+                            clear();
+                        }catch (Exception ex){ ex.printStackTrace(); }*/
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
         }
     }
 
     @Override
-    public synchronized void resetIndex() {
-        synchronized(entries) {
-            if (entries.size() > 0 && !buildIndex) {
-                resetIndex(entries.get(0).getClass());
-                setUnsavedIndexModifications(false);
-            }
+    public void resetIndex() {
+        if (entries.size() > 0) {
+            resetIndex(entries.get(0).getClass());
+            setUnsavedIndexModifications(false);
         }
     }
 
     public synchronized void resetIndex(Class clazz) {
-        List<Field> fields = new ArrayList<Field>(){{
+        System.out.println("reset index");
+        List<Field> fields = new ArrayList<Field>() {{
             addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
             addAll(Arrays.asList(clazz.getDeclaredFields()));
         }};
@@ -173,7 +262,7 @@ public class LargeDataTable implements TableTemplate {
             try {
                 Collections.sort(sortedIndex.get(fieldName), new SortByElement(f));
                 //System.out.println("Sorted for field "+fieldName);
-            }catch (Exception x){
+            } catch (Exception x) {
                 //System.out.println("Failed for field "+fieldName);
                 x.printStackTrace();
             }
@@ -183,23 +272,22 @@ public class LargeDataTable implements TableTemplate {
     @Override
     public <T> List<T> search(String name, Object obj, Class clazz) {
         try {
-            List<Field> fields = new ArrayList<Field>(){{
+            List<Field> fields = new ArrayList<Field>() {{
                 addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
                 addAll(Arrays.asList(clazz.getDeclaredFields()));
             }};
             List<T> output = new ArrayList<>();
-            Field f = fields.stream().filter(u->u.getName().equals(name)).findFirst().get();
+            Field f = fields.stream().filter(u -> u.getName().equals(name)).findFirst().get();
             if (sortedIndex.containsKey(name)) {
                 List<DataEntry> deList = sortedIndex.get(name);
                 //System.out.println(new ObjectMapper().writeValueAsString(deList));
                 int end = deList.size();
                 int pos = (int) Math.floor(end / 2);
                 int start = 0;
-                while (start < pos) {
-                    int val = compare(obj, f.get(deList.get(pos)));
-                    //System.out.println("direction: "+val+" start: "+start +" end: "+end+" pos:"+pos);
-                    //System.out.println(f.get(deList.get(pos)));
-                    //System.out.println(obj);
+
+                while (start < pos && pos < end) {
+                    Object objectAtPos = f.get(deList.get(pos));
+                    int val = compare(obj, objectAtPos);
                     if (val > 0) {
                         start = pos;
                         pos = (int) Math.floor((end + pos) / 2);
@@ -207,20 +295,25 @@ public class LargeDataTable implements TableTemplate {
                         end = pos;
                         pos = (int) Math.floor((start + end) / 2);
                     } else if (val == 0) {
-                        output.add((T)deList.get(pos));
-                        int scan=pos-1;
-                        while(scan>=0 && compare(obj, f.get(deList.get(scan)))==0){
-                            output.add((T)deList.get(scan));
-                            scan-=1;
+                        System.out.println("FOUND");
+                        output.add((T) deList.get(pos));
+                        int scan = pos - 1;
+                        while (scan >= 0 && cast(obj, f.get(deList.get(scan)))) {
+                            output.add((T) deList.get(scan));
+                            scan -= 1;
                         }
-                        scan=pos+1;
-                        while(scan<deList.size() && compare(obj, f.get(deList.get(scan)))==0){
-                            output.add((T)deList.get(scan));
-                            scan+=1;
+                        scan = pos + 1;
+                        while (scan < deList.size() && cast(obj, f.get(deList.get(scan)))) {
+                            output.add((T) deList.get(scan));
+                            scan += 1;
                         }
                         return output;
                     }
+
                 }
+                System.out.println("NEVER FOUND!");
+            } else {
+                System.out.println("NO INDEX FOUND");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -232,11 +325,11 @@ public class LargeDataTable implements TableTemplate {
 
     public DataEntry searchOne(String name, Object obj, Class clazz) {
         try {
-            List<Field> fields = new ArrayList<Field>(){{
+            List<Field> fields = new ArrayList<Field>() {{
                 addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
                 addAll(Arrays.asList(clazz.getDeclaredFields()));
             }};
-            Field f = fields.stream().filter(u->u.getName().equals(name)).findFirst().get();
+            Field f = fields.stream().filter(u -> u.getName().equals(name)).findFirst().get();
             if (sortedIndex.containsKey(name)) {
                 List<DataEntry> deList = sortedIndex.get(name);
                 //System.out.println(new ObjectMapper().writeValueAsString(deList));
@@ -271,7 +364,7 @@ public class LargeDataTable implements TableTemplate {
                 }
                 return false;
             }).findFirst();
-            if(entry.isPresent()){
+            if (entry.isPresent()) {
                 return entry.get();
             }
         } catch (Exception e) {
@@ -300,7 +393,7 @@ public class LargeDataTable implements TableTemplate {
         return false;
     }
 
-    public  int compare(Object a, Object b) {
+    public int compare(Object a, Object b) {
         try {
             if (a == null && b == null)
                 return 0;
@@ -320,7 +413,7 @@ public class LargeDataTable implements TableTemplate {
                 return ((Integer) a).compareTo(((Integer) b));
             } else if (a.getClass() == boolean.class && b.getClass() == boolean.class) {
                 return Boolean.valueOf((boolean) a).compareTo(Boolean.valueOf((boolean) b));
-            }else{
+            } else {
                 //System.out.println(a.getClass().getName());
                 //System.out.println(b.getClass().getName());
             }
@@ -393,7 +486,7 @@ public class LargeDataTable implements TableTemplate {
         return true;
     }
 
-    public synchronized void modify(Modification mod, Object modification) {
+    public void modify(Modification mod, Object modification) {
         switch (mod) {
             case CREATE:
                 Create c = (Create) modification;
@@ -402,11 +495,7 @@ public class LargeDataTable implements TableTemplate {
                     try {
                         synchronized (entries) {
                             entries.add(c.getValue());
-                            if (!buildIndex) {
-                                updateIndex(c.getValue(), c.getValue().getClass());
-                            }else{
-                                unsavedIndexModifications = true;
-                            }
+                            updateIndex(c.getValue(), c.getValue().getClass());
                         }
                         size++;
                         if (consumers.containsKey(c.getValue().getKey())) {
@@ -442,7 +531,7 @@ public class LargeDataTable implements TableTemplate {
                     try {
                         Class clazz = Class.forName(u.getMasterClass());
                         DataEntry de = searchOne("key", u.getKey(), DataEntry.class);
-                        if (de!=null) {
+                        if (de != null) {
                             if (consumers.containsKey(de.getKey())) {
                                 consumers.remove(de.getKey()).accept(de);
                             }
@@ -489,6 +578,7 @@ public class LargeDataTable implements TableTemplate {
     public void startImportThreads() {
 
     }
+
     public void addListener(Modification m, Consumer<DataEntry> method) {
         if (!listeners.containsKey(m)) {
             listeners.put(m, new HashSet<>());

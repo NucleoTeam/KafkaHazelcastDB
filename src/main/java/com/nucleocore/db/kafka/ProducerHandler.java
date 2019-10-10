@@ -10,6 +10,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 
 public class ProducerHandler implements Runnable {
     private KafkaProducer producer;
@@ -29,7 +30,7 @@ public class ProducerHandler implements Runnable {
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         return new KafkaProducer(props);
     }
-
+    public CountDownLatch latch = new CountDownLatch(1);
     public KafkaProducer getProducer() {
         return producer;
     }
@@ -37,6 +38,7 @@ public class ProducerHandler implements Runnable {
     public synchronized void save(Modify modify){
         synchronized(pendingSaves) {
             pendingSaves.add(modify);
+            latch.countDown();
         }
     }
 
@@ -49,22 +51,23 @@ public class ProducerHandler implements Runnable {
     public void run() {
         ObjectMapper om = new ObjectMapper();
         do {
-            Modify mod;
-            while((mod = pop())!=null) {
-                try {
-                    ProducerRecord record = new ProducerRecord(
-                        table,
-                        UUID.randomUUID().toString(),
-                        mod.getClass().getSimpleName() + om.writeValueAsString(mod)
-                    );
-                    getProducer().send(record);
-                    //System.out.println("Sending to " + table + " datagram: " + mod.getClass().getSimpleName() + om.writeValueAsString(mod));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
             try {
-                Thread.sleep(0, 100);
+                latch.await();
+                latch = new CountDownLatch(1);
+                Modify mod;
+                while ((mod = pop()) != null) {
+                    try {
+                        ProducerRecord record = new ProducerRecord(
+                            table,
+                            UUID.randomUUID().toString(),
+                            mod.getClass().getSimpleName() + om.writeValueAsString(mod)
+                        );
+                        getProducer().send(record);
+                        //System.out.println("Sending to " + table + " datagram: " + mod.getClass().getSimpleName() + om.writeValueAsString(mod));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
             }catch (Exception e){
                 e.printStackTrace();
             }

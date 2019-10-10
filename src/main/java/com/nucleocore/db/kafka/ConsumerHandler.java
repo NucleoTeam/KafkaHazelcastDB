@@ -6,6 +6,7 @@ import com.nucleocore.db.database.TableTemplate;
 import com.nucleocore.db.database.utils.DataEntry;
 import com.nucleocore.db.database.utils.Modification;
 import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.common.metrics.stats.Count;
 import org.apache.kafka.common.serialization.*;
 
 import java.time.Duration;
@@ -31,6 +32,7 @@ public class ConsumerHandler implements Runnable {
                     String entry;
                     database.setBuildIndex(true);
                     countDownLatch.await();
+                    countDownLatch=new CountDownLatch(1);
                     while ((entry = pop())!=null) {
                         if(entries.size()>10){
                             database.setBuildIndex(false);

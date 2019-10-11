@@ -75,7 +75,7 @@ public class ConsumerHandler implements Runnable {
         consumer.commitAsync();
         ObjectMapper om = new ObjectMapper();
         do {
-            ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofNanos(20));
+            ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofMillis(5));
             if(!rs.isEmpty()){
                 //System.out.println("RECEIVED DATA");
                 Iterator<ConsumerRecord<Integer, String>> iter = rs.iterator();

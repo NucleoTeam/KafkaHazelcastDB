@@ -27,6 +27,7 @@ public class ConsumerHandler implements Runnable {
         this.subscribe(table.split(","));
         new Thread(()->{
             ObjectMapper om = new ObjectMapper();
+            om.enableDefaultTyping();
             do {
                 try {
                     String entry;
@@ -73,7 +74,6 @@ public class ConsumerHandler implements Runnable {
     @Override
     public void run() {
         consumer.commitAsync();
-        ObjectMapper om = new ObjectMapper();
         do {
             ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofMillis(5));
             if(!rs.isEmpty()){

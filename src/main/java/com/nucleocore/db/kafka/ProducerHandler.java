@@ -50,6 +50,7 @@ public class ProducerHandler implements Runnable {
     @Override
     public void run() {
         ObjectMapper om = new ObjectMapper();
+        om.enableDefaultTyping();
         do {
             try {
                 latch.await();

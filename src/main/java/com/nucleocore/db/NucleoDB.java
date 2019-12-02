@@ -2,10 +2,14 @@ package com.nucleocore.db;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mcbans.models.Player;
+import com.mcbans.models.User;
 import com.nucleocore.db.database.LargeDataTable;
 import com.nucleocore.db.database.TableTemplate;
-import com.nucleocore.db.database.utils.*;
 import com.nucleocore.db.database.DataTable;
+import com.nucleocore.db.database.utils.DataEntry;
+import com.nucleocore.db.database.utils.Importer;
+import com.nucleocore.db.database.utils.Test;
 import org.supercsv.cellprocessor.*;
 import org.supercsv.cellprocessor.Optional;
 import org.supercsv.cellprocessor.constraint.NotNull;
@@ -17,7 +21,7 @@ public class NucleoDB {
     static String latestSave = "";
     public static void main(String... args) {
         NucleoDB db = new NucleoDB();
-        db.launchLargeTable("192.168.1.7:9092,192.168.1.6:9092", "players");
+        db.launchLargeTable("192.168.1.7:9092,192.168.1.6:9092,192.168.1.8:9092,192.168.1.5:9092", "playerlist");
         db.launchTable(null, "userDataTest");
         //db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
        // db.getTable("userDataTest").addListener(Modification.CREATE, (d)->System.out.println("Created "+d.getClass().getName()));
@@ -188,28 +192,35 @@ public class NucleoDB {
                     case 14:
                         time = System.currentTimeMillis();
                         try {
-                            System.out.println(om.writeValueAsString(db.getTable("players").search("name", "aggdagg", Player.class)));
+                            Player player = new Player();
+                            player.setName("firestarthe");
+                            System.out.println(om.writeValueAsString(db.getLargeTable("playerlist").search("name", player, Player.class)));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
                         }
                         try {
-                            System.out.println(om.writeValueAsString(db.getTable("players").search("name", "brookeelisia", Player.class)));
+                            Player player = new Player();
+                            player.setName("brookeelisia");
+                            System.out.println(om.writeValueAsString(db.getLargeTable("playerlist").search("name", player, Player.class)));
                         }catch (JsonProcessingException e){
                             e.printStackTrace();
                         }
                         System.out.println("time: "+(System.currentTimeMillis()-time));
                         break;
                     case 15:
-                        db.getTable("players").consume();
+                        db.getLargeTable("playerlist").consume();
                         break;
                     case 16:
-                        db.getTable("players").resetIndex();
+                        db.getLargeTable("playerlist").resetIndex();
                         break;
                 }
             }
     }
-    public TableTemplate getTable(String table){
-        return tables.get(table);
+    public DataTable getTable(String table){
+        return (DataTable)tables.get(table);
+    }
+    public LargeDataTable getLargeTable(String table){
+        return (LargeDataTable)tables.get(table);
     }
     public TableTemplate launchTable(String bootstrap, String table){
         DataTable t = new DataTable(bootstrap, table);

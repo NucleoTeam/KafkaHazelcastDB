@@ -13,7 +13,6 @@ public interface TableTemplate {
     void modify(Modification mod, Object modification);
     boolean save(DataEntry oldEntry, DataEntry newEntry, Consumer<DataEntry> consumer);
     boolean save(DataEntry oldEntry, DataEntry newEntry);
-    <T> List<T> search(String name, Object obj, Class clazz);
     void multiImport(DataEntry newEntry);
     void updateIndex(Class clazz);
     void startImportThreads();
@@ -25,7 +24,5 @@ public interface TableTemplate {
     boolean isUnsavedIndexModifications();
     void resetIndex();
     void setUnsavedIndexModifications(boolean unsavedIndexModifications);
-    DataEntry searchOne(String name, Object obj, Class clazz);
-    <T> List<T> in(String name, List<Object> objs, Class clazz);
     void consume();
 }

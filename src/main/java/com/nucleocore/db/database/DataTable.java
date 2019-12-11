@@ -38,7 +38,7 @@ public class DataTable implements TableTemplate {
 
   private String bootstrap;
   private String table;
-  public DataTable(String bootstrap, String table) {
+  public DataTable(String bootstrap, String table, Class clazz) {
     setIndex = new SetIndex();
     this.bootstrap = bootstrap;
     this.table = table;
@@ -488,11 +488,6 @@ public class DataTable implements TableTemplate {
     this.save(null, newEntry);
   }
 
-  @Override
-  public void updateIndex(Class clazz) {
-
-  }
-
   List<Thread> threads = new ArrayList<>();
 
   public void startImportThreads() {
@@ -500,12 +495,7 @@ public class DataTable implements TableTemplate {
   }
 
   @Override
-  public void resetIndex(Class clazz) {
-
-  }
-
-  @Override
-  public void updateIndex(DataEntry de, Class clazz) {
+  public void startup() {
 
   }
 
@@ -523,15 +513,6 @@ public class DataTable implements TableTemplate {
     listeners.get(m).add(method);
   }
 
-  @Override
-  public boolean isUnsavedIndexModifications() {
-    return false;
-  }
-
-  @Override
-  public void resetIndex() {
-
-  }
 
   public int getSize() {
     return size;

@@ -1,12 +1,23 @@
 package com.nucleocore.db.database.utils;
 
 import java.io.Serializable;
+import java.lang.reflect.Field;
 import java.util.UUID;
 
 public abstract class DataEntry implements Serializable {
 
     @Index
     public String key;
+
+    public DataEntry(DataEntry toCopy) {
+        try {
+            for (Field field : this.getClass().getDeclaredFields()) {
+                field.set(this, field.get(toCopy));
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
 
     public DataEntry() {
         this.key = UUID.randomUUID().toString().replaceAll("-","");

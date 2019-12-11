@@ -88,7 +88,6 @@ public class Importer {
                 }
             }
             table.setBuildIndex(false);
-            table.resetIndex(clazz);
             System.out.println("Finished import: "+table.getSize());
         } catch (IOException |
             NoSuchMethodException |

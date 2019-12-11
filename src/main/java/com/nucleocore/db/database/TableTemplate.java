@@ -14,15 +14,9 @@ public interface TableTemplate {
     boolean save(DataEntry oldEntry, DataEntry newEntry, Consumer<DataEntry> consumer);
     boolean save(DataEntry oldEntry, DataEntry newEntry);
     void multiImport(DataEntry newEntry);
-    void updateIndex(Class clazz);
-    void startImportThreads();
-    void resetIndex(Class clazz);
-    void updateIndex(DataEntry de, Class clazz);
-    boolean isBuildIndex();
     int getSize();
+    void startup();
     void setBuildIndex(boolean buildIndex);
-    boolean isUnsavedIndexModifications();
-    void resetIndex();
     void setUnsavedIndexModifications(boolean unsavedIndexModifications);
     void consume();
 }

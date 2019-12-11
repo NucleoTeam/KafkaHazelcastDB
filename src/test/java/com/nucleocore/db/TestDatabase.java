@@ -13,7 +13,7 @@ import static org.junit.Assert.*;
 public class TestDatabase {
     @Test
     public void shouldCreateEntry(){
-        DataTable db = new DataTable(null, "test");
+        DataTable db = new DataTable(null, "test", com.nucleocore.db.database.utils.Test.class);
         db.save(null, new com.nucleocore.db.database.utils.Test("tes","Nathaniel", "nathanield"));
         assertTrue(db.size()==1);
         db.flush();
@@ -21,7 +21,7 @@ public class TestDatabase {
 
     @Test
     public void shouldGetCreatedEntry() throws JsonProcessingException {
-        DataTable db = new DataTable(null,"test2");
+        DataTable db = new DataTable(null,"test2", com.nucleocore.db.database.utils.Test.class);
         db.save(null, new com.nucleocore.db.database.utils.Test("test","David", "davidl"));
         assertTrue(db.size()==1);
         Stream<Map.Entry<String, DataEntry>> entries = db.filterMap(d->((com.nucleocore.db.database.utils.Test)d.getValue()).getName().equals("David"));

@@ -34,6 +34,10 @@ public class Utils {
         return 0;
     }
     public static boolean cast(Object a, Object b) {
+        if (a == null && b == null)
+            return true;
+        if (a == null || b == null)
+            return false;
         if (a.getClass() == String.class && b.getClass() == String.class) {
             return ((String) a).equals((String) b);
         } else if (a.getClass() == Integer.class && b.getClass() == Integer.class) {

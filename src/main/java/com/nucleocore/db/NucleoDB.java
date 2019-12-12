@@ -2,12 +2,9 @@ package com.nucleocore.db;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mcbans.models.Player;
-import com.mcbans.models.User;
 import com.nucleocore.db.database.LargeDataTable;
 import com.nucleocore.db.database.TableTemplate;
 import com.nucleocore.db.database.DataTable;
-import com.nucleocore.db.database.utils.DataEntry;
 import com.nucleocore.db.database.utils.Importer;
 import com.nucleocore.db.database.utils.Test;
 import org.supercsv.cellprocessor.*;
@@ -20,6 +17,7 @@ public class NucleoDB {
     private TreeMap<String, TableTemplate> tables = new TreeMap<>();
     static String latestSave = "";
     public static void main(String... args) {
+        /*
         NucleoDB db = new NucleoDB();
         db.launchLargeTable("192.168.1.7:9092,192.168.1.6:9092,192.168.1.8:9092,192.168.1.5:9092", "playerlist", Player.class, ()->{
             System.out.println("STARTUP COMPLETE");
@@ -46,41 +44,38 @@ public class NucleoDB {
                         user.setEmail("nathaniel.davidson@gmail.com");
                         user.setPlayer(1);
                         user.setUser("firestar");
-                        db.getTable("usertest").save(null, user, d->{
+                        db.getLargeTable("usertest").save(null, user, d->{
                             System.out.println("["+d.getKey()+"] Finished save");
                             latestSave = d.getKey();
                         });
                         break;
                     case 2:
                         time = System.currentTimeMillis();
-                        user = (User) db.getLargeTable("usertest").searchOne("user", "firstar");
+                        user = (User) db.getLargeTable("usertest").searchOne("user", "firestar");
                         if(user!=null){
-                            //new User(user);
+                            User changed = new User(user);
+                            changed.setUser("test");
+                            db.getLargeTable("usertest").save(user, changed, d->{
+                                System.out.println("["+d.getKey()+"] Finished save");
+                                latestSave = d.getKey();
+                            });
                         }
+
                         System.out.println(System.currentTimeMillis()-time);
                         break;
                     case 3:
-                        DataEntry de = ((DataTable)db.getTable("test4")).get(latestSave);
+                        user = (User) db.getLargeTable("usertest").searchOne("user", "firestar");
                         try {
-                            System.out.println(om.writeValueAsString(de));
+                            System.out.println(om.writeValueAsString(user));
                         }catch (IOException ex){
                             ex.printStackTrace();
                         }
-                        db.getTable("test4").save(de, null);
                         break;
                     case 4:
+                        user = (User) db.getLargeTable("usertest").searchOne("user", "test");
                         try {
-                            time = System.currentTimeMillis();
-                            Test data = ((DataTable)db.getTable("test4")).get(latestSave);
-                            if(data!=null) {
-                                Test data2 = new Test(data);
-                                data2.setName(data2.getName() + ".");
-                                db.getTable("test4").save(data, data2);
-                            }else{
-                                System.out.println("null");
-                            }
-                            System.out.println(System.currentTimeMillis()-time);
-                        }catch (Exception ex){
+                            System.out.println(om.writeValueAsString(user));
+                        }catch (IOException ex){
                             ex.printStackTrace();
                         }
                         break;
@@ -166,14 +161,14 @@ public class NucleoDB {
                     case 12:
                         time = System.currentTimeMillis();
                         System.out.println("READING IN DATA");
-                        /*db.getTable("test4").save(null, new Player(1,"firestarthe","piou4t3o78thgiudnsjkvn7824h"));
+                        db.getTable("test4").save(null, new Player(1,"firestarthe","piou4t3o78thgiudnsjkvn7824h"));
                         for(int y=2;y<10;y++){
                             db.getTable("test4").save(null, new Player(
                               y,
                               UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)(Math.random()*27)+4),
                               UUID.randomUUID().toString().replaceAll("-","").substring(0, (int)(Math.random()*27)+4)
                             ));
-                        }*/
+                        }
 
                         int y = new Importer()
                             .addMap("player_id", "playerId", new ParseLong()) // pass
@@ -216,6 +211,7 @@ public class NucleoDB {
                         break;
                 }
             }
+            */
     }
     public DataTable getTable(String table){
         return (DataTable)tables.get(table);

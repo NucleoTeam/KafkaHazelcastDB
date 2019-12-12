@@ -9,6 +9,13 @@ import com.nucleocore.db.database.modifications.Update;
 import com.nucleocore.db.database.utils.*;
 import com.nucleocore.db.kafka.ConsumerHandler;
 import com.nucleocore.db.kafka.ProducerHandler;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.KafkaAdminClient;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.serialization.StringDeserializer;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
@@ -33,6 +40,8 @@ public class LargeDataTable implements TableTemplate {
     private int size = 0;
     private boolean buildIndex = true;
 
+    ObjectMapper om = new ObjectMapper(){{this.enableDefaultTyping();}};
+
     private String bootstrap;
     private String table;
     private List<Field> fields;
@@ -50,12 +59,25 @@ public class LargeDataTable implements TableTemplate {
         this.startupCode = startupCode;
         this.bootstrap = bootstrap;
         this.table = table;
+        Properties props = new Properties();
+        props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
+        AdminClient client = KafkaAdminClient.create(props);
+        try {
+            if (client.listTopics().names().get().stream().filter(x -> x.equals(table)).count() == 0) {
+                client.createTopics(new ArrayList<NewTopic>() {{
+                    add(new NewTopic(table, 1, (short) 4));
+                }});
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        client.close();
         if (bootstrap != null) {
             producer = new ProducerHandler(bootstrap, table);
             this.clazz = clazz;
             this.fields = new ArrayList<Field>() {{
-                addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
                 addAll(Arrays.asList(clazz.getDeclaredFields()));
+                addAll(Arrays.asList(clazz.getSuperclass().getFields()));
             }};
         }
     }
@@ -264,7 +286,7 @@ public class LargeDataTable implements TableTemplate {
         } else if (newEntry != null && oldEntry != null) {
             Update updateEntry = new Update();
             try {
-                updateEntry.setKey(newEntry.getKey());
+                updateEntry.setKey(oldEntry.getKey());
                 if (consumer != null) {
                     consumers.put(newEntry.getKey(), consumer);
                 }
@@ -340,6 +362,7 @@ public class LargeDataTable implements TableTemplate {
                     try {
                         Class clazz = Class.forName(u.getMasterClass());
                         DataEntry de = searchOne("key", u.getKey());
+
                         if (de != null) {
                             if (consumers.containsKey(de.getKey())) {
                                 consumers.remove(de.getKey()).accept(de);

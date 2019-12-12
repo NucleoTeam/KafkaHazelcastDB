@@ -28,7 +28,10 @@ public class BinaryIndex {
                     }
                     return 0;
                 });
-                entries.add((-val) - 1, de);
+                if(val<0)
+                    entries.add((-val) - 1, de);
+                else
+                    entries.add(val, de);
             }
         }else
             addStartup(de);
@@ -65,12 +68,12 @@ public class BinaryIndex {
             int len = entries.size();
             try {
                 int startPos = val;
-                while (val>=0 && val<len && Utils.compare(field.get(de), field.get(entries.get(startPos)))==0) {
+                while (startPos>=0 && startPos<len && Utils.compare(field.get(de), field.get(entries.get(startPos)))==0) {
                     out.add(entries.get(startPos));
                     startPos++;
                 }
                 int startNeg = val-1;
-                while (val>=0 && val<len && Utils.compare(field.get(de), field.get(entries.get(startNeg)))==0) {
+                while (startNeg>=0 && startNeg<len && Utils.compare(field.get(de), field.get(entries.get(startNeg)))==0) {
                     out.add(entries.get(startNeg));
                     startNeg--;
                 }

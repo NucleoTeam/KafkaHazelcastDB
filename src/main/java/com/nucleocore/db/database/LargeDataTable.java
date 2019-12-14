@@ -47,6 +47,7 @@ public class LargeDataTable implements TableTemplate {
     private List<Field> fields;
     private Class clazz;
     private Runnable startupCode;
+    private boolean inStartup = true;
 
 
     public synchronized Object[] getIndex(){
@@ -152,6 +153,7 @@ public class LargeDataTable implements TableTemplate {
 
     @Override
     public void startup() {
+        inStartup = false;
         resetIndex();
         if(startupCode!=null) {
             startupCode.run();
@@ -161,17 +163,19 @@ public class LargeDataTable implements TableTemplate {
     private long counter=0;
     private long lastReq=0;
     public void addIndex(DataEntry de) {
-            lastReq = System.currentTimeMillis();
-            for (Field f : fields) {
-                if (f.isAnnotationPresent(Index.class)) {
-                    String fieldName = f.getName();
-                    if (!sortedIndex.containsKey(fieldName)) {
-                        sortedIndex.put(fieldName, new BinaryIndex(f));
-                    }
+        lastReq = System.currentTimeMillis();
+        for (Field f : fields) {
+            if (f.isAnnotationPresent(Index.class)) {
+                String fieldName = f.getName();
+                if (!sortedIndex.containsKey(fieldName)) {
+                    sortedIndex.put(fieldName, new BinaryIndex(f));
+                }
+                if(!inStartup) {
                     BinaryIndex index = sortedIndex.get(fieldName);
                     index.add(de);
                 }
             }
+        }
     }
     public void updateIndex(DataEntry de) {
         lastReq = System.currentTimeMillis();
@@ -182,8 +186,10 @@ public class LargeDataTable implements TableTemplate {
                     sortedIndex.put(fieldName, new BinaryIndex(f));
                 }
                 BinaryIndex index = sortedIndex.get(fieldName);
-                index.delete(de);
-                index.add(de);
+                if(!inStartup) {
+                    index.delete(de);
+                    index.add(de);
+                }
             }
         }
     }
@@ -195,7 +201,9 @@ public class LargeDataTable implements TableTemplate {
                 if (!sortedIndex.containsKey(fieldName)) {
                     sortedIndex.put(fieldName, new BinaryIndex(f));
                 }
-                sortedIndex.get(fieldName).delete(de);
+                if(!inStartup) {
+                    sortedIndex.get(fieldName).delete(de);
+                }
             }
         }
     }
@@ -208,6 +216,7 @@ public class LargeDataTable implements TableTemplate {
                 if (!sortedIndex.containsKey(fieldName)) {
                     sortedIndex.put(fieldName, new BinaryIndex(f));
                 }
+                sortedIndex.get(fieldName).getEntries().addAll(getEntries());
                 sortedIndex.get(fieldName).sort();
             }
         }

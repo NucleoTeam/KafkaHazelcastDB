@@ -83,4 +83,20 @@ public class BinaryIndex {
         }
         return out;
     }
+
+    public List<DataEntry> getEntries() {
+        return entries;
+    }
+
+    public void setEntries(List<DataEntry> entries) {
+        this.entries = entries;
+    }
+
+    public boolean isSorted() {
+        return sorted;
+    }
+
+    public void setSorted(boolean sorted) {
+        this.sorted = sorted;
+    }
 }

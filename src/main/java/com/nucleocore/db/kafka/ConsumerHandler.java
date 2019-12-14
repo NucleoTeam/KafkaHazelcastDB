@@ -75,6 +75,7 @@ public class ConsumerHandler implements Runnable {
                         }
                     }
                 }
+                
                 consumer.commitAsync();
             } while (!Thread.interrupted());
         }catch (Exception e){

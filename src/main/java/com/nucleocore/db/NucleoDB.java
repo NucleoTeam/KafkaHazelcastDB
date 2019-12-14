@@ -1,16 +1,8 @@
 package com.nucleocore.db;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.db.database.LargeDataTable;
 import com.nucleocore.db.database.TableTemplate;
 import com.nucleocore.db.database.DataTable;
-import com.nucleocore.db.database.utils.Importer;
-import com.nucleocore.db.database.utils.Test;
-import org.supercsv.cellprocessor.*;
-import org.supercsv.cellprocessor.Optional;
-import org.supercsv.cellprocessor.constraint.NotNull;
-import java.io.IOException;
 import java.util.*;
 
 public class NucleoDB {

@@ -1,11 +1,28 @@
-package com.nucleocore.db.database.utils;
+package com.nucleocore.db.database.index;
 
 import com.google.common.collect.Sets;
 import com.google.common.collect.Maps;
+import com.nucleocore.db.database.index.IndexTemplate;
+
 import java.util.*;
 import java.util.stream.Stream;
 
-public class SetIndex {
+public class SetIndex extends IndexTemplate {
+  @Override
+  public void add(Object index, String de) {
+    return;
+  }
+
+  @Override
+  public List<Object> search(Object indexCheck) {
+    return null;
+  }
+
+  @Override
+  public boolean remove(Object left, String de) {
+    return false;
+  }
+
   public class CharacterIndex {
     private char character;
     private String variable;
@@ -27,7 +44,7 @@ public class SetIndex {
       x++;
     }
   }
-  public CharacterIndex getCharacterIndex(String field, int position, char x, boolean create){
+  private CharacterIndex getCharacterIndex(String field, int position, char x, boolean create){
     synchronized (characters) {
       TreeMap<Integer, List<CharacterIndex>> charFieldIndex = null;
       if (characters.containsKey(field)) {
@@ -77,7 +94,7 @@ public class SetIndex {
     }
     return entries;
   }
-  public void deleteCharIndex(String field, int position, char character){
+  private void deleteCharIndex(String field, int position, char character){
     synchronized (characters) {
       TreeMap<Integer, List<CharacterIndex>> charFieldIndex = null;
       if (characters.containsKey(field)) {

@@ -1,5 +1,7 @@
 package com.nucleocore.db.database.utils;
 
+import com.nucleocore.db.database.index.Index;
+
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.UUID;

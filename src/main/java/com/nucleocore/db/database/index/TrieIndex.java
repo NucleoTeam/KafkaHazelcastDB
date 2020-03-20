@@ -1,14 +1,13 @@
-package com.nucleocore.db.database.utils;
+package com.nucleocore.db.database.index;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
-public class Trie {
+public class TrieIndex extends IndexTemplate {
   public TrieNode root = new TrieNode();
   public void add(Object index, String de){
     root.add(String.valueOf(index), de);
   }
-  public List<String> search(Object indexCheck){
+  public List<Object> search(Object indexCheck){
     return root.search(String.valueOf(indexCheck));
   }
   public boolean remove(Object left, String de) {

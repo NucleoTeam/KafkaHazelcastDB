@@ -1,11 +1,12 @@
 package com.nucleocore.db.database.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nucleocore.db.database.index.TrieNode;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class TrieNodeTest {
+public class TrieIndexNodeTest {
 
     @Test
     public void verifyCorrectSize() {

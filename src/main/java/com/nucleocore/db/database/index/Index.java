@@ -1,4 +1,4 @@
-package com.nucleocore.db.database.utils;
+package com.nucleocore.db.database.index;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

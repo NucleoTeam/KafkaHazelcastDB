@@ -2,6 +2,10 @@ package com.nucleocore.db.database;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import com.nucleocore.db.database.index.Index;
+import com.nucleocore.db.database.index.IndexType;
+import com.nucleocore.db.database.index.SetIndex;
+import com.nucleocore.db.database.index.TrieIndex;
 import com.nucleocore.db.database.modifications.Create;
 import com.nucleocore.db.database.modifications.Delete;
 import com.nucleocore.db.database.modifications.Update;
@@ -11,7 +15,6 @@ import com.nucleocore.db.kafka.ProducerHandler;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -25,7 +28,7 @@ public class DataTable implements TableTemplate {
   private HashMap<String, DataEntry> map = new HashMap<>();
   private HashMap<String, TreeMap<Object, List<String>>> index = new HashMap<>();
   private HashMap<String, Consumer<DataEntry>> consumers = new HashMap<>();
-  public HashMap<String, Trie> trieIndex = new HashMap<>();
+  public HashMap<String, TrieIndex> trieIndex = new HashMap<>();
   private SetIndex setIndex;
 
   private HashMap<Modification, Set<Consumer<DataEntry>>> listeners = new HashMap<>();
@@ -97,7 +100,7 @@ public class DataTable implements TableTemplate {
           case TRIE:
             synchronized (trieIndex) {
               if (!trieIndex.containsKey(name))
-                trieIndex.put(name, new Trie());
+                trieIndex.put(name, new TrieIndex());
             }
             trieIndex.get(name).add(obj, e.getKey());
             break;

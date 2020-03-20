@@ -49,7 +49,7 @@ public class Utils {
         }
         return false;
     }
-    static class SortByElement implements Comparator<Object> {
+    public static class SortByElement implements Comparator<Object> {
         Field f;
 
         public SortByElement(Field f) {

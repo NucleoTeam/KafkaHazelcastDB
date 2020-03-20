@@ -1,19 +1,22 @@
-package com.nucleocore.db.database.utils;
+package com.nucleocore.db.database.index;
 
 import com.google.common.collect.Lists;
+import com.nucleocore.db.database.index.IndexTemplate;
+import com.nucleocore.db.database.utils.DataEntry;
+import com.nucleocore.db.database.utils.Utils;
 import org.apache.logging.log4j.util.PropertySource;
 
 import java.lang.reflect.Field;
 import java.util.*;
 
-public class BinaryIndex {
+public class BinaryIndex extends IndexTemplate  {
     List<DataEntry> entries = Lists.newArrayList();
     Utils.SortByElement sorter;
-    Field field;
 
-    public BinaryIndex(Field field) {
-        this.field = field;
+    public BinaryIndex indexer(Field field) {
+        super.indexer(field);
         this.sorter = new Utils.SortByElement(field);
+        return this;
     }
 
     boolean sorted = false;
@@ -41,20 +44,25 @@ public class BinaryIndex {
             entries.add(de);
         }
     }
-    public void delete(DataEntry de){
+    public boolean delete(DataEntry de){
         synchronized (entries) {
             entries.remove(de);
         }
+        return true;
     }
-    public void sort(){
+    private void sort(){
         synchronized (entries) {
-            if(!sorted) {
-                Collections.sort(entries, sorter);
-                sorted = true;
-            }
+            Collections.sort(entries, (a, b) -> {
+                try {
+                    return Utils.compare(field.get(a), field.get(b));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return 0;
+            });
         }
     }
-    public List<DataEntry> find(DataEntry de) {
+    public List<DataEntry> search(DataEntry de) {
         List<DataEntry> out = new ArrayList<>();
         synchronized (entries) {
             int val = Collections.binarySearch(entries, de, (a, b)->{
@@ -98,5 +106,17 @@ public class BinaryIndex {
 
     public void setSorted(boolean sorted) {
         this.sorted = sorted;
+    }
+
+    @Override
+    public boolean update(DataEntry entry) {
+        return super.update(entry);
+    }
+
+    @Override
+    public boolean addAll(List<DataEntry> dataEntries) {
+        entries.addAll(dataEntries);
+        sort();
+        return false;
     }
 }

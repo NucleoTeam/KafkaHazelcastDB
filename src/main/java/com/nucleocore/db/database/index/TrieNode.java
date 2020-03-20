@@ -1,4 +1,4 @@
-package com.nucleocore.db.database.utils;
+package com.nucleocore.db.database.index;
 
 import com.google.common.collect.Lists;
 import java.util.*;
@@ -7,7 +7,7 @@ import java.util.stream.Stream;
 
 public class TrieNode {
     public List<NodeInner> path = new ArrayList<>();
-    public List<String> entries = null;
+    public List<Object> entries = null;
     int get(int c){
         int i = Collections.binarySearch(path, new NodeInner(c, null), Comparator.comparingInt(NodeInner::getItem));
         //System.out.println("search result: "+i);
@@ -45,7 +45,7 @@ public class TrieNode {
             set(s, n);
         }
     }
-    public List<String> search(String left){
+    public List<Object> search(String left){
         if(left.length()==0){
             return entries;
         }
@@ -64,8 +64,8 @@ public class TrieNode {
     public boolean remove(String left, String key){
         if(left.length()==0){
             if(entries!=null) {
-                Stream<String> stream = entries.stream();
-                List<String> nodes = stream.filter(i ->!i.equals(key)).collect(Collectors.toList());
+                Stream<Object> stream = entries.stream();
+                List<Object> nodes = stream.filter(i ->!i.equals(key)).collect(Collectors.toList());
                 stream.close();
                 if (nodes.size() == 0){
                     entries=null;

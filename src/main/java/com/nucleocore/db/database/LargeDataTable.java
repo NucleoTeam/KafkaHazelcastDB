@@ -3,6 +3,9 @@ package com.nucleocore.db.database;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
+import com.nucleocore.db.database.index.BinaryIndex;
+import com.nucleocore.db.database.index.Index;
+import com.nucleocore.db.database.index.IndexTemplate;
 import com.nucleocore.db.database.modifications.Create;
 import com.nucleocore.db.database.modifications.Delete;
 import com.nucleocore.db.database.modifications.Update;
@@ -13,9 +16,6 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.serialization.StringDeserializer;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
@@ -29,7 +29,7 @@ public class LargeDataTable implements TableTemplate {
     private ConsumerHandler consumer = null;
 
     private List<DataEntry> entries = Lists.newArrayList();
-    private HashMap<String, BinaryIndex> sortedIndex = new HashMap<>();
+    private HashMap<String, IndexTemplate> sortedIndex = new HashMap<>();
 
     private HashMap<String, Consumer<DataEntry>> consumers = new HashMap<>();
 
@@ -164,14 +164,14 @@ public class LargeDataTable implements TableTemplate {
     private long lastReq=0;
     public void addIndex(DataEntry de) {
         lastReq = System.currentTimeMillis();
-        for (Field f : fields) {
-            if (f.isAnnotationPresent(Index.class)) {
-                String fieldName = f.getName();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Index.class)) {
+                String fieldName = field.getName();
                 if (!sortedIndex.containsKey(fieldName)) {
-                    sortedIndex.put(fieldName, new BinaryIndex(f));
+                    sortedIndex.put(fieldName, new BinaryIndex().indexer(field));
                 }
                 if(!inStartup) {
-                    BinaryIndex index = sortedIndex.get(fieldName);
+                    IndexTemplate index = sortedIndex.get(fieldName);
                     index.add(de);
                 }
             }
@@ -179,15 +179,15 @@ public class LargeDataTable implements TableTemplate {
     }
     public void updateIndex(DataEntry de) {
         lastReq = System.currentTimeMillis();
-        for (Field f : fields) {
-            if (f.isAnnotationPresent(Index.class)) {
-                String fieldName = f.getName();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Index.class)) {
+                String fieldName = field.getName();
                 if (!sortedIndex.containsKey(fieldName)) {
-                    sortedIndex.put(fieldName, new BinaryIndex(f));
+                    sortedIndex.put(fieldName, new BinaryIndex().indexer(field));
                 }
-                BinaryIndex index = sortedIndex.get(fieldName);
+                IndexTemplate index = sortedIndex.get(fieldName);
                 if(!inStartup) {
-                    index.delete(de);
+                    index.update(de);
                     index.add(de);
                 }
             }
@@ -195,11 +195,12 @@ public class LargeDataTable implements TableTemplate {
     }
     public void deleteIndex(DataEntry de) {
         lastReq = System.currentTimeMillis();
-        for (Field f : fields) {
-            if (f.isAnnotationPresent(Index.class)) {
-                String fieldName = f.getName();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Index.class)) {
+                String fieldName = field.getName();
+                IndexTemplate index = field.getAnnotation(Index.class).value().getIndexType();
                 if (!sortedIndex.containsKey(fieldName)) {
-                    sortedIndex.put(fieldName, new BinaryIndex(f));
+                    sortedIndex.put(fieldName, index.indexer(field));
                 }
                 if(!inStartup) {
                     sortedIndex.get(fieldName).delete(de);
@@ -210,14 +211,14 @@ public class LargeDataTable implements TableTemplate {
 
     public void resetIndex() {
         lastReq = System.currentTimeMillis();
-        for (Field f : fields) {
-            if (f.isAnnotationPresent(Index.class)) {
-                String fieldName = f.getName();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Index.class)) {
+                String fieldName = field.getName();
+                IndexTemplate index = field.getAnnotation(Index.class).value().getIndexType();
                 if (!sortedIndex.containsKey(fieldName)) {
-                    sortedIndex.put(fieldName, new BinaryIndex(f));
+                    sortedIndex.put(fieldName, index.indexer(field));
                 }
-                sortedIndex.get(fieldName).getEntries().addAll(getEntries());
-                sortedIndex.get(fieldName).sort();
+                sortedIndex.get(fieldName).addAll(getEntries());
             }
         }
     }
@@ -236,8 +237,8 @@ public class LargeDataTable implements TableTemplate {
     public <T> List<T> search(String name, DataEntry obj) {
         try {
             if (sortedIndex.containsKey(name)) {
-                BinaryIndex reduce = sortedIndex.get(name);
-                return (List<T>) reduce.find(obj);
+                IndexTemplate reduce = sortedIndex.get(name);
+                return (List<T>) reduce.search(obj);
             } else {
                 System.out.println("NO INDEX FOUND");
             }

@@ -1,5 +1,8 @@
 package com.nucleocore.db.database.utils;
 
+import com.nucleocore.db.database.index.Index;
+import com.nucleocore.db.database.index.IndexType;
+
 public class Test extends DataEntry {
 
     @Index

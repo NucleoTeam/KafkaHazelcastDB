@@ -32,7 +32,7 @@ uploadArchives {
             }
             pom.version = "${version}"
             pom.artifactId = "nucleodb"
-            pom.groupId = "com.synload.nucleo"
+            pom.groupId = "com.nucleocore.db"
         }
     }
 }

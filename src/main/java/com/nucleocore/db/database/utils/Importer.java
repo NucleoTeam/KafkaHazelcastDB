@@ -78,8 +78,7 @@ public class Importer {
                 customerMap.clear();
                 //System.out.println(new ObjectMapper().writeValueAsString(obj));
                 if(table!=null){
-
-                    table.multiImport((DataEntry) obj);
+                    table.save(null, (DataEntry) obj);
                 }
                 try {
                     customerMap = mapReader.read(header, this.processors);

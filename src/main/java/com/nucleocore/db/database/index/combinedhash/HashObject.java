@@ -26,7 +26,6 @@ public class HashObject {
                 stringLeft = value.substring(2, len-1);
             }
         }
-        System.out.println(key);
         if (key == null) {
             if (index == null) {
                 index = new BinaryIndex().indexOn(this.field);

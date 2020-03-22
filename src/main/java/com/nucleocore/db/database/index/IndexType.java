@@ -1,5 +1,10 @@
 package com.nucleocore.db.database.index;
 
+import com.nucleocore.db.database.index.binary.BinaryIndex;
+import com.nucleocore.db.database.index.combinedhash.HashIndex;
+import com.nucleocore.db.database.index.set.SetIndex;
+import com.nucleocore.db.database.index.trie.TrieIndex;
+
 public enum IndexType {
     HASH(new HashIndex()),
     TRIE(new TrieIndex()),

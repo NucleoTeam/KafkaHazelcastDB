@@ -1,4 +1,6 @@
-package com.nucleocore.db.database.index;
+package com.nucleocore.db.database.index.trie;
+
+import com.nucleocore.db.database.index.IndexTemplate;
 
 import java.util.*;
 

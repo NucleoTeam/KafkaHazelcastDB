@@ -2,539 +2,459 @@ package com.nucleocore.db.database;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Queues;
 import com.nucleocore.db.database.index.Index;
-import com.nucleocore.db.database.index.IndexType;
-import com.nucleocore.db.database.index.SetIndex;
-import com.nucleocore.db.database.index.TrieIndex;
+import com.nucleocore.db.database.index.IndexTemplate;
 import com.nucleocore.db.database.modifications.Create;
 import com.nucleocore.db.database.modifications.Delete;
 import com.nucleocore.db.database.modifications.Update;
 import com.nucleocore.db.database.utils.*;
 import com.nucleocore.db.kafka.ConsumerHandler;
 import com.nucleocore.db.kafka.ProducerHandler;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.KafkaAdminClient;
+import org.apache.kafka.clients.admin.NewTopic;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class DataTable implements TableTemplate {
 
-  private ProducerHandler producer = null;
-  private ConsumerHandler consumer = null;
+    private Queue<Object[]> indexQueue = Queues.newArrayDeque();
 
-  private HashMap<String, DataEntry> map = new HashMap<>();
-  private HashMap<String, TreeMap<Object, List<String>>> index = new HashMap<>();
-  private HashMap<String, Consumer<DataEntry>> consumers = new HashMap<>();
-  public HashMap<String, TrieIndex> trieIndex = new HashMap<>();
-  private SetIndex setIndex;
+    private ProducerHandler producer = null;
+    private ConsumerHandler consumer = null;
 
-  private HashMap<Modification, Set<Consumer<DataEntry>>> listeners = new HashMap<>();
+    private List<DataEntry> entries = Lists.newArrayList();
+    private HashMap<String, IndexTemplate> indexes = new HashMap<>();
 
-  private ObjectMapper om = new ObjectMapper();
+    private HashMap<String, Consumer<DataEntry>> consumers = new HashMap<>();
 
-  private int size = 0;
-  private boolean buildIndex = false;
-  private Stack<DataEntry> importList = new Stack<>();
+    private HashMap<Modification, Set<Consumer<DataEntry>>> listeners = new HashMap<>();
 
-  private String bootstrap;
-  private String table;
-  public DataTable(String bootstrap, String table, Class clazz) {
-    setIndex = new SetIndex();
-    this.bootstrap = bootstrap;
-    this.table = table;
-    if (bootstrap != null) {
-      producer = new ProducerHandler(bootstrap, table);
+
+    private boolean unsavedIndexModifications = false;
+    private int size = 0;
+    private boolean buildIndex = true;
+
+    ObjectMapper om = new ObjectMapper(){{this.enableDefaultTyping();}};
+
+    private String bootstrap;
+    private String table;
+    private List<Field> fields;
+    private Class clazz;
+    private Runnable startupCode;
+    private boolean inStartup = true;
+
+
+    public synchronized Object[] getIndex(){
+        if(indexQueue.isEmpty())
+            return null;
+        return indexQueue.poll();
     }
-  }
 
-  public void consume(){
-    if (bootstrap != null) {
-      consumer = new ConsumerHandler(bootstrap, UUID.randomUUID().toString(), this, table);
-    }
-  }
-
-  public Map<String, DataEntry> getMap() {
-    return map;
-  }
-
-  public void flush() {
-    try {
-      synchronized (map) {
-        map.forEach((i, it) -> {
-          this.save(it, null);
-        });
-      }
-    }catch (Exception e){
-      //e.printStackTrace();
-    }
-    map = new HashMap<>();
-    index = new HashMap<>();
-    consumers = new HashMap<>();
-    trieIndex = new HashMap<>();
-    listeners = new HashMap<>();
-    System.gc();
-  }
-
-  private void addIndexEntries(DataEntry e, String restrictTo) {
-    List<Field> fields = new ArrayList<Field>(){{
-      addAll(Arrays.asList(e.getClass().getSuperclass().getDeclaredFields()));
-      addAll(Arrays.asList(e.getClass().getDeclaredFields()));
-    }};
-    for (Field f : fields) {
-      if (restrictTo != null && !f.getName().equals(restrictTo))
-        continue;
-      if (!f.isAnnotationPresent(Index.class)) {
-        continue;
-      }
-      IndexType indexType = ((Index) f.getAnnotation(Index.class)).value();
-      try {
-        String name = f.getName();
-        Object obj = f.get(e);
-        if (obj == null) {
-          continue;
-        }
-        switch (indexType) {
-          case TRIE:
-            synchronized (trieIndex) {
-              if (!trieIndex.containsKey(name))
-                trieIndex.put(name, new TrieIndex());
-            }
-            trieIndex.get(name).add(obj, e.getKey());
-            break;
-          case HASH:
-            TreeMap<Object, List<String>> map;
-            synchronized (index) {
-              if (!index.containsKey(name))
-                index.put(name, new TreeMap<>());
-              map = index.get(name);
-              if (!map.containsKey(obj)) {
-                map.put(obj, new ArrayList<>());
-              }
-              map.get(obj).add(e.getKey());
-            }
-            //System.out.println("<C, "+name+"["+obj+"] size is now "+map.get(obj).size());
-
-            //System.out.println(">C, "+name+"["+obj+"] size is now "+map.get(obj).size());
-            break;
-          case SETFULLTEXT:
-            synchronized (setIndex) {
-              setIndex.add(name, obj.toString(), Integer.valueOf(e.getKey()));
-            }
-            break;
-        }
-      } catch (IllegalAccessException ex) {
-        ex.printStackTrace();
-      }
-    }
-  }
-
-  private void deleteIndexEntries(DataEntry e, String restrictTo) {
-    List<Field> fields = new ArrayList<Field>(){{
-      addAll(Arrays.asList(e.getClass().getSuperclass().getDeclaredFields()));
-      addAll(Arrays.asList(e.getClass().getDeclaredFields()));
-    }};
-    for (Field f : fields) {
-      if (restrictTo != null && !f.getName().equals(restrictTo))
-        continue;
-      if (!f.isAnnotationPresent(Index.class))
-        continue;
-      IndexType indexType = ((Index) f.getAnnotation(Index.class)).value();
-      try {
-        String name = f.getName();
-        Object obj = f.get(e);
-        switch (indexType) {
-          case TRIE:
-            synchronized (trieIndex) {
-              if (trieIndex.containsKey(name)) {
-                trieIndex.get(name).remove(obj, e.getKey());
-              }
-            }
-            break;
-          case HASH:
-            synchronized (index) {
-              if (index.containsKey(name)) {
-                TreeMap<Object, List<String>> map = index.get(name);
-                if (map.containsKey(obj)) {
-                  //System.out.println("<D, "+name+"["+obj+"] size is now "+map.get(obj).size());
-                  Stream<String> stream = map.get(obj).stream();
-                  Object[] rems = (Object[]) stream.filter(i -> i.equals(e.getKey())).toArray();
-                  stream.close();
-                  for (Object rem : rems) {
-                    map.get(obj).remove(rem);
-                  }
-                  //System.out.println(">D, "+name+"["+obj+"] size is now "+map.get(obj).size());
-                  //System.out.println(">D, "+name+" total entries "+map.size());
-                  if (map.get(obj).size() == 0) {
-                    map.remove(obj);
-                  }
-                  //System.out.println(">D, "+name+" total entries "+map.size());
+    public DataTable(String bootstrap, String table, Class clazz, Runnable startupCode) {
+        this.startupCode = startupCode;
+        this.bootstrap = bootstrap;
+        this.table = table;
+        Properties props = new Properties();
+        if(bootstrap!=null) {
+            props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
+            AdminClient client = KafkaAdminClient.create(props);
+            try {
+                if (client.listTopics().names().get().stream().filter(x -> x.equals(table)).count() == 0) {
+                    client.createTopics(new ArrayList<NewTopic>() {{
+                        add(new NewTopic(table, 1, (short) 4));
+                    }});
                 }
-              }
-            }
-            break;
-          case SETFULLTEXT:
-            synchronized (setIndex) {
-              setIndex.delete(name, obj.toString(), Integer.valueOf(e.key));
-            }
-            break;
-        }
-      } catch (IllegalAccessException ex) {
-        ex.printStackTrace();
-      }
-    }
-  }
-
-  public <T> List<T> search(String name, Object obj, Class clazz) {
-    try {
-      List<Field> fields = new ArrayList<Field>(){{
-        addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
-        addAll(Arrays.asList(clazz.getDeclaredFields()));
-      }};
-      Field f = fields.stream().filter(u->u.getName().equals(name)).findFirst().get();
-      IndexType indexType = ((Index)f.getAnnotation(Index.class)).value();
-      switch (indexType) {
-        case TRIE:
-          synchronized (trieIndex) {
-            List<DataEntry> tmpList = Lists.newArrayList();
-            List<String> listX = trieIndex.get(name).search(obj);
-            if (listX != null) {
-              for (String key : listX) {
-                DataEntry de = map.get(key);
-                if (de != null)
-                  tmpList.add(de);
-              }
-            }
-            return (List<T>) tmpList;
-          }
-        case HASH:
-          synchronized (index) {
-            TreeMap<Object, List<String>> mapX = index.get(name);
-            if(mapX==null){
-              return null;
-            }
-            if (mapX.containsKey(obj)) {
-              Set<DataEntry> tmpList = new HashSet<>();
-              for (String key : mapX.get(obj)) {
-                DataEntry de = map.get(key);
-                if (de != null)
-                  tmpList.add(de);
-              }
-              return (List<T>) tmpList;
-            }
-          }
-          break;
-        case SETFULLTEXT:
-          synchronized (setIndex) {
-            int len = obj.toString().length();
-            Set<DataEntry> tmpList = new HashSet<>();
-            Set<Integer> mapX = setIndex.search(name, obj.toString(), 0);
-            if(mapX==null){
-              return null;
-            }
-            for (Integer key : mapX) {
-              DataEntry de = map.get(key + "");
-              if (de != null)
-                tmpList.add(de);
-            }
-            Stream stream = tmpList.stream();
-            List<T> data = (List<T>) stream.filter(x->{
-              try {
-                return cast(f.get(x), obj);
-              }catch (Exception c){}
-              return false;
-            }).collect(Collectors.toList());
-            stream.close();
-            return data;
-          }
-      }
-    } catch (Exception ex) {
-      ex.printStackTrace();
-    }
-    return null;
-  }
-
-  public DataEntry searchOne(String name, Object obj, Class clazz) {
-    List<DataEntry> tmp = search(name, obj, clazz);
-    if (tmp != null && tmp.size() > 0) {
-      return (DataEntry) tmp.toArray()[0];
-    }
-    return null;
-  }
-
-  public <T> List<T> in(String name, List<Object> objs, Class clazz) {
-    List<DataEntry> tmp = Lists.newArrayList();
-    try {
-      List<Field> fields = new ArrayList<Field>(){{
-        addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
-        addAll(Arrays.asList(clazz.getDeclaredFields()));
-      }};
-      Field f = fields.stream().filter(u->u.getName().equals(name)).findFirst().get();
-      IndexType indexType = ((Index)f.getAnnotation(Index.class)).value();
-      for (Object obj : objs) {
-        if (trieIndex.containsKey(name)) {
-          synchronized (trieIndex) {
-            List<String> tmpListKeys;
-            if ((tmpListKeys = trieIndex.get(name).search(obj)) != null) {
-              for (String key : tmpListKeys) {
-                DataEntry de = map.get(key);
-                if (de != null)
-                  tmp.add(de);
-              }
-            }
-          }
-        } else if (index.containsKey(name)) {
-          synchronized (index) {
-            TreeMap<Object, List<String>> mapX = index.get(name);
-            if (mapX.containsKey(obj)) {
-              List<String> tmpListKeys;
-              if ((tmpListKeys = mapX.get(obj)) != null) {
-                for (String key : tmpListKeys) {
-                  DataEntry de = map.get(key);
-                  if (de != null)
-                    tmp.add(de);
-                }
-              }
-            }
-          }
-        }
-      }
-    } catch (ClassCastException ex) {
-      ex.printStackTrace();
-    }
-    return (List<T>) tmp;
-  }
-
-  public <T> T inOne(String name, List<Object> obj, Class clazz) {
-    List<T> tmp = in(name, obj, clazz);
-    if (tmp != null && tmp.size() > 0) {
-      return (T) tmp.toArray()[0];
-    }
-    return null;
-  }
-
-  public Stream<Map.Entry<String, DataEntry>> filterMap(Predicate<? super Map.Entry<String, DataEntry>> m) {
-    synchronized (map) {
-      return map.entrySet().stream().filter(m);
-    }
-  }
-
-  public int size() {
-    return size;
-  }
-
-
-  public boolean cast(Object a, Object b) {
-    if (a.getClass() == String.class && b.getClass() == String.class) {
-      return ((String) a).equals((String) b);
-    } else if (a.getClass() == Integer.class && b.getClass() == Integer.class) {
-      return ((Integer) a) == ((Integer) b);
-    } else if (a.getClass() == Long.class && b.getClass() == Long.class) {
-      return ((Long) a) == ((Long) b);
-    }
-    return false;
-  }
-
-  public synchronized boolean save(DataEntry oldEntry, DataEntry newEntry) {
-    return save(oldEntry, newEntry, null);
-  }
-
-  public synchronized boolean save(DataEntry oldEntry, DataEntry newEntry, Consumer<DataEntry> consumer) {
-    if (oldEntry == null && newEntry != null) {
-      try {
-        Create createEntry = new Create(newEntry.getKey(), newEntry);
-        if (consumer != null) {
-          consumers.put(newEntry.getKey(), consumer);
-        }
-        if (producer != null)
-          producer.save(createEntry);
-        else
-          modify(Modification.CREATE, createEntry);
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-    } else if (newEntry == null && oldEntry != null) {
-      Delete deleteEntry = new Delete(oldEntry.getKey());
-      if (consumer != null) {
-        consumers.put(oldEntry.getKey(), consumer);
-      }
-      if (producer != null)
-        producer.save(deleteEntry);
-      else
-        modify(Modification.DELETE, deleteEntry);
-    } else if (newEntry != null && oldEntry != null) {
-      Update updateEntry = new Update();
-      try {
-        updateEntry.setKey(newEntry.getKey());
-        if (consumer != null) {
-          consumers.put(newEntry.getKey(), consumer);
-        }
-        boolean changed = false;
-        updateEntry.setMasterClass(newEntry.getClass().getName());
-        for (Field f : newEntry.getClass().getDeclaredFields()) {
-          if (!cast(f.get(newEntry), f.get(oldEntry))) {
-            if (f.get(newEntry) != null) {
-              updateEntry.getChange().put(f.getName(), f.get(newEntry));
-              changed = true;
-            }
-          }
-        }
-        if (changed) {
-          //System.out.println("Changed");
-          if (producer != null)
-            producer.save(updateEntry);
-          else
-            modify(Modification.UPDATE, updateEntry);
-          return true;
-        }
-        //System.out.println("Nothing changed");
-        return false;
-      } catch (Exception e) {
-        e.printStackTrace();
-        return false;
-      }
-    } else
-      return false;
-    return true;
-  }
-
-  public synchronized void modify(Modification mod, Object modification) {
-    switch (mod) {
-      case CREATE:
-        Create c = (Create) modification;
-        //System.out.println("Create statement called");
-        if (c != null) {
-          try {
-            synchronized (map) {
-              map.put(c.getKey(), c.getValue());
-            }
-            size++;
-            if (consumers.containsKey(c.getValue().getKey())) {
-              consumers.remove(c.getValue().getKey()).accept(c.getValue());
-            }
-            addIndexEntries(c.getValue(), null);
-            fireListeners(Modification.CREATE, c.getValue());
-          } catch (Exception e) {
-            e.printStackTrace();
-          }
-        }
-        break;
-      case DELETE:
-        Delete d = (Delete) modification;
-        //System.out.println("Delete statement called");
-        if (d != null) {
-          DataEntry de;
-          synchronized (map) {
-             de = map.remove(d.getKey());
-          }
-          size--;
-          if (consumers.containsKey(de.getKey())) {
-            consumers.remove(de.getKey()).accept(de);
-          }
-          deleteIndexEntries(de, null);
-          fireListeners(Modification.DELETE, de);
-        }
-        break;
-      case UPDATE:
-        Update u = (Update) modification;
-        //System.out.println("Update statement called");
-
-        if (u != null) {
-          try {
-            Class clazz = Class.forName(u.getMasterClass());
-            DataEntry obj = getMap().get(u.getKey());
-            if (consumers.containsKey(obj.getKey())) {
-              consumers.remove(obj.getKey()).accept(obj);
-            }
-            u.getChange().forEach((String key, Object val) -> {
-              try {
-                deleteIndexEntries(obj, key);
-                clazz.getDeclaredField(key).set(obj, val);
-                addIndexEntries(obj, key);
-              } catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
-              }
-            });
-            fireListeners(Modification.UPDATE, obj);
-          } catch (Exception e) {
-
-          }
+            }
+            client.close();
+            producer = new ProducerHandler(bootstrap, table);
         }
-        break;
+        this.clazz = clazz;
+        this.fields = new ArrayList<Field>() {{
+            addAll(Arrays.asList(clazz.getDeclaredFields()));
+            addAll(Arrays.asList(clazz.getSuperclass().getFields()));
+        }};
     }
-  }
 
-  public <T> T get(String key) {
-    try {
-      return (T) getMap().get(key);
-    } catch (ClassCastException e) {
-      e.printStackTrace();
+    public void consume() {
+        if (bootstrap != null) {
+            consumer = new ConsumerHandler(bootstrap, UUID.randomUUID().toString(), this, table);
+        }
     }
-    return null;
-  }
 
-  public void fireListeners(Modification m, DataEntry data) {
-    if (listeners.containsKey(m)) {
-      listeners.get(m).forEach(method -> {
+    public void flush() {
         try {
-          method.accept(data);
+            synchronized (entries) {
+                entries.clear();
+            }
         } catch (Exception e) {
-          e.printStackTrace();
+            //e.printStackTrace();
         }
-      });
+        consumers = new HashMap<>();
+        listeners = new HashMap<>();
+        System.gc();
     }
-  }
 
-  public void multiImport(DataEntry newEntry) {
-    this.save(null, newEntry);
-  }
-
-  List<Thread> threads = new ArrayList<>();
-
-  public void startImportThreads() {
-
-  }
-
-  @Override
-  public void startup() {
-
-  }
-
-  public void stopImportThreads() {
-    while (threads.size() > 0) {
-      threads.remove(0).interrupt();
+    public void display(int start, int end, int pos, int direction, int size) {
+        System.out.print("");
+        for (int x = 0; x < size; x++) {
+            if (pos == x) {
+                System.out.print(((direction > 0) ? "➡" : ((direction < 0) ? "⬅" : "❌")));
+            } else if (start == x) {
+                System.out.print("⏩");
+            } else if (end == x) {
+                System.out.print("⏪");
+            } else {
+                System.out.print("⏺");
+            }
+        }
+        if (end == size) {
+            System.out.println(" size:" + size);
+        } else {
+            System.out.println(" size:" + size);
+        }
     }
-    threads.clear();
-  }
 
-  public void addListener(Modification m, Consumer<DataEntry> method) {
-    if (!listeners.containsKey(m)) {
-      listeners.put(m, new HashSet<>());
+    public void displayInsert(int compared, int pos, int size) {
+        System.out.print("");
+        for (int x = 0; x < size; x++) {
+            if (pos == x) {
+                System.out.print("❌");
+            } else if (compared == x) {
+                System.out.print("⏹");
+            } else {
+                System.out.print("⏺");
+            }
+        }
+        System.out.println(" size:" + size);
     }
-    listeners.get(m).add(method);
-  }
+
+    public <T> List<T> in(String name, List<DataEntry> objs, Class clazz) {
+        List<DataEntry> tmp = Lists.newArrayList();
+        try {
+            for (DataEntry obj : objs) {
+                List<DataEntry> de = search(name, obj);
+                if (de != null) {
+                    tmp.addAll(de);
+                }
+            }
+        } catch (ClassCastException ex) {
+            ex.printStackTrace();
+        }
+        return (List<T>) tmp;
+    }
+
+    @Override
+    public void startup() {
+        inStartup = false;
+        resetIndex();
+        if(startupCode!=null) {
+            startupCode.run();
+        }
+    }
+
+    private long counter=0;
+    private long lastReq=0;
+    public IndexTemplate getIndex(Field field){
+        String fieldName = field.getName();
+        if (!indexes.containsKey(fieldName)) {
+            try {
+                IndexTemplate index = field.getAnnotation(Index.class).value().getIndexType().getClass().getConstructor().newInstance();
+                indexes.put(fieldName, index.indexOn(field));
+                return index;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }else{
+            return indexes.get(fieldName);
+        }
+        return null;
+    }
+    public void addIndex(DataEntry de) {
+        lastReq = System.currentTimeMillis();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Index.class)) {
+                IndexTemplate index = getIndex(field);
+                index.add(de);
+            }
+        }
+    }
+    public void updateIndex(DataEntry de) {
+        lastReq = System.currentTimeMillis();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Index.class)) {
+                IndexTemplate index = getIndex(field);
+                index.update(de);
+                index.add(de);
+            }
+        }
+    }
+    public void deleteIndex(DataEntry de) {
+        lastReq = System.currentTimeMillis();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Index.class)) {
+                IndexTemplate index = getIndex(field);
+                index.delete(de);
+            }
+        }
+    }
+
+    public void resetIndex() {
+        lastReq = System.currentTimeMillis();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Index.class)) {
+                String fieldName = field.getName();
+                if (!indexes.containsKey(fieldName)) {
+                    IndexTemplate index = field.getAnnotation(Index.class).value().getIndexType();
+                    indexes.put(fieldName, index.indexOn(field));
+                }
+                indexes.get(fieldName).addAll(getEntries());
+            }
+        }
+    }
+
+    public <T> List<T> search(String name, Object searchObject) {
+        try {
+            Object object = clazz.getConstructor().newInstance();
+            clazz.getField(name).set(object, searchObject);
+            return search(name, (DataEntry) object);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public <T> List<T> search(String name, DataEntry obj) {
+        try {
+            if (indexes.containsKey(name)) {
+                IndexTemplate index = indexes.get(name);
+                return (List<T>) index.search(obj);
+            } else {
+                System.out.println("NO INDEX FOUND");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("ERRR 4");
+            System.exit(-1);
+        }
+        return null;
+    }
+
+    public DataEntry searchOne(String name, Object obj) {
+        List<DataEntry> entries = search(name, obj);
+        if(entries != null && entries.size()>0){
+            return entries.get(0);
+        }
+        return null;
+    }
+
+    public int size() {
+        return size;
+    }
 
 
-  public int getSize() {
-    return size;
-  }
 
-  public void setSize(int size) {
-    this.size = size;
-  }
-  public boolean isBuildIndex() {
-    return buildIndex;
-  }
 
-  public void setBuildIndex(boolean buildIndex) {
-    this.buildIndex = buildIndex;
-  }
 
-  @Override
-  public void setUnsavedIndexModifications(boolean unsavedIndexModifications) {
+    public synchronized boolean save(DataEntry oldEntry, DataEntry newEntry) {
+        return save(oldEntry, newEntry, null);
+    }
 
-  }
+    public synchronized boolean save(DataEntry oldEntry, DataEntry newEntry, Consumer<DataEntry> consumer) {
+        if (oldEntry == null && newEntry != null) {
+            try {
+                Create createEntry = new Create(newEntry.getKey(), newEntry);
+                if (consumer != null) {
+                    consumers.put(newEntry.getKey(), consumer);
+                }
+                if (producer != null)
+                    producer.save(createEntry);
+                else
+                    modify(Modification.CREATE, createEntry);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else if (newEntry == null && oldEntry != null) {
+            Delete deleteEntry = new Delete(oldEntry.getKey());
+            if (consumer != null) {
+                consumers.put(oldEntry.getKey(), consumer);
+            }
+            if (producer != null)
+                producer.save(deleteEntry);
+            else
+                modify(Modification.DELETE, deleteEntry);
+        } else if (newEntry != null && oldEntry != null) {
+            Update updateEntry = new Update();
+            try {
+                updateEntry.setKey(oldEntry.getKey());
+                if (consumer != null) {
+                    consumers.put(newEntry.getKey(), consumer);
+                }
+                boolean changed = false;
+                updateEntry.setMasterClass(newEntry.getClass().getName());
+                for (Field f : newEntry.getClass().getDeclaredFields()) {
+                    if (!Utils.cast(f.get(newEntry), f.get(oldEntry))) {
+                        if (f.get(newEntry) != null) {
+                            updateEntry.getChange().put(f.getName(), f.get(newEntry));
+                            changed = true;
+                        }
+                    }
+                }
+                if (changed) {
+                    System.out.println("Changed");
+                    if (producer != null)
+                        producer.save(updateEntry);
+                    else
+                        modify(Modification.UPDATE, updateEntry);
+                    return true;
+                }
+                System.out.println("Nothing changed");
+                return false;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+        } else
+            return false;
+        return true;
+    }
 
+    public void modify(Modification mod, Object modification) {
+        switch (mod) {
+            case CREATE:
+                Create c = (Create) modification;
+                //System.out.println("Create statement called");
+                if (c != null) {
+                    try {
+                        synchronized (entries) {
+                            entries.add(c.getValue());
+                            addIndex(c.getValue());
+                        }
+                        size++;
+                        if (consumers.containsKey(c.getValue().getKey())) {
+                            consumers.remove(c.getValue().getKey()).accept(c.getValue());
+                        }
+                        fireListeners(Modification.CREATE, c.getValue());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                break;
+            case DELETE:
+                Delete d = (Delete) modification;
+                //System.out.println("Delete statement called");
+                if (d != null) {
+                    synchronized (entries) {
+                        DataEntry de = searchOne("key", d.getKey());
+                        if (de != null) {
+                            entries.remove(de);
+                            size--;
+                            deleteIndex(de);
+                        }
+                    }
+                }
+                break;
+            case UPDATE:
+                Update u = (Update) modification;
+                //System.out.println("Update statement called");
+
+                if (u != null) {
+                    try {
+                        Class clazz = Class.forName(u.getMasterClass());
+                        DataEntry de = searchOne("key", u.getKey());
+
+                        if (de != null) {
+                            if (consumers.containsKey(de.getKey())) {
+                                consumers.remove(de.getKey()).accept(de);
+                            }
+                            u.getChange().forEach((String key, Object val) -> {
+                                try {
+                                    clazz.getDeclaredField(key).set(de, val);
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            });
+                            updateIndex(de);
+                            fireListeners(Modification.UPDATE, de);
+                        }
+                    } catch (Exception e) {
+
+                    }
+                }
+                break;
+        }
+    }
+
+    public void fireListeners(Modification m, DataEntry data) {
+        if (listeners.containsKey(m)) {
+            listeners.get(m).forEach(method -> {
+                try {
+                    method.accept(data);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+
+    public void multiImport(DataEntry newEntry) {
+        this.save(null, newEntry);
+    }
+
+
+    List<Thread> threads = new ArrayList<>();
+
+
+    public void addListener(Modification m, Consumer<DataEntry> method) {
+        if (!listeners.containsKey(m)) {
+            listeners.put(m, new HashSet<>());
+        }
+        listeners.get(m).add(method);
+    }
+
+    public List<DataEntry> getEntries() {
+        return entries;
+    }
+
+    public void setEntries(List<DataEntry> entries) {
+        this.entries = entries;
+    }
+
+    public int getSize() {
+        return size;
+    }
+
+    public void setSize(int size) {
+        this.size = size;
+    }
+
+    public boolean isBuildIndex() {
+        return buildIndex;
+    }
+
+    public void setBuildIndex(boolean buildIndex) {
+        this.buildIndex = buildIndex;
+    }
+
+    public HashMap<String, IndexTemplate> getIndexes() {
+        return indexes;
+    }
+
+    public void setIndexes(HashMap<String, IndexTemplate> indexes) {
+        this.indexes = indexes;
+    }
+
+    public boolean isUnsavedIndexModifications() {
+        return unsavedIndexModifications;
+    }
+
+    public void setUnsavedIndexModifications(boolean unsavedIndexModifications) {
+        this.unsavedIndexModifications = unsavedIndexModifications;
+    }
 }

@@ -5,10 +5,10 @@ import com.nucleocore.db.database.index.IndexType;
 
 public class Test extends DataEntry {
 
-    @Index
+    @Index(IndexType.BINARY)
     public String name;
 
-    @Index(IndexType.TRIE)
+    @Index(IndexType.HASH)
     public String user;
 
     public Test() {

@@ -1,47 +1,39 @@
-package com.nucleocore.db.database.index;
+package com.nucleocore.db.database.index.binary;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.nucleocore.db.database.index.IndexTemplate;
 import com.nucleocore.db.database.utils.DataEntry;
 import com.nucleocore.db.database.utils.Utils;
-import org.apache.logging.log4j.util.PropertySource;
-
 import java.lang.reflect.Field;
 import java.util.*;
 
-public class BinaryIndex extends IndexTemplate  {
-    List<DataEntry> entries = Lists.newArrayList();
-    Utils.SortByElement sorter;
+public class BinaryIndex extends IndexTemplate {
+    private List<DataEntry> entries = Lists.newArrayList();
+    private Utils.SortByElement sorter;
 
-    public BinaryIndex indexer(Field field) {
-        super.indexer(field);
+    public BinaryIndex indexOn(Field field) {
+        super.indexOn(field);
         this.sorter = new Utils.SortByElement(field);
         return this;
     }
 
-    boolean sorted = false;
     public void add(DataEntry de) {
-        if(sorted) {
-            synchronized (entries) {
-                int val = Collections.binarySearch(entries, de, (a, b) -> {
-                    try {
-                        return Utils.compare(field.get(a), field.get(b));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    return 0;
-                });
-                if(val<0)
-                    entries.add((-val) - 1, de);
-                else
-                    entries.add(val, de);
-            }
-        }else
-            addStartup(de);
-    }
-    public void addStartup(DataEntry de) {
         synchronized (entries) {
-            entries.add(de);
+            int val = Collections.binarySearch(entries, de, (a, b) -> {
+                try {
+                    return Utils.compare(this.getField().get(a), this.getField().get(b));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return 0;
+            });
+
+            if(val<0) {
+                entries.add((-val) - 1, de);
+            }else {
+                entries.add(val, de);
+            }
         }
     }
     public boolean delete(DataEntry de){
@@ -54,7 +46,7 @@ public class BinaryIndex extends IndexTemplate  {
         synchronized (entries) {
             Collections.sort(entries, (a, b) -> {
                 try {
-                    return Utils.compare(field.get(a), field.get(b));
+                    return Utils.compare(this.getField().get(a), this.getField().get(b));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -63,25 +55,26 @@ public class BinaryIndex extends IndexTemplate  {
         }
     }
     public List<DataEntry> search(DataEntry de) {
-        List<DataEntry> out = new ArrayList<>();
+        List<DataEntry> out = Lists.newArrayList();
         synchronized (entries) {
             int val = Collections.binarySearch(entries, de, (a, b)->{
                 try {
-                    return Utils.compare(field.get(a), field.get(b));
+                    return Utils.compare(this.getField().get(a), this.getField().get(b));
                 }catch (Exception e){
                     e.printStackTrace();
                 }
                 return 0;
             });
+            System.out.println("found at "+val);
             int len = entries.size();
             try {
                 int startPos = val;
-                while (startPos>=0 && startPos<len && Utils.compare(field.get(de), field.get(entries.get(startPos)))==0) {
+                while (startPos>=0 && startPos<len && Utils.compare(this.getField().get(de), this.getField().get(entries.get(startPos)))==0) {
                     out.add(entries.get(startPos));
                     startPos++;
                 }
                 int startNeg = val-1;
-                while (startNeg>=0 && startNeg<len && Utils.compare(field.get(de), field.get(entries.get(startNeg)))==0) {
+                while (startNeg>=0 && startNeg<len && Utils.compare(this.getField().get(de), this.getField().get(entries.get(startNeg)))==0) {
                     out.add(entries.get(startNeg));
                     startNeg--;
                 }
@@ -90,22 +83,6 @@ public class BinaryIndex extends IndexTemplate  {
             }
         }
         return out;
-    }
-
-    public List<DataEntry> getEntries() {
-        return entries;
-    }
-
-    public void setEntries(List<DataEntry> entries) {
-        this.entries = entries;
-    }
-
-    public boolean isSorted() {
-        return sorted;
-    }
-
-    public void setSorted(boolean sorted) {
-        this.sorted = sorted;
     }
 
     @Override
@@ -118,5 +95,19 @@ public class BinaryIndex extends IndexTemplate  {
         entries.addAll(dataEntries);
         sort();
         return false;
+    }
+
+    @Override
+    public boolean reset() {
+        entries.clear();
+        return true;
+    }
+
+    public List<DataEntry> getEntries() {
+        return entries;
+    }
+
+    public void setEntries(List<DataEntry> entries) {
+        this.entries = entries;
     }
 }

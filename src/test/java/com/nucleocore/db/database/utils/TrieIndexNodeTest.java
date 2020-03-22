@@ -1,7 +1,7 @@
 package com.nucleocore.db.database.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nucleocore.db.database.index.TrieNode;
+import com.nucleocore.db.database.index.trie.TrieNode;
 import org.junit.Test;
 
 import static org.junit.Assert.*;

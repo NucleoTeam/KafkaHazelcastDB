@@ -1,4 +1,4 @@
-package com.nucleocore.db.database.index;
+package com.nucleocore.db.database.index.trie;
 
 import com.google.common.collect.Lists;
 import java.util.*;

@@ -1,6 +1,7 @@
 package com.nucleocore.db.database.utils;
 
 import com.nucleocore.db.database.index.Index;
+import com.nucleocore.db.database.index.IndexType;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -8,7 +9,7 @@ import java.util.UUID;
 
 public abstract class DataEntry implements Serializable {
 
-    @Index
+    @Index(IndexType.BINARY)
     public String key;
 
     public DataEntry(DataEntry toCopy) {

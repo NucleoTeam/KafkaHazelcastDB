@@ -1,4 +1,4 @@
-package com.nucleocore.db.database.index;
+package com.nucleocore.db.database.index.set;
 
 import com.google.common.collect.Sets;
 import com.google.common.collect.Maps;
@@ -8,21 +8,6 @@ import java.util.*;
 import java.util.stream.Stream;
 
 public class SetIndex extends IndexTemplate {
-  @Override
-  public void add(Object index, String de) {
-    return;
-  }
-
-  @Override
-  public List<Object> search(Object indexCheck) {
-    return null;
-  }
-
-  @Override
-  public boolean remove(Object left, String de) {
-    return false;
-  }
-
   public class CharacterIndex {
     private char character;
     private String variable;

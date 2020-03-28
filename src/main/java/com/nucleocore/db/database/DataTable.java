@@ -11,13 +11,13 @@ import com.nucleocore.db.database.modifications.Update;
 import com.nucleocore.db.database.utils.*;
 import com.nucleocore.db.kafka.ConsumerHandler;
 import com.nucleocore.db.kafka.ProducerHandler;
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.KafkaAdminClient;
-import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.*;
+import org.apache.kafka.common.errors.TopicExistsException;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 public class DataTable implements TableTemplate {
@@ -65,9 +65,16 @@ public class DataTable implements TableTemplate {
             AdminClient client = KafkaAdminClient.create(props);
             try {
                 if (client.listTopics().names().get().stream().filter(x -> x.equals(table)).count() == 0) {
-                    client.createTopics(new ArrayList<NewTopic>() {{
-                        add(new NewTopic(table, 3, (short) 3));
-                    }});
+                    try {
+                        final NewTopic newTopic = new NewTopic(table, 3, (short)3);
+                        final CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
+                        createTopicsResult.values().get(table).get();
+                    } catch (InterruptedException | ExecutionException e) {
+                        if (!(e.getCause() instanceof TopicExistsException)) {
+                            throw new RuntimeException(e.getMessage(), e);
+                        }
+                        // TopicExistsException - Swallow this exception, just means the topic already exists.
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();

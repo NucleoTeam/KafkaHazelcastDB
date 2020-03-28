@@ -80,6 +80,15 @@ public class DataTable implements TableTemplate {
                 e.printStackTrace();
                 System.exit(-1);
             }
+            try{
+                if (client.listTopics().names().get().stream().filter(x -> x.equals(table)).count() == 0) {
+                    System.out.println("topic not created");
+                    System.exit(-1);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(-1);
+            }
             client.close();
             producer = new ProducerHandler(bootstrap, table);
         }

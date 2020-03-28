@@ -45,7 +45,7 @@ public class DataTable implements TableTemplate {
     private String table;
     private List<Field> fields;
     private Class clazz;
-    private Runnable startupCode;
+    private StartupRun startupCode;
     private boolean inStartup = true;
 
 
@@ -55,7 +55,7 @@ public class DataTable implements TableTemplate {
         return indexQueue.poll();
     }
 
-    public DataTable(String bootstrap, String table, Class clazz, Runnable startupCode) {
+    public DataTable(String bootstrap, String table, Class clazz, StartupRun startupCode) {
         this.startupCode = startupCode;
         this.bootstrap = bootstrap;
         this.table = table;
@@ -172,7 +172,7 @@ public class DataTable implements TableTemplate {
         inStartup = false;
         resetIndex();
         if(startupCode!=null) {
-            startupCode.run();
+            startupCode.run(this);
         }
     }
 

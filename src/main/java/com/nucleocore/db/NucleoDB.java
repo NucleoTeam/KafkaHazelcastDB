@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.db.database.DataTable;
 import com.nucleocore.db.database.TableTemplate;
+import com.nucleocore.db.database.utils.StartupRun;
 import com.nucleocore.db.database.utils.Test;
 
 import java.util.*;
@@ -14,11 +15,15 @@ public class NucleoDB {
     public static void main(String... args) {
 
         NucleoDB db = new NucleoDB();
-        db.launchNucleoTable(null, "playerlist", Test.class, ()->{
-            System.out.println("STARTUP COMPLETE");
+        db.launchNucleoTable(null, "playerlist", Test.class, new StartupRun(){
+            public void run() {
+                System.out.println("STARTUP COMPLETE");
+            }
         });
-        db.launchNucleoTable(null, "usertest", Test.class, ()->{
-            System.out.println("STARTUP COMPLETE");
+        db.launchNucleoTable(null, "usertest", Test.class, new StartupRun(){
+            public void run() {
+                System.out.println("STARTUP COMPLETE");
+            }
         });
         //db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
        // db.getTable("userDataTest").addListener(Modification.CREATE, (d)->System.out.println("Created "+d.getClass().getName()));
@@ -89,14 +94,17 @@ public class NucleoDB {
         return (DataTable)tables.get(table);
     }
     public DataTable launchNucleoTable(String bootstrap, String table, Class clazz){
-        DataTable t = new DataTable(bootstrap, table, clazz, null);
-        t.consume();
+        StartupRun startup = new StartupRun(){
+            public void run(DataTable table) {
+                table.consume();
+            }
+        };
+        DataTable t = new DataTable(bootstrap, table, clazz, startup);
         tables.put(table, t);
         return t;
     }
-    public DataTable launchNucleoTable(String bootstrap, String table, Class clazz, Runnable runnable){
+    public DataTable launchNucleoTable(String bootstrap, String table, Class clazz, StartupRun runnable){
         DataTable t = new DataTable(bootstrap, table, clazz, runnable);
-        t.consume();
         tables.put(table, t);
         return t;
     }

@@ -66,11 +66,12 @@ public class DataTable implements TableTemplate {
             try {
                 if (client.listTopics().names().get().stream().filter(x -> x.equals(table)).count() == 0) {
                     client.createTopics(new ArrayList<NewTopic>() {{
-                        add(new NewTopic(table, 1, (short) 4));
+                        add(new NewTopic(table, 3, (short) 3));
                     }});
                 }
             } catch (Exception e) {
                 e.printStackTrace();
+                System.exit(-1);
             }
             client.close();
             producer = new ProducerHandler(bootstrap, table);

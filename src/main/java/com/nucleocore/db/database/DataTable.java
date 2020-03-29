@@ -39,7 +39,9 @@ public class DataTable implements TableTemplate {
     private int size = 0;
     private boolean buildIndex = true;
 
-    ObjectMapper om = new ObjectMapper(){{this.enableDefaultTyping();}};
+    ObjectMapper om = new ObjectMapper() {{
+        this.enableDefaultTyping();
+    }};
 
     private String bootstrap;
     private String table;
@@ -49,8 +51,8 @@ public class DataTable implements TableTemplate {
     private boolean inStartup = true;
 
 
-    public synchronized Object[] getIndex(){
-        if(indexQueue.isEmpty())
+    public synchronized Object[] getIndex() {
+        if (indexQueue.isEmpty())
             return null;
         return indexQueue.poll();
     }
@@ -60,13 +62,13 @@ public class DataTable implements TableTemplate {
         this.bootstrap = bootstrap;
         this.table = table;
         Properties props = new Properties();
-        if(bootstrap!=null) {
+        if (bootstrap != null) {
             props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
             AdminClient client = KafkaAdminClient.create(props);
             try {
                 if (client.listTopics().names().get().stream().filter(x -> x.equals(table)).count() == 0) {
                     try {
-                        final NewTopic newTopic = new NewTopic(table, 3, (short)3);
+                        final NewTopic newTopic = new NewTopic(table, 3, (short) 3);
                         final CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
                         createTopicsResult.values().get(table).get();
                     } catch (InterruptedException | ExecutionException e) {
@@ -80,7 +82,7 @@ public class DataTable implements TableTemplate {
                 e.printStackTrace();
                 System.exit(-1);
             }
-            try{
+            try {
                 if (client.listTopics().names().get().stream().filter(x -> x.equals(table)).count() == 0) {
                     System.out.println("topic not created");
                     System.exit(-1);
@@ -89,7 +91,7 @@ public class DataTable implements TableTemplate {
                 e.printStackTrace();
                 System.exit(-1);
             }
-            if(startupConsume){
+            if (startupConsume) {
                 this.consume();
             }
             client.close();
@@ -100,6 +102,7 @@ public class DataTable implements TableTemplate {
             addAll(Arrays.asList(clazz.getDeclaredFields()));
             addAll(Arrays.asList(clazz.getSuperclass().getFields()));
         }};
+        new Thread(new ModQueueHandler()).start();
     }
 
     public void consume() {
@@ -121,40 +124,6 @@ public class DataTable implements TableTemplate {
         System.gc();
     }
 
-    public void display(int start, int end, int pos, int direction, int size) {
-        System.out.print("");
-        for (int x = 0; x < size; x++) {
-            if (pos == x) {
-                System.out.print(((direction > 0) ? "➡" : ((direction < 0) ? "⬅" : "❌")));
-            } else if (start == x) {
-                System.out.print("⏩");
-            } else if (end == x) {
-                System.out.print("⏪");
-            } else {
-                System.out.print("⏺");
-            }
-        }
-        if (end == size) {
-            System.out.println(" size:" + size);
-        } else {
-            System.out.println(" size:" + size);
-        }
-    }
-
-    public void displayInsert(int compared, int pos, int size) {
-        System.out.print("");
-        for (int x = 0; x < size; x++) {
-            if (pos == x) {
-                System.out.print("❌");
-            } else if (compared == x) {
-                System.out.print("⏹");
-            } else {
-                System.out.print("⏺");
-            }
-        }
-        System.out.println(" size:" + size);
-    }
-
     public <T> List<T> in(String name, List<DataEntry> objs, Class clazz) {
         List<DataEntry> tmp = Lists.newArrayList();
         try {
@@ -174,14 +143,15 @@ public class DataTable implements TableTemplate {
     public void startup() {
         inStartup = false;
         resetIndex();
-        if(startupCode!=null) {
+        if (startupCode != null) {
             startupCode.run(this);
         }
     }
 
-    private long counter=0;
-    private long lastReq=0;
-    public IndexTemplate getIndex(Field field){
+    private long counter = 0;
+    private long lastReq = 0;
+
+    public IndexTemplate getIndex(Field field) {
         String fieldName = field.getName();
         if (!indexes.containsKey(fieldName)) {
             try {
@@ -191,11 +161,12 @@ public class DataTable implements TableTemplate {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }else{
+        } else {
             return indexes.get(fieldName);
         }
         return null;
     }
+
     public void addIndex(DataEntry de) {
         lastReq = System.currentTimeMillis();
         for (Field field : fields) {
@@ -205,16 +176,15 @@ public class DataTable implements TableTemplate {
             }
         }
     }
-    public void updateIndex(DataEntry de) {
+
+    public void updateIndex(DataEntry de, Field field) {
         lastReq = System.currentTimeMillis();
-        for (Field field : fields) {
-            if (field.isAnnotationPresent(Index.class)) {
-                IndexTemplate index = getIndex(field);
-                index.update(de);
-                index.add(de);
-            }
+        if (field.isAnnotationPresent(Index.class)) {
+            IndexTemplate index = getIndex(field);
+            index.update(de);
         }
     }
+
     public void deleteIndex(DataEntry de) {
         lastReq = System.currentTimeMillis();
         for (Field field : fields) {
@@ -244,7 +214,7 @@ public class DataTable implements TableTemplate {
             Object object = clazz.getConstructor().newInstance();
             clazz.getField(name).set(object, searchObject);
             return search(name, (DataEntry) object);
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
@@ -268,7 +238,7 @@ public class DataTable implements TableTemplate {
 
     public DataEntry searchOne(String name, Object obj) {
         List<DataEntry> entries = search(name, obj);
-        if(entries != null && entries.size()>0){
+        if (entries != null && entries.size() > 0) {
             return entries.get(0);
         }
         return null;
@@ -277,9 +247,6 @@ public class DataTable implements TableTemplate {
     public int size() {
         return size;
     }
-
-
-
 
 
     public synchronized boolean save(DataEntry oldEntry, DataEntry newEntry) {
@@ -291,6 +258,7 @@ public class DataTable implements TableTemplate {
             try {
                 newEntry.versionIncrease();
                 Create createEntry = new Create(newEntry.getKey(), newEntry);
+                createEntry.setVersion(newEntry.getVersion());
                 if (consumer != null) {
                     consumers.put(newEntry.getKey(), consumer);
                 }
@@ -304,6 +272,7 @@ public class DataTable implements TableTemplate {
         } else if (newEntry == null && oldEntry != null) {
             oldEntry.versionIncrease();
             Delete deleteEntry = new Delete(oldEntry.getKey());
+            deleteEntry.setVersion(oldEntry.version);
             if (consumer != null) {
                 consumers.put(oldEntry.getKey(), consumer);
             }
@@ -331,6 +300,7 @@ public class DataTable implements TableTemplate {
                 if (changed) {
                     System.out.println("Changed");
                     newEntry.versionIncrease();
+                    updateEntry.setVersion(newEntry.getVersion());
                     if (producer != null)
                         producer.save(updateEntry);
                     else
@@ -346,6 +316,53 @@ public class DataTable implements TableTemplate {
         } else
             return false;
         return true;
+    }
+
+    class ModificationQueueItem {
+        private Modification mod;
+        private Object modification;
+
+        public ModificationQueueItem(Modification mod, Object modification) {
+            this.mod = mod;
+            this.modification = modification;
+        }
+
+        public Modification getMod() {
+            return mod;
+        }
+
+        public Object getModification() {
+            return modification;
+        }
+    }
+
+    Stack<ModificationQueueItem> modqueue = new Stack<>();
+
+    class ModQueueHandler implements Runnable{
+        @Override
+        public void run() {
+            synchronized (modqueue){
+                ModificationQueueItem mqi;
+                while(true) {
+                    while (!modqueue.isEmpty()) {
+                        mqi = modqueue.pop();
+                        if(mqi != null) {
+                            modify(mqi.getMod(), mqi.getModification());
+                        }
+                        try {
+                            Thread.sleep(500);
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                    }
+                    try {
+                        Thread.sleep(500);
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
     }
 
     public void modify(Modification mod, Object modification) {
@@ -373,12 +390,23 @@ public class DataTable implements TableTemplate {
                 Delete d = (Delete) modification;
                 //System.out.println("Delete statement called");
                 if (d != null) {
-                    synchronized (entries) {
-                        DataEntry de = searchOne("key", d.getKey());
-                        if (de != null) {
-                            entries.remove(de);
+                    DataEntry de = searchOne("key", d.getKey());
+                    if (de != null) {
+                        if (de.getVersion() + 1 != d.getVersion()) {
+                            synchronized (modqueue) {
+                                modqueue.add(new ModificationQueueItem(mod, modification));
+                            }
+                        } else {
+                            synchronized (entries) {
+                                entries.remove(de);
+                            }
                             size--;
                             deleteIndex(de);
+                            fireListeners(Modification.DELETE, de);
+                        }
+                    } else {
+                        synchronized (modqueue) {
+                            modqueue.add(new ModificationQueueItem(mod, modification));
                         }
                     }
                 }
@@ -386,25 +414,34 @@ public class DataTable implements TableTemplate {
             case UPDATE:
                 Update u = (Update) modification;
                 //System.out.println("Update statement called");
-
                 if (u != null) {
                     try {
                         Class clazz = Class.forName(u.getMasterClass());
                         DataEntry de = searchOne("key", u.getKey());
-
                         if (de != null) {
-                            if (consumers.containsKey(de.getKey())) {
-                                consumers.remove(de.getKey()).accept(de);
-                            }
-                            u.getChange().forEach((String key, Object val) -> {
-                                try {
-                                    clazz.getDeclaredField(key).set(de, val);
-                                } catch (Exception e) {
-                                    e.printStackTrace();
+                            if (de.getVersion() + 1 != u.getVersion()) {
+                                synchronized (modqueue) {
+                                    modqueue.add(new ModificationQueueItem(mod, modification));
                                 }
-                            });
-                            updateIndex(de);
-                            fireListeners(Modification.UPDATE, de);
+                            } else {
+                                if (consumers.containsKey(de.getKey())) {
+                                    consumers.remove(de.getKey()).accept(de);
+                                }
+                                u.getChange().forEach((String key, Object val) -> {
+                                    try {
+                                        Field f = clazz.getDeclaredField(key);
+                                        f.set(de, val);
+                                        updateIndex(de, f);
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+                                });
+                                fireListeners(Modification.UPDATE, de);
+                            }
+                        } else {
+                            synchronized (modqueue) {
+                                modqueue.add(new ModificationQueueItem(mod, modification));
+                            }
                         }
                     } catch (Exception e) {
 

@@ -7,6 +7,7 @@ public class Update extends Modify {
     public String key;
     public Map<String, Object> change = new TreeMap<>();
     public String masterClass;
+    public long version;
 
     public Update() {
     }
@@ -39,5 +40,13 @@ public class Update extends Modify {
 
     public void setMasterClass(String masterClass) {
         this.masterClass = masterClass;
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
+    public void setVersion(long version) {
+        this.version = version;
     }
 }

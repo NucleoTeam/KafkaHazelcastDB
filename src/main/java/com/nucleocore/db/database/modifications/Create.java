@@ -11,6 +11,7 @@ public class Create extends Modify {
     public String data;
     public String key;
     public String masterClass;
+    public long version;
     private static ObjectMapper om = new ObjectMapper();
 
     public Create() {
@@ -50,5 +51,13 @@ public class Create extends Modify {
 
     public void setMasterClass(String masterClass) {
         this.masterClass = masterClass;
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
+    public void setVersion(long version) {
+        this.version = version;
     }
 }

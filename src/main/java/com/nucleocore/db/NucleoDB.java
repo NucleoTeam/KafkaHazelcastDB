@@ -19,12 +19,12 @@ public class NucleoDB {
             public void run() {
                 System.out.println("STARTUP COMPLETE");
             }
-        });
+        }, false);
         db.launchNucleoTable(null, "usertest", Test.class, new StartupRun(){
             public void run() {
                 System.out.println("STARTUP COMPLETE");
             }
-        });
+        }, false);
         //db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
        // db.getTable("userDataTest").addListener(Modification.CREATE, (d)->System.out.println("Created "+d.getClass().getName()));
         ObjectMapper om = new ObjectMapper();
@@ -93,18 +93,18 @@ public class NucleoDB {
     public DataTable getTable(String table){
         return (DataTable)tables.get(table);
     }
-    public DataTable launchNucleoTable(String bootstrap, String table, Class clazz){
+    public DataTable launchNucleoTable(String bootstrap, String table, Class clazz, boolean startupConsume){
         StartupRun startup = new StartupRun(){
             public void run(DataTable table) {
                 table.consume();
             }
         };
-        DataTable t = new DataTable(bootstrap, table, clazz, startup);
+        DataTable t = new DataTable(bootstrap, table, clazz, startup, startupConsume);
         tables.put(table, t);
         return t;
     }
-    public DataTable launchNucleoTable(String bootstrap, String table, Class clazz, StartupRun runnable){
-        DataTable t = new DataTable(bootstrap, table, clazz, runnable);
+    public DataTable launchNucleoTable(String bootstrap, String table, Class clazz, StartupRun runnable, boolean startupConsume){
+        DataTable t = new DataTable(bootstrap, table, clazz, runnable, startupConsume);
         tables.put(table, t);
         return t;
     }

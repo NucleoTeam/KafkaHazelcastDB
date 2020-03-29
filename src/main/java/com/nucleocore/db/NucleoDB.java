@@ -20,6 +20,7 @@ public class NucleoDB {
                 System.out.println("STARTUP COMPLETE");
             }
         }, false);
+
         db.launchNucleoTable(null, "usertest", Test.class, new StartupRun(){
             public void run() {
                 System.out.println("STARTUP COMPLETE");

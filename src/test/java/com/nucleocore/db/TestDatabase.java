@@ -16,7 +16,7 @@ public class TestDatabase {
 
     @Test
     public void shouldCreateEntry(){
-        DataTable table = db.launchNucleoTable(null, "test", com.nucleocore.db.database.utils.Test.class, null);
+        DataTable table = db.launchNucleoTable(null, "test", com.nucleocore.db.database.utils.Test.class, null, false);
         table.save(null, new com.nucleocore.db.database.utils.Test("tes", "Nathaniel", "nathanield"));
         assertTrue(table.size() == 1);
         table.flush();
@@ -24,7 +24,7 @@ public class TestDatabase {
 
     @Test
     public void shouldGetCreatedEntry() throws JsonProcessingException {
-        DataTable table = db.launchNucleoTable(null,"test2", com.nucleocore.db.database.utils.Test.class, null);
+        DataTable table = db.launchNucleoTable(null,"test2", com.nucleocore.db.database.utils.Test.class, null, false);
         table.save(null, new com.nucleocore.db.database.utils.Test("test","David", "davidl"));
         assertTrue(table.size()==1);
         com.nucleocore.db.database.utils.Test test = new com.nucleocore.db.database.utils.Test();

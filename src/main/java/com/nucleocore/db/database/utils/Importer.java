@@ -35,13 +35,13 @@ public class Importer {
         return this;
     }
 
-    public int readIntoStream(String file, TableTemplate table, Class<?> clazz) {
+    public int readIntoStream(String file, TableTemplate table, Class<?> clazz, CsvPreference preference) {
         int i = 0;
         ICsvMapReader mapReader = null;
         FileReader fr = null;
         try {
             fr = new FileReader(file);
-            mapReader = new CsvMapReader(fr, CsvPreference.STANDARD_PREFERENCE);
+            mapReader = new CsvMapReader(fr, preference);
 
             final String[] header = mapReader.getHeader(true);
             Map<String, Object> customerMap = null;

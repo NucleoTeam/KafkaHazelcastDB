@@ -55,7 +55,7 @@ public class DataTable implements TableTemplate {
         return indexQueue.poll();
     }
 
-    public DataTable(String bootstrap, String table, Class clazz, StartupRun startupCode) {
+    public DataTable(String bootstrap, String table, Class clazz, StartupRun startupCode, boolean startupConsume) {
         this.startupCode = startupCode;
         this.bootstrap = bootstrap;
         this.table = table;
@@ -88,6 +88,9 @@ public class DataTable implements TableTemplate {
             } catch (Exception e) {
                 e.printStackTrace();
                 System.exit(-1);
+            }
+            if(startupConsume){
+                this.consume();
             }
             client.close();
             producer = new ProducerHandler(bootstrap, table);

@@ -12,6 +12,8 @@ public abstract class DataEntry implements Serializable {
     @Index(IndexType.BINARY)
     public String key;
 
+    public long version = -1;
+
     public DataEntry(DataEntry toCopy) {
         try {
             for (Field field : this.getClass().getDeclaredFields()) {
@@ -38,4 +40,15 @@ public abstract class DataEntry implements Serializable {
         this.key = key;
     }
 
+    public long getVersion() {
+        return version;
+    }
+
+    public void versionIncrease(){
+        version++;
+    }
+
+    public void setVersion(long version) {
+        this.version = version;
+    }
 }

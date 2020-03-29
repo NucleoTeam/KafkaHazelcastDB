@@ -286,6 +286,7 @@ public class DataTable implements TableTemplate {
     public synchronized boolean save(DataEntry oldEntry, DataEntry newEntry, Consumer<DataEntry> consumer) {
         if (oldEntry == null && newEntry != null) {
             try {
+                newEntry.versionIncrease();
                 Create createEntry = new Create(newEntry.getKey(), newEntry);
                 if (consumer != null) {
                     consumers.put(newEntry.getKey(), consumer);
@@ -298,6 +299,7 @@ public class DataTable implements TableTemplate {
                 e.printStackTrace();
             }
         } else if (newEntry == null && oldEntry != null) {
+            oldEntry.versionIncrease();
             Delete deleteEntry = new Delete(oldEntry.getKey());
             if (consumer != null) {
                 consumers.put(oldEntry.getKey(), consumer);
@@ -325,6 +327,7 @@ public class DataTable implements TableTemplate {
                 }
                 if (changed) {
                     System.out.println("Changed");
+                    newEntry.versionIncrease();
                     if (producer != null)
                         producer.save(updateEntry);
                     else

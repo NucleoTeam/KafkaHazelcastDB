@@ -107,7 +107,10 @@ public class DataTable implements TableTemplate {
 
     public void consume() {
         if (bootstrap != null) {
-            consumer = new ConsumerHandler(bootstrap, UUID.randomUUID().toString(), this, table);
+            String consumer = UUID.randomUUID().toString();
+            for(String kafkaBroker : bootstrap.split(",")) {
+                new ConsumerHandler(kafkaBroker, consumer, this, table);
+            }
         }
     }
 

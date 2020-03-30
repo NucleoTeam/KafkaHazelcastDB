@@ -3,6 +3,7 @@ package com.nucleocore.db.kafka;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Queues;
 import com.nucleocore.db.database.TableTemplate;
+import com.nucleocore.db.database.index.combinedhash.HashIndex;
 import com.nucleocore.db.database.utils.DataEntry;
 import com.nucleocore.db.database.utils.Modification;
 import org.apache.kafka.clients.consumer.*;
@@ -34,6 +35,41 @@ public class ConsumerHandler implements Runnable {
         this.subscribe(table.split(","));
 
         new Thread(this).start();
+        for(int x=0;x<6;x++)
+            new Thread(new QueueHandler()).start();
+    }
+
+    Queue<String> queue = Queues.newArrayDeque();
+    class QueueHandler implements Runnable {
+        @Override
+        public void run() {
+            while (true) {
+                while (!queue.isEmpty()) {
+                        String entry;
+                        synchronized (queue) {
+                            entry = queue.poll();
+                        }
+                        if(entry!=null) {
+                            try {
+                                String type = entry.substring(0, 6);
+                                String data = entry.substring(6);
+                                //System.out.println("Action: " + type + " data: "+data);
+                                Modification mod = Modification.get(type);
+                                if (mod != null) {
+                                    database.modify(mod, om.readValue(data, mod.getModification()));
+                                }
+                            }catch (Exception e){
+                                e.printStackTrace();
+                            }
+                        }
+                }
+                try {
+                    Thread.sleep(100);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     private boolean initialLoad(){
@@ -66,13 +102,7 @@ public class ConsumerHandler implements Runnable {
                     Iterator<ConsumerRecord<Integer, String>> iter = rs.iterator();
                     while (iter.hasNext()) {
                         String pop = iter.next().value();
-                        String type = pop.substring(0, 6);
-                        String data = pop.substring(6);
-                        //System.out.println("Action: " + type + " data: "+data);
-                        Modification mod = Modification.get(type);
-                        if (mod != null) {
-                            database.modify(mod, om.readValue(data, mod.getModification()));
-                        }
+                        queue.add(pop);
                     }
                 }
                 

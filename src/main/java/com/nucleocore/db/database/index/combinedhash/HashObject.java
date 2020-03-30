@@ -28,10 +28,6 @@ public class HashObject {
                 stringLeft = value.substring(range, len-1);
             }
         }
-        System.out.println("=================");
-        System.out.println("left\t"+value);
-        System.out.println("left\t"+stringLeft);
-        System.out.println("key\t"+key);
         if (key == null) {
             if (index == null) {
                 index = new BinaryIndex().indexOn(this.field);

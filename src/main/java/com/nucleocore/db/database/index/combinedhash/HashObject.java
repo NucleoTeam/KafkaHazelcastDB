@@ -6,9 +6,11 @@ import com.nucleocore.db.database.utils.DataEntry;
 import java.lang.reflect.Field;
 
 public class HashObject {
-    HashObject[] combined = new HashObject[25];
+    HashObject[] combined = null;
     BinaryIndex index = null;
     Field field;
+    int hashSize = 5;
+    int range = 4;
 
     public HashObject(Field field) {
         this.field = field;
@@ -20,12 +22,16 @@ public class HashObject {
         if(value!=null) {
             int len = value.length();
             if (len > 0) {
-                key = value.substring(0, (len >= 2) ? 2 : 1);
+                key = value.substring(0, (len >= range) ? range : len);
             }
-            if (len > 2) {
-                stringLeft = value.substring(2, len-1);
+            if (len > range) {
+                stringLeft = value.substring(range, len-1);
             }
         }
+        System.out.println("=================");
+        System.out.println("left\t"+value);
+        System.out.println("left\t"+stringLeft);
+        System.out.println("key\t"+key);
         if (key == null) {
             if (index == null) {
                 index = new BinaryIndex().indexOn(this.field);
@@ -33,12 +39,13 @@ public class HashObject {
             index.add(entry);
         } else {
             int pos = 0;
-            int k = 0;
             for (char character : key.toCharArray()) {
-                pos += character * (k * 100);
-                k++;
+                pos += (int)character;
             }
-            pos = pos % 24;
+            pos = pos % (hashSize-1);
+            if(combined==null){
+                combined = new HashObject[hashSize];
+            }
             if(combined[pos]==null){
                 combined[pos] = new HashObject(field);
             }
@@ -51,11 +58,11 @@ public class HashObject {
         String stringLeft = null;
         if(value!=null) {
             int len = value.length();
-            if (len > 0 && len <= 2) {
-                key = value.substring(0, (len == 2) ? 1 : len-1);
+            if (len > 0) {
+                key = value.substring(0, (len >= range) ? range : len);
             }
-            if (len > 2) {
-                stringLeft = value.substring(3);
+            if (len > range) {
+                stringLeft = value.substring(range, len-1);
             }
         }
         if (key == null) {
@@ -65,14 +72,14 @@ public class HashObject {
             return index;
         } else {
             int pos = 0;
-            int k = 1;
             for (char character : key.toCharArray()) {
-                pos += character * k;
-                k++;
+                pos += (int)character;
             }
-            pos = pos % 25;
-            if(combined[pos]!=null){
-                return combined[pos].getIndex(stringLeft);
+            pos = pos % (hashSize-1);
+            if(combined!=null) {
+                if (combined[pos] != null) {
+                    return combined[pos].getIndex(stringLeft);
+                }
             }
         }
         return null;

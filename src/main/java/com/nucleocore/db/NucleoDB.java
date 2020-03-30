@@ -42,9 +42,9 @@ public class NucleoDB {
                     break;
                 case 1:
                     user = new Test();
-                    user.setKey("nathaniel.davidson@gmail.com");
+                    user.setKey(UUID.randomUUID().toString());
                     user.setName("1");
-                    user.setUser("firestar");
+                    user.setUser("Firestarthe");
                     db.getTable("usertest").save(null, user, d -> {
                         try{
                             System.out.println("[" + om.writeValueAsString(d) + "] Finished save");
@@ -60,7 +60,7 @@ public class NucleoDB {
                 case 3:
                     time = System.currentTimeMillis();
                     test = new Test();
-                    test.setUser("firestar");
+                    test.setUser("Firestarthe");
                     List<Test> dataIndex = db.getTable("usertest").search("user", test);
                     if (dataIndex != null) {
                         System.out.println("returned: " + dataIndex.size());
@@ -77,7 +77,7 @@ public class NucleoDB {
                     time = System.currentTimeMillis();
                     try {
                         test = new Test();
-                        test.setUser("firestar");
+                        test.setUser("Firestarthe");
                         System.out.println(om.writeValueAsString(db.getTable("usertest").search("user", test)));
                         System.out.println(om.writeValueAsString(db.getTable("usertest").getIndexes()));
                     } catch (JsonProcessingException e) {

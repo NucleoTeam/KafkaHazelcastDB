@@ -33,7 +33,9 @@ public class HashIndex extends IndexTemplate {
     public List<DataEntry> search(DataEntry indexCheck) {
         try {
             BinaryIndex bi = root.getIndex(this.getField().get(indexCheck).toString());
-            return bi.search(indexCheck);
+            if(bi!=null) {
+                return bi.search(indexCheck);
+            }
         }catch (Exception e){
             e.printStackTrace();
         }

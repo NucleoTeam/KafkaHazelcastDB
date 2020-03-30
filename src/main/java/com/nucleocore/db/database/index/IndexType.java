@@ -9,8 +9,7 @@ public enum IndexType {
     HASH(new HashIndex()),
     TRIE(new TrieIndex()),
     SETFULLTEXT(new SetIndex()),
-    BINARY(new BinaryIndex()),
-    ;
+    BINARY(new BinaryIndex());
 
     private final IndexTemplate type;
     IndexType(IndexTemplate type){

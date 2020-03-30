@@ -10,7 +10,7 @@ public class HashObject {
     BinaryIndex index = null;
     Field field;
     int hashSize = 5;
-    int range = 4;
+    int range = 5;
 
     public HashObject(Field field) {
         this.field = field;

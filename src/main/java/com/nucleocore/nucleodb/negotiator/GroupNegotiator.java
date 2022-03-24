@@ -1,0 +1,145 @@
+package com.nucleocore.nucleodb.negotiator;
+
+import com.github.f4b6a3.uuid.UuidCreator;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.nucleocore.nucleodb.NucleoDBNode;
+import com.nucleocore.nucleodb.negotiator.decision.Arguer;
+import com.nucleocore.nucleodb.negotiator.decision.hash.HashArgument;
+import com.nucleocore.nucleodb.negotiator.decision.hash.HashMeta;
+import com.nucleocore.nucleodb.negotiator.decision.support.ArgumentKafkaMessage;
+import com.nucleocore.nucleodb.negotiator.decision.support.ArgumentStep;
+import com.nucleocore.nucleodb.utils.Serializer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
+
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Properties;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+public class GroupNegotiator implements Runnable {
+  private Arguer arguer;
+  private KafkaConsumer consumer = null;
+  private KafkaProducer kafkaProducer = null;
+  private String brokers;
+  private String cluster;
+  private NucleoDBNode nucleoDBNode;
+  private String topic;
+
+  public GroupNegotiator(NucleoDBNode nucleoDBNode, String cluster, String brokers) {
+    this.nucleoDBNode = nucleoDBNode;
+    this.cluster = cluster;
+    this.brokers = brokers;
+    this.kafkaProducer = createProducer();
+    topic = "_"+cluster+"_arguments_";
+    this.arguer = new Arguer(this.kafkaProducer, nucleoDBNode, topic);
+    this.consumer = createConsumer();
+    subscribe(topic);
+    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
+    executor.execute(arguer);
+    executor.execute(this);
+  }
+
+  public void initial(String hash, int replicas){
+    ArgumentKafkaMessage message = new ArgumentKafkaMessage(ArgumentStep.NEW, new HashMeta(nucleoDBNode.getUniqueId(), hash, replicas));
+    final ProducerRecord<String, byte[]> record = new ProducerRecord<>(topic, UuidCreator.getTimeOrderedWithRandom().toString(), Serializer.write(message));
+    kafkaProducer.send(record, (metadata, e) -> {
+      if (e != null) {
+        System.out.println("Send failed for record {}");//, record, e);
+        System.out.println(record);
+        System.out.println(e);
+      }
+    });
+  }
+
+
+  @Override
+  public void run() {
+    consumer.commitAsync();
+    try {
+      do {
+        ConsumerRecords<String, byte[]> rs = getConsumer().poll(Duration.ofMillis(1));
+        if (!rs.isEmpty()) {
+          Iterator<ConsumerRecord<String, byte[]>> iter = rs.iterator();
+          while (iter.hasNext()) {
+            arguer.add(Serializer.read(iter.next().value()));
+          }
+        }
+        consumer.commitAsync();
+      } while (!Thread.interrupted());
+    }catch (Exception e){
+      e.printStackTrace();
+    }
+  }
+  private KafkaConsumer createConsumer() {
+    Properties props = new Properties();
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, nucleoDBNode.getUniqueId());
+    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+    props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 100);
+    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+    props.put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, 1024*8);
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
+    KafkaConsumer consumer = new KafkaConsumer(props);
+
+    return consumer;
+  }
+  private KafkaProducer createProducer() {
+    Properties props = new Properties();
+    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
+    props.put(ProducerConfig.SEND_BUFFER_CONFIG, 1024*8);
+    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+    return new KafkaProducer(props);
+  }
+  public void subscribe(String... topics){
+    consumer.subscribe(Arrays.asList(topics));
+  }
+
+  public Arguer getArguer() {
+    return arguer;
+  }
+
+  public void setArguer(Arguer arguer) {
+    this.arguer = arguer;
+  }
+
+  public KafkaConsumer getConsumer() {
+    return consumer;
+  }
+
+  public void setConsumer(KafkaConsumer consumer) {
+    this.consumer = consumer;
+  }
+
+  public String getBrokers() {
+    return brokers;
+  }
+
+  public void setBrokers(String brokers) {
+    this.brokers = brokers;
+  }
+
+  public String getCluster() {
+    return cluster;
+  }
+
+  public void setCluster(String cluster) {
+    this.cluster = cluster;
+  }
+}

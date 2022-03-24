@@ -1,0 +1,16 @@
+version: "2"
+
+services:
+  etcd:
+    image: 'bitnami/etcd:latest'
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      - ETCD_DATA_DIR=/data
+    ports:
+      - 2379:2379
+      - 2380:2380
+    networks:
+      - nucleodb-network
+    volumes:
+      - "/data/databases/kafka/etcd/:/data"

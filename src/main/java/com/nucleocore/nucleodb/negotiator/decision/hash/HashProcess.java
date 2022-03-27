@@ -12,6 +12,7 @@ import com.nucleocore.nucleodb.negotiator.decision.hash.responses.ReasonResponse
 import com.nucleocore.nucleodb.negotiator.decision.support.*;
 import org.apache.commons.collections4.map.HashedMap;
 
+import javax.validation.constraints.Null;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -21,17 +22,7 @@ import java.util.stream.Collectors;
 
 public class HashProcess implements ArgumentProcess, Serializable {
 
-  static LoadingCache<String, HashArgument> hashArguments = CacheBuilder.newBuilder()
-    .maximumSize(10000)
-    .expireAfterWrite(10, TimeUnit.SECONDS)
-    .build(
-      new CacheLoader<>() {
-        @Override
-        public HashArgument load(String key) {
-          return null;
-        }
-      }
-    );
+  static Map<String, HashArgument> hashArguments = new HashMap<>();
 
   int timeout = 10;
 
@@ -91,16 +82,16 @@ public class HashProcess implements ArgumentProcess, Serializable {
       double hits = 0;
       if (finalMaxHits != 0) {
         hits = Math.cos(((double) track.getReasonResponse().getHits()) / ((double) finalMaxHits));
-        System.out.println("hits " + hits);
+        //System.out.println("hits " + hits);
       }
       double cpuAverage = Arrays.stream(track.getReasonResponse().getCpuPercent()).map(c -> c.idle / (c.combined + c.idle)).reduce((a, b) -> a + b).get() / track.getReasonResponse().getCpuPercent().length;
-      System.out.println("cpuAverage " + cpuAverage);
+      //System.out.println("cpuAverage " + cpuAverage);
       double memoryAverage = (double) track.getReasonResponse().getMemory().actualFree / (double) track.getReasonResponse().getMemory().total;
-      System.out.println("memoryAverage " + memoryAverage);
+      //System.out.println("memoryAverage " + memoryAverage);
       double cpuLoad1Minute = track.getReasonResponse().getLoad()[0] / track.getReasonResponse().getCpuPercent().length;
-      System.out.println("cpuLoad1Minute " + cpuLoad1Minute);
+      //System.out.println("cpuLoad1Minute " + cpuLoad1Minute);
       double cpuLoad5Minute = track.getReasonResponse().getLoad()[1] / track.getReasonResponse().getCpuPercent().length;
-      System.out.println("cpuLoad5Minute " + cpuLoad5Minute);
+      //System.out.println("cpuLoad5Minute " + cpuLoad5Minute);
 
       // now get the distance of free resources from zero. using pythagorean theorem.
 
@@ -112,10 +103,10 @@ public class HashProcess implements ArgumentProcess, Serializable {
         cpuLoad1Minute * cpuLoad1Weight,
         cpuLoad5Minute * cpuLoad5Weight
       ) * 10000000)).intValue();
-      System.out.println(nodeSortWeight.weight);
+      //System.out.println(nodeSortWeight.weight);
 
       return nodeSortWeight;
-    }).sorted((a, b) -> Long.valueOf(a.weight - b.weight).intValue()).collect(Collectors.toList());
+    }).sorted((a, b) -> Long.valueOf(b.weight - a.weight).intValue()).collect(Collectors.toList());
     //now use the sorted list of arguments
     return new ConsensusResponse(sortedWithWeights.stream().map(a -> a.node).collect(Collectors.toSet()), sortedWithWeights);
   }
@@ -143,7 +134,7 @@ public class HashProcess implements ArgumentProcess, Serializable {
   }
 
   void claimReceived(NucleoDBNode node, HashMeta hashMeta, ArgumentCallback<Object> runner) {
-    HashArgument hashArgument = hashArguments.getIfPresent(hashMeta.getHashPrefix());
+    HashArgument hashArgument = hashArguments.get(hashMeta.getHashPrefix());
     if(hashArgument!=null) {
       hashArgument.addNode(hashMeta.getNode());
       if (hashMeta.getNode().equals(node.getUniqueId())) {
@@ -156,7 +147,7 @@ public class HashProcess implements ArgumentProcess, Serializable {
   }
 
   void reasonReceived(NucleoDBNode node, HashMeta hashMeta, ArgumentCallback<Object> runner) {
-    HashArgument hashArgument = hashArguments.getIfPresent(hashMeta.getHashPrefix());
+    HashArgument hashArgument = hashArguments.get(hashMeta.getHashPrefix());
     if (hashArgument != null) {
       HashArgumentResponseTrack track = hashArgument.getResponses().get(hashMeta.getNode());
       if (track != null) {
@@ -172,54 +163,37 @@ public class HashProcess implements ArgumentProcess, Serializable {
         finalHashArgument.setExecutor(null);
         runner.callback(ArgumentAction.SEND_TO_TOPIC, new ArgumentKafkaMessage(ArgumentStep.CONSENSUS, meta));
       }, timeout, TimeUnit.MILLISECONDS));
-    } else if (hashArgument != null && hashArgument.getExecutor() != null && hashArgument.getResponses().size()==hashArgument.getResponses().values().stream().filter(c->c.getReasonResponse()!=null).count()) {
-      hashArgument.getExecutor().cancel(false);
-      if (hashArgument.getExecutor().isCancelled()) {
-        HashMeta meta = new HashMeta(node.getUniqueId(), hashMeta.getHashPrefix(), hashMeta.getReplicas());
-        meta.getObjects().put("consensus", calculateConsensus(hashArgument.getResponses()));
-        hashArgument.setExecutor(null);
-        runner.callback(ArgumentAction.SEND_TO_TOPIC, new ArgumentKafkaMessage(ArgumentStep.CONSENSUS, meta));
-      }
     }
 
   }
 
   void consensusReceived(NucleoDBNode node, HashMeta hashMeta, ArgumentCallback<Object> runner) {
     // handle consensus
-    System.out.println("test1");
-    HashArgument hashArgument = hashArguments.getIfPresent(hashMeta.getHashPrefix());
+    //System.out.println("test1");
+    HashArgument hashArgument = hashArguments.get(hashMeta.getHashPrefix());
     if (hashArgument != null) {
-      System.out.println("test2");
+      //System.out.println("test2");
       HashArgumentResponseTrack track = hashArgument.getResponses().get(hashMeta.getNode());
       ConsensusResponse consensusResponse = hashMeta.getConsensus();
 
       if (consensusResponse != null && track != null) {
-        System.out.println("test3");
+        //System.out.println("test3");
         track.setConsensusResponse(consensusResponse);
       }
     }
-    System.out.println("test4");
+    //System.out.println("test4");
     if (hashArgument != null && hashArgument.getExecutor() == null) {
-      System.out.println("test5");
+      //System.out.println("test5");
       ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
       HashArgument finalHashArgument = hashArgument;
       hashArgument.setExecutor(executorService.schedule(() -> {
         HashMeta meta = new HashMeta(node.getUniqueId(), hashMeta.getHashPrefix(), hashMeta.getReplicas());
-        System.out.println("test6 timeout");
+        //System.out.println("test6 timeout");
         meta.getObjects().put("vote_result", calculateVotes(finalHashArgument.getResponses(), hashMeta.getReplicas()));
         finalHashArgument.setExecutor(null);
         runner.callback(ArgumentAction.SEND_TO_TOPIC, new ArgumentKafkaMessage(ArgumentStep.ACTION, meta));
       }, timeout, TimeUnit.MILLISECONDS));
 
-    } else if (hashArgument != null && hashArgument.getExecutor() != null  && hashArgument.getResponses().size()==hashArgument.getResponses().values().stream().filter(c->c.getConsensusResponse()!=null).count()) {
-      hashArgument.getExecutor().cancel(false);
-      if(hashArgument.getExecutor().isCancelled()){
-        HashMeta meta = new HashMeta(node.getUniqueId(), hashMeta.getHashPrefix(), hashMeta.getReplicas());
-        System.out.println("test6 early");
-        meta.getObjects().put("vote_result", calculateVotes(hashArgument.getResponses(), hashMeta.getReplicas()));
-        hashArgument.setExecutor(null);
-        runner.callback(ArgumentAction.SEND_TO_TOPIC, new ArgumentKafkaMessage(ArgumentStep.ACTION, meta));
-      }
     }
   }
 
@@ -237,7 +211,7 @@ public class HashProcess implements ArgumentProcess, Serializable {
   }
 
   void actionReceived(NucleoDBNode node, HashMeta hashMeta, ArgumentCallback<Object> runner) {
-    HashArgument hashArgument = hashArguments.getIfPresent(hashMeta.getHashPrefix());
+    HashArgument hashArgument = hashArguments.get(hashMeta.getHashPrefix());
     if (hashArgument != null) {
       HashArgumentResponseTrack track = hashArgument.getResponses().get(hashMeta.getNode());
       List<String> voteResponse = hashMeta.getVoteResult();
@@ -249,63 +223,39 @@ public class HashProcess implements ArgumentProcess, Serializable {
       ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
       HashArgument finalHashArgument = hashArgument;
       hashArgument.setExecutor(executorService.schedule(() -> {
-        System.out.println("executing after timeout");
+        //System.out.println("executing after timeout");
         HashMeta meta = new HashMeta(node.getUniqueId(), hashMeta.getHashPrefix(), hashMeta.getReplicas());
         finalHashArgument.setExecutor(null);
         Map<String, VoteResultComparison> voteResultComparisonMap = Maps.newHashMap();
         for (Map.Entry<String, HashArgumentResponseTrack> track : finalHashArgument.getResponses().entrySet()) {
           String key = track.getValue().getNodes().stream().collect(Collectors.joining("-"));
-          System.out.println("Key " + key);
+          //System.out.println("Key " + key);
           if (voteResultComparisonMap.containsKey(key)) {
             voteResultComparisonMap.get(key).count++;
           } else {
             voteResultComparisonMap.put(key, new VoteResultComparison(meta.getHashPrefix(), track.getValue().getNodes(), 1));
           }
         }
-        System.out.println(voteResultComparisonMap.keySet().stream().collect(Collectors.joining()));
-        Optional<VoteResultComparison> voteResultComparisonTrack = voteResultComparisonMap.values().stream().sorted(Comparator.comparingInt(a -> a.count)).limit(1).findFirst();
+        //System.out.println(voteResultComparisonMap.keySet().stream().collect(Collectors.joining()));
+        Optional<VoteResultComparison> voteResultComparisonTrack = voteResultComparisonMap.values().stream().sorted((a,b)->b.count-a.count).limit(1).findFirst();
         if (voteResultComparisonTrack.isPresent()) {
           VoteResultComparison voteResultComparison = voteResultComparisonTrack.get();
           if (voteResultComparison.nodes.contains(node.getUniqueId())) {
             runner.callback(ArgumentAction.RUN_FINAL_ACTION, new ArgumentResult(voteResultComparison));
           }
         }
+        hashArguments.remove(hashArgument.getHashPrefix());
       }, timeout, TimeUnit.MILLISECONDS));
-    } else if (hashArgument != null && hashArgument.getExecutor() != null && hashArgument.getResponses().size()==hashArgument.getResponses().values().stream().filter(c->!c.getNodes().isEmpty()).count()) {
-      System.out.println("executing early");
-      hashArgument.getExecutor().cancel(false);
-      if (hashArgument.getExecutor().isCancelled()) {
-        System.out.println("Action Received Executing");
-        HashMeta meta = new HashMeta(node.getUniqueId(), hashMeta.getHashPrefix(), hashMeta.getReplicas());
-        hashArgument.setExecutor(null);
-        Map<String, VoteResultComparison> voteResultComparisonMap = Maps.newHashMap();
-        for (Map.Entry<String, HashArgumentResponseTrack> track : hashArgument.getResponses().entrySet()) {
-          String key = track.getValue().getNodes().stream().collect(Collectors.joining("-"));
-          System.out.println("Key " + key);
-          if (voteResultComparisonMap.containsKey(key)) {
-            voteResultComparisonMap.get(key).count++;
-          } else {
-            voteResultComparisonMap.put(key, new VoteResultComparison(meta.getHashPrefix(), track.getValue().getNodes(), 1));
-          }
-        }
-        System.out.println(voteResultComparisonMap.keySet().stream().collect(Collectors.joining()));
-        Optional<VoteResultComparison> voteResultComparisonTrack = voteResultComparisonMap.values().stream().sorted(Comparator.comparingInt(a -> a.count)).limit(1).findFirst();
-        if (voteResultComparisonTrack.isPresent()) {
-          VoteResultComparison voteResultComparison = voteResultComparisonTrack.get();
-          if (voteResultComparison.nodes.contains(node.getUniqueId())) {
-            runner.callback(ArgumentAction.RUN_FINAL_ACTION, new ArgumentResult(voteResultComparison));
-          }
-        }
-      }
     }
   }
 
   @Override
-  public void action(ArgumentResult argumentResult) {
+  public void action(NucleoDBNode node, ArgumentResult argumentResult) {
     Object obj = argumentResult.getResultObject();
     if (obj != null && obj instanceof VoteResultComparison) {
       VoteResultComparison voteResultComparison = (VoteResultComparison) obj;
       System.out.println("I WON THE ELECTION " + voteResultComparison.hash);
+      node.insertTempAdjustment();
     }
   }
 

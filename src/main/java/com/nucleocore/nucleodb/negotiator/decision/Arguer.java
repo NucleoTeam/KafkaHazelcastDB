@@ -30,7 +30,6 @@ public class Arguer implements Runnable {
 
   KafkaProducer kafkaProducer;
 
-  CountDownLatch latch = new CountDownLatch(1);
 
   boolean debug = false;
 
@@ -43,52 +42,10 @@ public class Arguer implements Runnable {
         ArgumentKafkaMessage argumentMessage = null;
         while (!argumentMessageQueue.isEmpty()) {
           if ((argumentMessage = argumentMessageQueue.poll()) != null) {
-            try {
-              ArgumentProcess argumentProcess = (ArgumentProcess) argumentMessage.getProcessData().getLogicProcessorClass().getConstructor(int.class).newInstance(60);
-              argumentProcess.process(this.node, argumentMessage.getArgumentStep(), argumentMessage.getProcessData(), new ArgumentCallback<>() {
-                @Override
-                public void callback(ArgumentAction argumentAction, Object obj) {
-                  switch (argumentAction) {
-                    case SEND_TO_TOPIC:
-                      if (!isDebug()) {
-                        final ProducerRecord<String, byte[]> record = new ProducerRecord<>(argumentTopic, UuidCreator.getTimeOrderedWithRandom().toString(), Serializer.write(obj));
-                        kafkaProducer.send(record, (metadata, e) -> {
-                          if (e != null) {
-                            System.out.println("Send failed for record {}");//, record, e);
-                            System.out.println(record);
-                            System.out.println(e);
-                          }
-                        });
-                      } else if (isDebug() && obj instanceof ArgumentKafkaMessage) {
-                        argumentMessageQueue.add((ArgumentKafkaMessage) obj);
-                      }else{
-                        System.out.println(obj.getClass().getName());
-                      }
-                      break;
-                    case RUN_FINAL_ACTION:
-                      System.out.println("Run action");
-                      if (obj instanceof ArgumentResult) {
-                        argumentProcess.action((ArgumentResult) obj);
-                      }
-
-                      break;
-                  }
-                }
-              });
-              if(isDebug())
-                Thread.sleep(200);
-            } catch (NoSuchMethodException e) {
-              e.printStackTrace();
-            } catch (InvocationTargetException e) {
-              e.printStackTrace();
-            } catch (InstantiationException e) {
-              e.printStackTrace();
-            } catch (IllegalAccessException e) {
-              e.printStackTrace();
-            }
+            execute(argumentMessage);
           }
         }
-        Thread.sleep(0, 600);
+        Thread.sleep(1);
       }
     } catch (InterruptedException e) {
       e.printStackTrace();
@@ -97,7 +54,6 @@ public class Arguer implements Runnable {
 
   public void add(ArgumentKafkaMessage argumentMessage){
     argumentMessageQueue.add(argumentMessage);
-    latch.countDown();
   }
 
   public String getArgumentTopic() {
@@ -132,13 +88,6 @@ public class Arguer implements Runnable {
     this.kafkaProducer = kafkaProducer;
   }
 
-  public CountDownLatch getLatch() {
-    return latch;
-  }
-
-  public void setLatch(CountDownLatch latch) {
-    this.latch = latch;
-  }
 
   public boolean isDebug() {
     return debug;
@@ -148,5 +97,42 @@ public class Arguer implements Runnable {
     this.debug = debug;
     if(debug)
       log.atLevel(Level.ALL);
+  }
+
+  public void execute(ArgumentKafkaMessage argumentMessage) {
+    try {
+      ArgumentProcess argumentProcess = (ArgumentProcess) argumentMessage.getProcessData().getLogicProcessorClass().getConstructor(int.class).newInstance(40);
+      argumentProcess.process(this.node, argumentMessage.getArgumentStep(), argumentMessage.getProcessData(), new ArgumentCallback<>() {
+        @Override
+        public void callback(ArgumentAction argumentAction, Object obj) {
+          switch (argumentAction) {
+            case SEND_TO_TOPIC:
+              if (!isDebug()) {
+                final ProducerRecord<String, byte[]> record = new ProducerRecord<>(argumentTopic, UuidCreator.getTimeOrderedWithRandom().toString(), Serializer.write(obj));
+                kafkaProducer.send(record);
+              } else if (isDebug() && obj instanceof ArgumentKafkaMessage) {
+                argumentMessageQueue.add((ArgumentKafkaMessage) obj);
+              }else{
+                System.out.println(obj.getClass().getName());
+              }
+              break;
+            case RUN_FINAL_ACTION:
+              System.out.println("Run action");
+              if (obj instanceof ArgumentResult) {
+                argumentProcess.action(node, (ArgumentResult) obj);
+              }
+              break;
+          }
+        }
+      });
+    } catch (NoSuchMethodException e) {
+      e.printStackTrace();
+    } catch (InvocationTargetException e) {
+      e.printStackTrace();
+    } catch (InstantiationException e) {
+      e.printStackTrace();
+    } catch (IllegalAccessException e) {
+      e.printStackTrace();
+    }
   }
 }

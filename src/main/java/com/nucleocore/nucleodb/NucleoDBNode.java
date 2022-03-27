@@ -10,6 +10,8 @@ import org.hyperic.sigar.Mem;
 import org.hyperic.sigar.Sigar;
 import org.hyperic.sigar.SigarException;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -22,27 +24,23 @@ public class NucleoDBNode {
   long slots = 0;
   AtomicLong usedSlots = new AtomicLong(0);
 
-  private static LoadingCache<String, String> tempApplier = CacheBuilder.newBuilder()
-    .maximumSize(10000)
-    .expireAfterWrite(15, TimeUnit.MILLISECONDS)
-    .build(
-      new CacheLoader<>() {
-        @Override
-        public String load(String key) {
-          return null;
-        }
-      }
-    );
+  private List<Long> recentActions = new LinkedList<>();
 
-  public static int getAdjustedResources(){
-    return Long.valueOf(tempApplier.size()).intValue();
+  public int getAdjustedResources(){
+    synchronized (recentActions){
+      recentActions.removeIf(c->c<System.currentTimeMillis());
+    }
+    return recentActions.size();
   }
-  public static void insertTempAdjustment(String hash){
-    tempApplier.put(UUID.randomUUID().toString(), hash);
+  public void insertTempAdjustment(){
+    synchronized (recentActions){
+      recentActions.add(System.currentTimeMillis()+3000);
+      usedSlots.incrementAndGet();
+    }
   };
 
   public NucleoDBNode(long slots) {
-    this.slots = slots;
+    this.slots = slots+getAdjustedResources();
   }
 
 
@@ -68,8 +66,10 @@ public class NucleoDBNode {
       CpuPerc[] cpuPercs = sigar.getCpuPercList();
       int len = cpuPercs.length;
       ReasonResponse.CPUPercent[] cpuPercVals = new ReasonResponse.CPUPercent[len];
+      double adjustment = getAdjustedResources()*0.02;
+      System.out.println("cpu: "+adjustment);
       for(int i=0;i<len;i++){
-        cpuPercVals[i] = new ReasonResponse.CPUPercent(cpuPercs[i].getCombined(), cpuPercs[i].getIdle(), cpuPercs[i].getUser(), cpuPercs[i].getSys(), cpuPercs[i].getNice());
+        cpuPercVals[i] = new ReasonResponse.CPUPercent(cpuPercs[i].getCombined()+adjustment, cpuPercs[i].getIdle()-adjustment, cpuPercs[i].getUser()+adjustment, cpuPercs[i].getSys(), cpuPercs[i].getNice());
       }
       return cpuPercVals;
     }catch (SigarException e){
@@ -81,7 +81,9 @@ public class NucleoDBNode {
     Sigar sigar=new Sigar();
     try {
       Mem mem = sigar.getMem();
-      return new ReasonResponse.Memory(mem.getTotal(), mem.getUsed(), mem.getActualUsed(), mem.getFree(), mem.getActualFree());
+      long adjustment = getAdjustedResources()*1024*1;
+      System.out.println("mem: "+adjustment);
+      return new ReasonResponse.Memory(mem.getTotal(), mem.getUsed()+adjustment, mem.getActualUsed()+adjustment, mem.getFree()-adjustment, mem.getActualFree()-adjustment);
     }catch (SigarException e){
       e.printStackTrace();
     }

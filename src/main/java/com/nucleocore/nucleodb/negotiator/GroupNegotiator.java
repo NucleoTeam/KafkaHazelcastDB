@@ -49,34 +49,30 @@ public class GroupNegotiator implements Runnable {
     this.arguer = new Arguer(this.kafkaProducer, nucleoDBNode, topic);
     this.consumer = createConsumer();
     subscribe(topic);
-    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
-    executor.execute(arguer);
+    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
+    //executor.execute(arguer);
     executor.execute(this);
   }
 
   public void initial(String hash, int replicas){
     ArgumentKafkaMessage message = new ArgumentKafkaMessage(ArgumentStep.NEW, new HashMeta(nucleoDBNode.getUniqueId(), hash, replicas));
     final ProducerRecord<String, byte[]> record = new ProducerRecord<>(topic, UuidCreator.getTimeOrderedWithRandom().toString(), Serializer.write(message));
-    kafkaProducer.send(record, (metadata, e) -> {
-      if (e != null) {
-        System.out.println("Send failed for record {}");//, record, e);
-        System.out.println(record);
-        System.out.println(e);
-      }
-    });
+    kafkaProducer.send(record);
   }
 
 
   @Override
   public void run() {
+    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(25);
     consumer.commitAsync();
     try {
       do {
-        ConsumerRecords<String, byte[]> rs = getConsumer().poll(Duration.ofMillis(1));
+        ConsumerRecords<String, byte[]> rs = getConsumer().poll(Duration.ofNanos(25));
         if (!rs.isEmpty()) {
           Iterator<ConsumerRecord<String, byte[]>> iter = rs.iterator();
           while (iter.hasNext()) {
-            arguer.add(Serializer.read(iter.next().value()));
+            byte[] data = iter.next().value();
+            executor.submit(()->arguer.execute(Serializer.read(data))); // handle communications in async way.
           }
         }
         consumer.commitAsync();

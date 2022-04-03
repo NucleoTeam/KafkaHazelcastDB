@@ -45,7 +45,7 @@ public class Arguer implements Runnable {
             execute(argumentMessage);
           }
         }
-        Thread.sleep(1);
+        Thread.sleep(0,200);
       }
     } catch (InterruptedException e) {
       e.printStackTrace();
@@ -101,7 +101,7 @@ public class Arguer implements Runnable {
 
   public void execute(ArgumentKafkaMessage argumentMessage) {
     try {
-      ArgumentProcess argumentProcess = (ArgumentProcess) argumentMessage.getProcessData().getLogicProcessorClass().getConstructor(int.class).newInstance(30);
+      ArgumentProcess argumentProcess = (ArgumentProcess) argumentMessage.getProcessData().getLogicProcessorClass().getConstructor(int.class).newInstance(45);
       argumentProcess.process(this.node, argumentMessage.getArgumentStep(), argumentMessage.getProcessData(), new ArgumentCallback<>() {
         @Override
         public void callback(ArgumentAction argumentAction, Object obj) {

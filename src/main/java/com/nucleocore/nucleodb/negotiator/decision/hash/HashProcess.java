@@ -32,7 +32,7 @@ public class HashProcess implements ArgumentProcess, Serializable {
   static ScheduledExecutorService executorService = Executors.newScheduledThreadPool(200);
   static LoadingCache<String, HashArgument> hashArguments = CacheBuilder.newBuilder()
     .maximumSize(100)
-    .expireAfterWrite(100, TimeUnit.MILLISECONDS)
+    .expireAfterWrite(300, TimeUnit.MILLISECONDS)
     .build(
       new CacheLoader<>() {
         @Override
@@ -56,7 +56,7 @@ public class HashProcess implements ArgumentProcess, Serializable {
       if ((hashArgument!=null && hashArgument.getRetry()<hashMeta.getRetry()) || hashMeta.getRetry()>0) {
         System.out.println(toColoredStr(
           "retrying " + hashMeta.getHashPrefix(),
-          getIntFromColor(Color.decode("#ddd040"))
+          getIntFromColor(Color.decode("#"+hashMeta.getHashPrefix()))
         ));
         testHash.add(hashMeta.getHashPrefix());
       }
@@ -428,7 +428,7 @@ public class HashProcess implements ArgumentProcess, Serializable {
       if (testHash.contains(voteResultComparison.hash)) {
         System.out.println(toColoredStr(
           "Fulfilled: " + voteResultComparison.hash,
-          getIntFromColor(Color.decode("#dd4040"))
+          getIntFromColor(Color.decode("#"+voteResultComparison.hash))
         ));
       }
       handledHash.add(voteResultComparison.hash);

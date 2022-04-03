@@ -67,7 +67,7 @@ public class GroupNegotiator implements Runnable {
     consumer.commitAsync();
 
       do {
-        ConsumerRecords<String, byte[]> rs = getConsumer().poll(Duration.ofMillis(2));
+        ConsumerRecords<String, byte[]> rs = getConsumer().poll(Duration.ofMillis(20));
         if (!rs.isEmpty()) {
           Iterator<ConsumerRecord<String, byte[]>> iter = rs.iterator();
           while (iter.hasNext()) {

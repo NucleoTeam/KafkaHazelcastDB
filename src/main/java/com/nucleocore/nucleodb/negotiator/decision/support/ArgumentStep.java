@@ -5,5 +5,6 @@ public enum ArgumentStep {
   CLAIM,
   REASON,
   CONSENSUS,
-  ACTION
+  ACTION,
+  ERROR
 }

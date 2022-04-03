@@ -101,14 +101,14 @@ public class Arguer implements Runnable {
 
   public void execute(ArgumentKafkaMessage argumentMessage) {
     try {
-      ArgumentProcess argumentProcess = (ArgumentProcess) argumentMessage.getProcessData().getLogicProcessorClass().getConstructor(int.class).newInstance(40);
+      ArgumentProcess argumentProcess = (ArgumentProcess) argumentMessage.getProcessData().getLogicProcessorClass().getConstructor(int.class).newInstance(30);
       argumentProcess.process(this.node, argumentMessage.getArgumentStep(), argumentMessage.getProcessData(), new ArgumentCallback<>() {
         @Override
         public void callback(ArgumentAction argumentAction, Object obj) {
           switch (argumentAction) {
             case SEND_TO_TOPIC:
               if (!isDebug()) {
-                final ProducerRecord<String, byte[]> record = new ProducerRecord<>(argumentTopic, UuidCreator.getTimeOrderedWithRandom().toString(), Serializer.write(obj));
+                final ProducerRecord<String, byte[]> record = new ProducerRecord<>(argumentTopic, UuidCreator.getTimeBasedWithRandom().toString(), Serializer.write(obj));
                 kafkaProducer.send(record);
               } else if (isDebug() && obj instanceof ArgumentKafkaMessage) {
                 argumentMessageQueue.add((ArgumentKafkaMessage) obj);
@@ -117,7 +117,6 @@ public class Arguer implements Runnable {
               }
               break;
             case RUN_FINAL_ACTION:
-              System.out.println("Run action");
               if (obj instanceof ArgumentResult) {
                 argumentProcess.action(node, (ArgumentResult) obj);
               }

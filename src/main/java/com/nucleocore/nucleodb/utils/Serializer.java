@@ -41,22 +41,22 @@ public class Serializer {
       ois = new ObjectInputStream(bis);
       return (T) ois.readObject();
     }catch (IOException e){
-      e.printStackTrace();
+      //e.printStackTrace();
     } catch (ClassNotFoundException e) {
-      e.printStackTrace();
+      //e.printStackTrace();
     } finally {
       if(ois!=null) {
         try {
           ois.close();
         } catch (IOException e) {
-          e.printStackTrace();
+          //e.printStackTrace();
         }
       }
       if(bis!=null) {
         try {
           bis.close();
         } catch (IOException e) {
-          e.printStackTrace();
+          //e.printStackTrace();
         }
       }
     }

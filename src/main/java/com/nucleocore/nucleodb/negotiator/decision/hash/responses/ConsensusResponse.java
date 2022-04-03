@@ -6,10 +6,12 @@ import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ConsensusResponse implements Serializable {
   Set<String> nodes = Sets.newHashSet();
   List<NodeSortWeight> weights = Lists.newLinkedList();
+
 
   public ConsensusResponse(Set<String> nodes, List<NodeSortWeight> weights) {
     this.nodes = nodes;
@@ -31,4 +33,5 @@ public class ConsensusResponse implements Serializable {
   public void setWeights(List<NodeSortWeight> weights) {
     this.weights = weights;
   }
+
 }

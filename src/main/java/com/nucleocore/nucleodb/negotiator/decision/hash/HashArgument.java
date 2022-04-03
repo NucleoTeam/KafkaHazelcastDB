@@ -6,16 +6,26 @@ import org.apache.commons.collections4.map.HashedMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class HashArgument {
   String hashPrefix;
+  private int retry = 0;
 
   Map<String, HashArgumentResponseTrack> responses = new HashedMap<>();
 
-  ScheduledFuture executor = null;
+  ScheduledFuture nodeExecutor = null;
+  ScheduledFuture consensusExector = null;
+  ScheduledFuture reasonExecutor = null;
 
-  public HashArgument(String hashPrefix) {
+  AtomicBoolean nodeExecuted = new AtomicBoolean(false);
+  AtomicBoolean consensusExecuted = new AtomicBoolean(false);
+  AtomicBoolean reasonExecuted = new AtomicBoolean(false);
+
+  public HashArgument(String hashPrefix, int retry) {
     this.hashPrefix = hashPrefix;
+    this.retry = retry;
   }
 
   public String getHashPrefix() {
@@ -42,11 +52,47 @@ public class HashArgument {
     responses.put(nodeUniqueId, new HashArgumentResponseTrack());
   }
 
-  public ScheduledFuture getExecutor() {
-    return executor;
+  public ScheduledFuture getNodeExecutor() {
+    return nodeExecutor;
   }
 
-  public void setExecutor(ScheduledFuture executor) {
-    this.executor = executor;
+  public void setNodeExecutor(ScheduledFuture nodeExecutor) {
+    this.nodeExecutor = nodeExecutor;
+  }
+
+  public ScheduledFuture getConsensusExector() {
+    return consensusExector;
+  }
+
+  public void setConsensusExector(ScheduledFuture consensusExector) {
+    this.consensusExector = consensusExector;
+  }
+
+  public ScheduledFuture getReasonExecutor() {
+    return reasonExecutor;
+  }
+
+  public void setReasonExecutor(ScheduledFuture reasonExecutor) {
+    this.reasonExecutor = reasonExecutor;
+  }
+
+  public AtomicBoolean getNodeExecuted() {
+    return nodeExecuted;
+  }
+
+  public AtomicBoolean getConsensusExecuted() {
+    return consensusExecuted;
+  }
+
+  public AtomicBoolean getReasonExecuted() {
+    return reasonExecuted;
+  }
+
+  public int getRetry() {
+    return retry;
+  }
+
+  public void setRetry(int retry) {
+    this.retry = retry;
   }
 }

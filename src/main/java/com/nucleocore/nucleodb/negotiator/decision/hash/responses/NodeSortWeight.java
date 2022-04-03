@@ -1,10 +1,12 @@
 package com.nucleocore.nucleodb.negotiator.decision.hash.responses;
 
 import java.io.Serializable;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class NodeSortWeight implements Serializable {
   public int weight;
   public String node;
+
   public NodeSortWeight(String node) {
     this.node = node;
   }
@@ -24,4 +26,5 @@ public class NodeSortWeight implements Serializable {
   public void setNode(String node) {
     this.node = node;
   }
+
 }

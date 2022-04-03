@@ -55,7 +55,7 @@ public class GroupNegotiator implements Runnable {
   }
 
   public void initial(String hash, int replicas){
-    ArgumentKafkaMessage message = new ArgumentKafkaMessage(ArgumentStep.NEW, new HashMeta(nucleoDBNode.getUniqueId(), hash, replicas));
+    ArgumentKafkaMessage message = new ArgumentKafkaMessage(ArgumentStep.NEW, new HashMeta(nucleoDBNode.getUniqueId(), hash, replicas, 0));
     final ProducerRecord<String, byte[]> record = new ProducerRecord<>(topic, UuidCreator.getTimeOrderedWithRandom().toString(), Serializer.write(message));
     kafkaProducer.send(record);
   }
@@ -63,11 +63,11 @@ public class GroupNegotiator implements Runnable {
 
   @Override
   public void run() {
-    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(25);
+    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(50);
     consumer.commitAsync();
-    try {
+
       do {
-        ConsumerRecords<String, byte[]> rs = getConsumer().poll(Duration.ofNanos(25));
+        ConsumerRecords<String, byte[]> rs = getConsumer().poll(Duration.ofMillis(2));
         if (!rs.isEmpty()) {
           Iterator<ConsumerRecord<String, byte[]>> iter = rs.iterator();
           while (iter.hasNext()) {
@@ -77,9 +77,7 @@ public class GroupNegotiator implements Runnable {
         }
         consumer.commitAsync();
       } while (!Thread.interrupted());
-    }catch (Exception e){
-      e.printStackTrace();
-    }
+
   }
   private KafkaConsumer createConsumer() {
     Properties props = new Properties();

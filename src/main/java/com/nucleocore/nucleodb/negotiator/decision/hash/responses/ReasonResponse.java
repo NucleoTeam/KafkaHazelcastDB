@@ -1,6 +1,7 @@
 package com.nucleocore.nucleodb.negotiator.decision.hash.responses;
 
 import java.io.Serializable;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ReasonResponse implements Serializable {
 
@@ -83,4 +84,5 @@ public class ReasonResponse implements Serializable {
   public void setMemory(Memory memory) {
     this.memory = memory;
   }
+
 }

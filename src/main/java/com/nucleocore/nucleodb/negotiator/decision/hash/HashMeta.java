@@ -9,6 +9,8 @@ import org.apache.commons.collections4.map.HashedMap;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class HashMeta extends ArgumentMessageData<HashProcess> {
@@ -16,19 +18,22 @@ public class HashMeta extends ArgumentMessageData<HashProcess> {
   private String hashPrefix;
   private Map<String, Object> objects = new HashedMap<>();
   private int replicas;
+  private int retry = 0;
 
-  public HashMeta(String node, String hashPrefix, int replicas) {
+  public HashMeta(String node, String hashPrefix, int replicas, int retry) {
     super(HashProcess.class);
     this.node = node;
     this.hashPrefix = hashPrefix;
     this.replicas = replicas;
+    this.retry = retry;
   }
-  public HashMeta(String node, String hashPrefix, Map<String, Object> objects, int replicas) {
+  public HashMeta(String node, String hashPrefix, Map<String, Object> objects, int replicas, int retry) {
     super(HashProcess.class);
     this.node = node;
     this.hashPrefix = hashPrefix;
     this.objects = objects;
     this.replicas = replicas;
+    this.retry = retry;
   }
 
   public String getNode() {
@@ -64,11 +69,7 @@ public class HashMeta extends ArgumentMessageData<HashProcess> {
   }
 
   public void setNodeStatus(NucleoDBNode node){
-    this.getObjects().put("load", node.getLoad());
-    this.getObjects().put("cpu", node.getCPUPercent());
-    this.getObjects().put("hits", node.getHits());
-    this.getObjects().put("slots", node.getOpenSlots());
-    this.getObjects().put("memory", node.getMemory());
+    node.setData(this.getObjects());
   }
   public ReasonResponse getReason() {
     return new ReasonResponse(
@@ -87,11 +88,22 @@ public class HashMeta extends ArgumentMessageData<HashProcess> {
     return null;
   }
 
-  public List<String> getVoteResult() {
+  public Set<String> getVoteResult() {
     Object obj = getObjects().getOrDefault("vote_result", null);
     if(obj!=null && obj instanceof Map){
-      return ((Map<String, HashProcess.NodeVote>) obj).entrySet().stream().sorted(Comparator.comparingInt(a -> a.getValue().votes)).limit(replicas).collect(Collectors.toList()).stream().map(c->c.getValue().node).collect(Collectors.toList());
+      return ((Map<String, HashProcess.NodeVote>) obj).entrySet().stream().sorted(Comparator.comparingInt(a -> a.getValue().votes)).limit(replicas).collect(Collectors.toList()).stream().map(c->c.getValue().node).collect(Collectors.toSet());
     }
     return null;
+  }
+  public <T> T get(String key){
+    return (T) objects.get(key);
+  }
+
+  public int getRetry() {
+    return retry;
+  }
+
+  public void setRetry(int retry) {
+    this.retry = retry;
   }
 }

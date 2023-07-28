@@ -1,24 +1,31 @@
 package com.nucleocore.nucleodb.database.tables;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.fge.jsonpatch.diff.JsonDiff;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
 import com.nucleocore.nucleodb.database.modifications.Create;
 import com.nucleocore.nucleodb.database.modifications.Delete;
 import com.nucleocore.nucleodb.database.modifications.Update;
 import com.nucleocore.nucleodb.database.utils.*;
+import com.nucleocore.nucleodb.database.utils.index.Index;
+import com.nucleocore.nucleodb.database.utils.index.TreeIndex;
 import com.nucleocore.nucleodb.kafkaLedger.ConsumerHandler;
 import com.nucleocore.nucleodb.kafkaLedger.ProducerHandler;
 import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.common.errors.TopicExistsException;
+import com.github.fge.jsonpatch.JsonPatch;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
-public class DataTable implements TableTemplate {
+public class DataTable {
 
     private Queue<Object[]> indexQueue = Queues.newArrayDeque();
 
@@ -27,18 +34,18 @@ public class DataTable implements TableTemplate {
 
     private List<DataEntry> entries = Lists.newArrayList();
 
-    private HashMap<String, Consumer<DataEntry>> consumers = new HashMap<>();
+    private Map<String, Index> indexes = new TreeMap<>();
+    private Set<DataEntry> dataEntries = new TreeSet<>();
+    private Map<String, DataEntry> keyToEntry = new TreeMap<>();
 
-    private HashMap<Modification, Set<Consumer<DataEntry>>> listeners = new HashMap<>();
+    private Map<String, Consumer<DataEntry>> consumers = new TreeMap<>();
+
+    private Map<Modification, Set<Consumer<DataEntry>>> listeners = new TreeMap<>();
 
 
     private boolean unsavedIndexModifications = false;
     private int size = 0;
     private boolean buildIndex = true;
-
-    ObjectMapper om = new ObjectMapper() {{
-        this.enableDefaultTyping();
-    }};
 
     private String bootstrap;
     private String table;
@@ -54,18 +61,22 @@ public class DataTable implements TableTemplate {
         return indexQueue.poll();
     }
 
-    public DataTable(String bootstrap, String table, Class clazz, StartupRun startupCode, boolean startupConsume) {
+    public DataTable(String bootstrap, String table, Class clazz, StartupRun startupCode, String... index) {
         this.startupCode = startupCode;
+        if(bootstrap == null)
+            bootstrap = "127.0.0.1:29092";
+        System.out.println("Connecting to "+bootstrap);
         this.bootstrap = bootstrap;
         this.table = table;
         Properties props = new Properties();
         if (bootstrap != null) {
             props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
             AdminClient client = KafkaAdminClient.create(props);
+
             try {
                 if (client.listTopics().names().get().stream().filter(x -> x.equals(table)).count() == 0) {
                     try {
-                        final NewTopic newTopic = new NewTopic(table, 3, (short) 3);
+                        final NewTopic newTopic = new NewTopic(table, 3, (short)1);
                         final CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
                         createTopicsResult.values().get(table).get();
                     } catch (InterruptedException | ExecutionException e) {
@@ -88,11 +99,13 @@ public class DataTable implements TableTemplate {
                 e.printStackTrace();
                 System.exit(-1);
             }
-            if (startupConsume) {
-                this.consume();
-            }
+            Arrays.stream(index).map(i->new TreeIndex(i)).collect(Collectors.toSet()).forEach(i->{
+                this.indexes.put(i.getIndexedKey(), i);
+            });
+            this.consume();
             client.close();
             producer = new ProducerHandler(bootstrap, table);
+
         }
         this.clazz = clazz;
         this.fields = new ArrayList<Field>() {{
@@ -124,11 +137,11 @@ public class DataTable implements TableTemplate {
         System.gc();
     }
 
-    public <T> List<T> in(String name, List<DataEntry> objs, Class clazz) {
+    public List<DataEntry> in(String key, List<String> values, Class clazz) {
         List<DataEntry> tmp = Lists.newArrayList();
         try {
-            for (DataEntry obj : objs) {
-                List<DataEntry> de = search(name, obj);
+            for (String val : values) {
+                List<DataEntry> de = search(key, val);
                 if (de != null) {
                     tmp.addAll(de);
                 }
@@ -136,10 +149,9 @@ public class DataTable implements TableTemplate {
         } catch (ClassCastException ex) {
             ex.printStackTrace();
         }
-        return (List<T>) tmp;
+        return  tmp;
     }
 
-    @Override
     public void startup() {
         inStartup = false;
         if (startupCode != null) {
@@ -150,19 +162,17 @@ public class DataTable implements TableTemplate {
     private long counter = 0;
     private long lastReq = 0;
 
-    public <T> List<T> search(String name, Object searchObject) {
+    public List<DataEntry> search(String key, String searchObject) {
         try {
-            Object object = clazz.getConstructor().newInstance();
-            clazz.getField(name).set(object, searchObject);
-            return search(name, (DataEntry) object);
+            return this.indexes.get(key).search(searchObject).stream().toList();
         } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
     }
 
-    public DataEntry searchOne(String name, Object obj) {
-        List<DataEntry> entries = search(name, obj);
+    public DataEntry searchOne(String key, String obj) {
+        List<DataEntry> entries = search(key, obj);
         if (entries != null && entries.size() > 0) {
             return entries.get(0);
         }
@@ -173,74 +183,58 @@ public class DataTable implements TableTemplate {
         return size;
     }
 
-
-    public synchronized boolean save(DataEntry oldEntry, DataEntry newEntry) {
-        return save(oldEntry, newEntry, null);
+    public boolean insert(Object obj){
+        return saveInternalConsumer(new DataEntry(obj), null);
+    }
+    public boolean insert(Object obj, Consumer<DataEntry> consumer){
+        return saveInternalConsumer(new DataEntry(obj), consumer);
+    }
+    public boolean save(DataEntry entry){
+        return saveInternalConsumer(entry, null);
+    }
+    public boolean save(DataEntry entry, Consumer<DataEntry> consumer){
+        return saveInternalConsumer(entry, consumer);
     }
 
-    public synchronized boolean save(DataEntry oldEntry, DataEntry newEntry, Consumer<DataEntry> consumer) {
-        if (oldEntry == null && newEntry != null) {
+    private boolean saveInternalConsumer(DataEntry entry, Consumer<DataEntry> consumer){
+        String changeUUID = UUID.randomUUID().toString();
+        if(saveInternal(entry, changeUUID)) {
+            if(consumer!=null) {
+                consumers.put(changeUUID, consumer);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private synchronized boolean saveInternal(DataEntry entry, String changeUUID) {
+        if(!dataEntries.contains(entry)){
             try {
-                newEntry.versionIncrease();
-                Create createEntry = new Create(newEntry.getKey(), newEntry);
-                createEntry.setVersion(newEntry.getVersion());
-                if (consumer != null) {
-                    consumers.put(newEntry.getKey(), consumer);
-                }
-                if (producer != null)
-                    producer.save(createEntry);
-                else
-                    modify(Modification.CREATE, createEntry);
+                entry.versionIncrease();
+                Create createEntry = new Create(changeUUID, entry);
+                producer.push(createEntry);
+                return true;
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
-        } else if (newEntry == null && oldEntry != null) {
-            oldEntry.versionIncrease();
-            Delete deleteEntry = new Delete(oldEntry.getKey());
-            deleteEntry.setVersion(oldEntry.version);
-            if (consumer != null) {
-                consumers.put(oldEntry.getKey(), consumer);
-            }
-            if (producer != null)
-                producer.save(deleteEntry);
-            else
-                modify(Modification.DELETE, deleteEntry);
-        } else if (newEntry != null && oldEntry != null) {
-            Update updateEntry = new Update();
+        }else{
+            entry.versionIncrease();
+            List<JsonOperations> changes = null;
+            JsonPatch patch = JsonDiff.asJsonPatch(entry.getReference(), new ObjectMapper().valueToTree(entry.getData()));
             try {
-                updateEntry.setKey(oldEntry.getKey());
-                if (consumer != null) {
-                    consumers.put(newEntry.getKey(), consumer);
-                }
-                boolean changed = false;
-                updateEntry.setMasterClass(newEntry.getClass().getName());
-                for (Field f : newEntry.getClass().getDeclaredFields()) {
-                    if (!Utils.cast(f.get(newEntry), f.get(oldEntry))) {
-                        if (f.get(newEntry) != null) {
-                            updateEntry.getChange().put(f.getName(), f.get(newEntry));
-                            changed = true;
-                        }
-                    }
-                }
-                if (changed) {
-                    System.out.println("Changed");
-                    newEntry.versionIncrease();
-                    updateEntry.setVersion(newEntry.getVersion());
-                    if (producer != null)
-                        producer.save(updateEntry);
-                    else
-                        modify(Modification.UPDATE, updateEntry);
-                    return true;
-                }
-                System.out.println("Nothing changed");
-                return false;
-            } catch (Exception e) {
-                e.printStackTrace();
-                return false;
+                String json = new ObjectMapper().writeValueAsString(patch);
+                changes = new ObjectMapper().readValue(json, List.class);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
             }
-        } else
-            return false;
-        return true;
+            if(changes!=null && changes.size()>0) {
+                Update updateEntry = new Update(changeUUID, entry, patch);
+                producer.push(updateEntry);
+                return true;
+            }
+
+        }
+        return false;
     }
 
     class ModificationQueueItem {
@@ -266,25 +260,24 @@ public class DataTable implements TableTemplate {
     class ModQueueHandler implements Runnable{
         @Override
         public void run() {
-            synchronized (modqueue){
-                ModificationQueueItem mqi;
-                while(true) {
-                    while (!modqueue.isEmpty()) {
-                        mqi = modqueue.pop();
-                        if(mqi != null) {
-                            modify(mqi.getMod(), mqi.getModification());
-                        }
-                        try {
-                            Thread.sleep(500);
-                        }catch (Exception e){
-                            e.printStackTrace();
-                        }
+            ModificationQueueItem mqi;
+            while(true) {
+                while (!modqueue.isEmpty()) {
+                    System.out.println("SOMETHING FOUND");
+                    mqi = modqueue.pop();
+                    if(mqi != null) {
+                        modify(mqi.getMod(), mqi.getModification());
                     }
                     try {
-                        Thread.sleep(500);
+                        Thread.sleep(10);
                     }catch (Exception e){
                         e.printStackTrace();
                     }
+                }
+                try {
+                    Thread.sleep(10);
+                }catch (Exception e){
+                    e.printStackTrace();
                 }
             }
         }
@@ -297,14 +290,28 @@ public class DataTable implements TableTemplate {
                 //System.out.println("Create statement called");
                 if (c != null) {
                     try {
+                        DataEntry dataEntry = new DataEntry(c);
                         synchronized (entries) {
-                            entries.add(c.getValue());
+                            entries.add(dataEntry);
                         }
+                        synchronized (dataEntries) {
+                            dataEntries.add(dataEntry);
+                        }
+                        synchronized (keyToEntry) {
+                            keyToEntry.put(dataEntry.getKey(), dataEntry);
+                        }
+                        for(Index i:this.indexes.values()){
+                            try {
+                                i.add(dataEntry);
+                            } catch (JsonProcessingException e) {
+                                throw new RuntimeException(e);
+                            }
+                        };
                         size++;
-                        if (consumers.containsKey(c.getValue().getKey())) {
-                            consumers.remove(c.getValue().getKey()).accept(c.getValue());
+                        if (consumers.containsKey(c.getChangeUUID())) {
+                            consumers.remove(c.getChangeUUID()).accept(dataEntry);
                         }
-                        fireListeners(Modification.CREATE, c.getValue());
+                        fireListeners(Modification.CREATE, dataEntry);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -314,56 +321,70 @@ public class DataTable implements TableTemplate {
                 Delete d = (Delete) modification;
                 //System.out.println("Delete statement called");
                 if (d != null) {
-                    DataEntry de = searchOne("key", d.getKey());
+                    DataEntry de = keyToEntry.get(d.getKey());
                     if (de != null) {
                         if (de.getVersion() + 1 != d.getVersion()) {
-                            synchronized (modqueue) {
-                                modqueue.add(new ModificationQueueItem(mod, modification));
-                            }
+                            modqueue.add(new ModificationQueueItem(mod, modification));
                         } else {
                             synchronized (entries) {
                                 entries.remove(de);
+                                keyToEntry.remove(de.getKey());
+                                dataEntries.remove(de);
                             }
+                            this.indexes.values().forEach(i->i.delete(de));
                             size--;
                             fireListeners(Modification.DELETE, de);
                         }
                     } else {
-                        synchronized (modqueue) {
-                            modqueue.add(new ModificationQueueItem(mod, modification));
-                        }
+                        modqueue.add(new ModificationQueueItem(mod, modification));
                     }
                 }
                 break;
             case UPDATE:
                 Update u = (Update) modification;
+
                 //System.out.println("Update statement called");
                 if (u != null) {
                     try {
-                        Class clazz = Class.forName(u.getMasterClass());
-                        DataEntry de = searchOne("key", u.getKey());
+                        DataEntry de = keyToEntry.get(u.getKey());
                         if (de != null) {
                             if (de.getVersion() + 1 != u.getVersion()) {
-                                synchronized (modqueue) {
-                                    modqueue.add(new ModificationQueueItem(mod, modification));
-                                }
+                                modqueue.add(new ModificationQueueItem(mod, modification));
                             } else {
                                 if (consumers.containsKey(de.getKey())) {
                                     consumers.remove(de.getKey()).accept(de);
                                 }
-                                u.getChange().forEach((String key, Object val) -> {
-                                    try {
-                                        Field f = clazz.getDeclaredField(key);
-                                        f.set(de, val);
-                                    } catch (Exception e) {
-                                        e.printStackTrace();
+                                de.setReference(u.getChangesPatch().apply(de.getReference()));
+                                de.setVersion(u.getVersion());
+                                de.setData(new ObjectMapper().readValue(de.getReference().toString(), de.getData().getClass()));
+                                System.out.println(new ObjectMapper().writeValueAsString(de.getData()));
+                                u.getOperations().forEach(op->{
+
+                                    switch(op.getOp()){
+                                        case "replace":
+                                        case "add":
+                                        case "copy":
+                                            try {
+                                                Index index = this.indexes.get(op.getPath());
+                                                if(index!=null){
+                                                    index.modify(de);
+                                                }
+                                            } catch (JsonProcessingException e) {
+                                                throw new RuntimeException(e);
+                                            }
+                                            break;
+                                        case "move":
+                                            break;
+                                        case "remove":
+                                            Index index = this.indexes.get(op.getPath());
+                                            if(index!=null) index.delete(de);
+                                            break;
                                     }
                                 });
                                 fireListeners(Modification.UPDATE, de);
                             }
                         } else {
-                            synchronized (modqueue) {
-                                modqueue.add(new ModificationQueueItem(mod, modification));
-                            }
+                            modqueue.add(new ModificationQueueItem(mod, modification));
                         }
                     } catch (Exception e) {
 
@@ -385,8 +406,8 @@ public class DataTable implements TableTemplate {
         }
     }
 
-    public void multiImport(DataEntry newEntry) {
-        this.save(null, newEntry);
+    public void multiImport(Object newEntry) {
+        this.insert(newEntry);
     }
 
 

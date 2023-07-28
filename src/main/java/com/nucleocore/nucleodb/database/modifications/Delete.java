@@ -1,14 +1,25 @@
 package com.nucleocore.nucleodb.database.modifications;
 
-public class Delete extends Modify {
+import com.nucleocore.nucleodb.database.utils.DataEntry;
+
+import java.time.Instant;
+import java.util.Date;
+
+public class Delete extends Modify{
+    public String changeUUID;
     public String key;
     public long version;
+
+    public String time;
 
     public Delete() {
     }
 
-    public Delete(String key) {
-        this.key = key;
+    public Delete(String changeUUID, DataEntry dataEntry) {
+        this.key = dataEntry.getKey();
+        this.changeUUID = changeUUID;
+        this.version = dataEntry.getVersion();
+        this.time = Instant.now().toString();
     }
 
     public String getKey() {
@@ -25,5 +36,21 @@ public class Delete extends Modify {
 
     public void setVersion(long version) {
         this.version = version;
+    }
+
+    public String getTime() {
+        return time;
+    }
+
+    public void setTime(String time) {
+        this.time = time;
+    }
+
+    public String getChangeUUID() {
+        return changeUUID;
+    }
+
+    public void setChangeUUID(String changeUUID) {
+        this.changeUUID = changeUUID;
     }
 }

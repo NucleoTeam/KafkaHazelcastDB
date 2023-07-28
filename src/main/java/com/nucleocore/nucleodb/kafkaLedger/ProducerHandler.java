@@ -33,7 +33,7 @@ public class ProducerHandler implements Runnable {
         return producer;
     }
 
-    public synchronized void save(Modify modify){
+    public synchronized void push(Modify modify){
         synchronized(pendingSaves) {
             pendingSaves.add(modify);
             latch.countDown();

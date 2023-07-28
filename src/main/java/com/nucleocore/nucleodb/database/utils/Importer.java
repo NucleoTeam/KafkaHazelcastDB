@@ -1,6 +1,6 @@
 package com.nucleocore.nucleodb.database.utils;
 
-import com.nucleocore.nucleodb.database.tables.TableTemplate;
+import com.nucleocore.nucleodb.database.tables.DataTable;
 import org.supercsv.cellprocessor.ift.CellProcessor;
 import org.supercsv.exception.SuperCsvCellProcessorException;
 import org.supercsv.io.CsvMapReader;
@@ -35,7 +35,7 @@ public class Importer {
         return this;
     }
 
-    public int readIntoStream(String file, TableTemplate table, Class<?> clazz, CsvPreference preference) {
+    public int readIntoStream(String file, DataTable table, Class<?> clazz, CsvPreference preference) {
         int i = 0;
         ICsvMapReader mapReader = null;
         FileReader fr = null;
@@ -78,7 +78,7 @@ public class Importer {
                 customerMap.clear();
                 //System.out.println(new ObjectMapper().writeValueAsString(obj));
                 if(table!=null){
-                    table.save(null, (DataEntry) obj);
+                    table.insert(obj);
                 }
                 try {
                     customerMap = mapReader.read(header, this.processors);

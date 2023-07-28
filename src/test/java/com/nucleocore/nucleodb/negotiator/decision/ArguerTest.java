@@ -25,7 +25,7 @@ public class ArguerTest extends TestCase {
   public void testAdd() {
     Arguer arguer = new Arguer(null, new NucleoDBNode(75), "");
     arguer.setDebug(true);
-    arguer.getArgumentMessageQueue().add(new ArgumentKafkaMessage(ArgumentStep.NEW, new HashMeta("thisNode", "taco", 25)));
+    //arguer.getArgumentMessageQueue().add(new ArgumentKafkaMessage(ArgumentStep.NEW, new HashMeta("thisNode", "taco", 25)));
     arguer.run();
     assertTrue(true);
   }

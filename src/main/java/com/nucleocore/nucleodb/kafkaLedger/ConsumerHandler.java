@@ -2,7 +2,7 @@ package com.nucleocore.nucleodb.kafkaLedger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Queues;
-import com.nucleocore.nucleodb.database.tables.TableTemplate;
+import com.nucleocore.nucleodb.database.tables.DataTable;
 import com.nucleocore.nucleodb.database.utils.Modification;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
@@ -13,7 +13,7 @@ import java.util.*;
 
 public class ConsumerHandler implements Runnable {
     private KafkaConsumer consumer = null;
-    private TableTemplate database;
+    private DataTable database;
     private Map<TopicPartition, Long> endMap = null;
     private String table;
     private boolean startup = false;
@@ -22,7 +22,7 @@ public class ConsumerHandler implements Runnable {
         this.enableDefaultTyping();
     }};
 
-    public ConsumerHandler(String bootstrap, String groupName, TableTemplate database, String table) {
+    public ConsumerHandler(String bootstrap, String groupName, DataTable database, String table) {
         this.database = database;
         this.table = table;
         this.consumer = createConsumer(bootstrap, groupName);
@@ -71,6 +71,7 @@ public class ConsumerHandler implements Runnable {
         if(this.endMap==null) {
             Set<TopicPartition> partitions = getConsumer().assignment();
             Map<TopicPartition, Long> tmp = getConsumer().endOffsets(partitions);
+
             if(tmp.size()!=0)
                 this.endMap = tmp;
         }
@@ -85,10 +86,7 @@ public class ConsumerHandler implements Runnable {
         consumer.commitAsync();
         try {
             do {
-                if(!startup && initialLoad()){
-                    this.database.startup();
-                    startup = true;
-                }
+
                 ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofMillis(5));
 
 
@@ -97,11 +95,17 @@ public class ConsumerHandler implements Runnable {
                     Iterator<ConsumerRecord<Integer, String>> iter = rs.iterator();
                     while (iter.hasNext()) {
                         String pop = iter.next().value();
+                        System.out.println("Change added to queue.");
                         queue.add(pop);
                     }
                 }
                 
                 consumer.commitAsync();
+
+                if(!startup && initialLoad()){
+                    this.database.startup();
+                    startup = true;
+                }
             } while (!Thread.interrupted());
         }catch (Exception e){
             e.printStackTrace();
@@ -135,11 +139,11 @@ public class ConsumerHandler implements Runnable {
         this.consumer = consumer;
     }
 
-    public TableTemplate getDatabase() {
+    public DataTable getDatabase() {
         return database;
     }
 
-    public void setDatabase(TableTemplate database) {
+    public void setDatabase(DataTable database) {
         this.database = database;
     }
 

@@ -3,8 +3,10 @@ package com.nucleocore.nucleodb.database.utils.index;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.nucleodb.database.utils.DataEntry;
+import com.nucleocore.nucleodb.database.utils.TreeSetExt;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -16,44 +18,16 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class TreeIndex extends Index{
-
-  class TreeSetExt<V> extends TreeSet<V> implements Comparable<TreeSetExt> {
-    String uuid;
-    public TreeSetExt() {
-      uuid = UUID.randomUUID().toString();
-    }
-
-    public TreeSetExt(Comparator<? super V> comparator) {
-      super(comparator);
-      uuid = UUID.randomUUID().toString();
-    }
-
-    public TreeSetExt(@NotNull Collection<? extends V> c) {
-      super(c);
-      uuid = UUID.randomUUID().toString();
-    }
-
-    public TreeSetExt(SortedSet<V> s) {
-      super(s);
-      uuid = UUID.randomUUID().toString();
-    }
-
-    @Override
-    public int compareTo(@NotNull TreeSetExt o) {
-      return o.toString().compareTo(this.toString());
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if(o instanceof TreeSetExt){
-        return ((TreeSetExt<?>) o).uuid.equals(this.uuid);
-      }
-      return super.equals(o);
-    }
+public class TreeIndex extends Index implements Serializable{
+  private static final long serialVersionUID = 1;
+  public TreeIndex() {
+    super(null);
   }
 
-  Map<DataEntry, Set<Set<DataEntry>>> reverseMap = new TreeMap<>();
+
+
+  private boolean unique;
+  private Map<DataEntry, Set<Set<DataEntry>>> reverseMap = new TreeMap<>();
   private Map<String, Set<DataEntry>> index = new TreeMap<>();
 
 
@@ -68,19 +42,26 @@ public class TreeIndex extends Index{
   public void add(DataEntry dataEntry) throws JsonProcessingException {
     List<String> values = getIndexValue(dataEntry);
     values.forEach(val->{
-      Set<DataEntry> entries = index.get(val);
-      if(entries==null){
-        entries = new TreeSetExt<>();
-        index.put(val, entries);
+      Set<DataEntry> entries;
+      synchronized (index) {
+        entries = index.get(val);
+        if (entries == null) {
+          entries = new TreeSetExt<>();
+          index.put(val, entries);
+        }
       }
       entries.add(dataEntry);
-      Set<Set<DataEntry>> rMap = reverseMap.get(dataEntry);
-      if(rMap==null){
-        rMap = new TreeSetExt<>();
-        reverseMap.put(dataEntry, rMap);
+      Set<Set<DataEntry>> rMap;
+      synchronized (reverseMap) {
+        rMap = reverseMap.get(dataEntry);
+        if (rMap == null) {
+          rMap = new TreeSetExt<>();
+          reverseMap.put(dataEntry, rMap);
+        }
       }
-      System.out.println("Add, "+ this.getIndexedKey() + " = " +val);
       rMap.add(entries);
+      System.out.println("Add, "+ this.getIndexedKey() + " = " +val);
+
     });
   }
 
@@ -112,4 +93,27 @@ public class TreeIndex extends Index{
     });
   }
 
+  public Map<DataEntry, Set<Set<DataEntry>>> getReverseMap() {
+    return reverseMap;
+  }
+
+  public void setReverseMap(Map<DataEntry, Set<Set<DataEntry>>> reverseMap) {
+    this.reverseMap = reverseMap;
+  }
+
+  public Map<String, Set<DataEntry>> getIndex() {
+    return index;
+  }
+
+  public void setIndex(Map<String, Set<DataEntry>> index) {
+    this.index = index;
+  }
+
+  public boolean isUnique() {
+    return unique;
+  }
+
+  public void setUnique(boolean unique) {
+    this.unique = unique;
+  }
 }

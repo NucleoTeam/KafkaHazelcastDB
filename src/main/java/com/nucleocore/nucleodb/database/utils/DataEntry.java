@@ -66,7 +66,7 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
     }
 
     public void versionIncrease(){
-        version++;
+        version+=1;
     }
 
     public void setVersion(long version) {

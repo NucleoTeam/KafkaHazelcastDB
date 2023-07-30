@@ -1,6 +1,7 @@
 package com.nucleocore.nucleodb.database.tables;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.diff.JsonDiff;
 import com.google.common.collect.Lists;
@@ -14,9 +15,11 @@ import com.nucleocore.nucleodb.database.utils.index.TreeIndex;
 import com.nucleocore.nucleodb.kafkaLedger.ConsumerHandler;
 import com.nucleocore.nucleodb.kafkaLedger.ProducerHandler;
 import org.apache.kafka.clients.admin.*;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.TopicExistsException;
 import com.github.fge.jsonpatch.JsonPatch;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -25,12 +28,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-public class DataTable {
-
-    private Queue<Object[]> indexQueue = Queues.newArrayDeque();
-
-    private ProducerHandler producer = null;
-    private ConsumerHandler consumer = null;
+public class DataTable implements Serializable {
+    private static final long serialVersionUID = 1;
 
     private List<DataEntry> entries = Lists.newArrayList();
 
@@ -38,21 +37,25 @@ public class DataTable {
     private Set<DataEntry> dataEntries = new TreeSet<>();
     private Map<String, DataEntry> keyToEntry = new TreeMap<>();
 
-    private Map<String, Consumer<DataEntry>> consumers = new TreeMap<>();
+    private Map<Integer, Long> partitionOffsets = new TreeMap<>();
 
-    private Map<Modification, Set<Consumer<DataEntry>>> listeners = new TreeMap<>();
+    private long changed = new Date().getTime();
 
+    private transient Queue<Object[]> indexQueue = Queues.newArrayDeque();
 
-    private boolean unsavedIndexModifications = false;
-    private int size = 0;
-    private boolean buildIndex = true;
-
-    private String bootstrap;
-    private String table;
-    private List<Field> fields;
-    private Class clazz;
-    private StartupRun startupCode;
-    private boolean inStartup = true;
+    private transient ProducerHandler producer = null;
+    private transient ConsumerHandler consumer = null;
+    private transient Map<String, Consumer<DataEntry>> consumers = new TreeMap<>();
+    private transient Map<Modification, Set<Consumer<DataEntry>>> listeners = new TreeMap<>();
+    private transient boolean unsavedIndexModifications = false;
+    private transient int size = 0;
+    private transient boolean buildIndex = true;
+    private transient String bootstrap;
+    private transient String table;
+    private transient List<Field> fields;
+    private transient Class clazz;
+    private transient StartupRun startupCode;
+    private transient boolean inStartup = true;
 
 
     public synchronized Object[] getIndex() {
@@ -61,13 +64,31 @@ public class DataTable {
         return indexQueue.poll();
     }
 
+    public DataTable() {
+    }
+
     public DataTable(String bootstrap, String table, Class clazz, StartupRun startupCode, String... index) {
         this.startupCode = startupCode;
         if(bootstrap == null)
             bootstrap = "127.0.0.1:29092";
-        System.out.println("Connecting to "+bootstrap);
         this.bootstrap = bootstrap;
         this.table = table;
+        if(new File(tableFileName()).exists()){
+            try {
+                DataTable tmpTable = (DataTable) new ObjectFileReader().readObjectFromFile(tableFileName());
+                this.indexes = tmpTable.indexes;
+                this.dataEntries = tmpTable.dataEntries;
+                this.changed = tmpTable.changed;
+                this.entries = tmpTable.entries;
+                this.partitionOffsets = tmpTable.partitionOffsets;
+                this.keyToEntry = tmpTable.keyToEntry;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        System.out.println("Connecting to "+bootstrap);
         Properties props = new Properties();
         if (bootstrap != null) {
             props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
@@ -100,7 +121,9 @@ public class DataTable {
                 System.exit(-1);
             }
             Arrays.stream(index).map(i->new TreeIndex(i)).collect(Collectors.toSet()).forEach(i->{
-                this.indexes.put(i.getIndexedKey(), i);
+                if(!this.indexes.containsKey(i.getIndexedKey())){
+                    this.indexes.put(i.getIndexedKey(), i);
+                }
             });
             this.consume();
             client.close();
@@ -113,6 +136,7 @@ public class DataTable {
             addAll(Arrays.asList(clazz.getSuperclass().getFields()));
         }};
         new Thread(new ModQueueHandler()).start();
+        new Thread(new SaveHandler(this)).start();
     }
 
     public void consume() {
@@ -162,9 +186,31 @@ public class DataTable {
     private long counter = 0;
     private long lastReq = 0;
 
+    Set<DataEntry> createNewObject(Object o){
+        ObjectMapper om = new ObjectMapper();
+        try {
+            return om.readValue(om.writeValueAsString(o), new TypeReference<TreeSet<DataEntry>>(){});
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public List<DataEntry> search(String key, String searchObject) {
         try {
-            return this.indexes.get(key).search(searchObject).stream().toList();
+            return createNewObject(this.indexes.get(key).search(searchObject)).stream().toList();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public List<DataEntry> get(String key, String value) {
+        try {
+            Set<DataEntry> entries = this.indexes.get(key).get(value);
+            if(entries!=null) {
+                return createNewObject(entries).stream().toList();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -257,6 +303,34 @@ public class DataTable {
 
     Stack<ModificationQueueItem> modqueue = new Stack<>();
 
+    class SaveHandler implements Runnable{
+        DataTable dataTable;
+
+        public SaveHandler(DataTable dataTable) {
+            this.dataTable = dataTable;
+        }
+
+        @Override
+        public void run() {
+            long changedSaved = this.dataTable.changed;
+            while(true) {
+                try {
+                    if(changed>changedSaved){
+                        System.out.println("Saved "+this.dataTable.table);
+                        new ObjectFileWriter().writeObjectToFile(this.dataTable, tableFileName());
+                        changedSaved = changed;
+                    }
+                    Thread.sleep(5000);
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public String tableFileName(){
+        return "./data/"+this.table+".dat";
+    }
     class ModQueueHandler implements Runnable{
         @Override
         public void run() {
@@ -290,7 +364,12 @@ public class DataTable {
                 //System.out.println("Create statement called");
                 if (c != null) {
                     try {
+                        if(keyToEntry.containsKey(c.getKey())) {
+                            System.out.println("Ignore already saved change.");
+                            return; // ignore this create
+                        }
                         DataEntry dataEntry = new DataEntry(c);
+
                         synchronized (entries) {
                             entries.add(dataEntry);
                         }
@@ -311,6 +390,7 @@ public class DataTable {
                         if (consumers.containsKey(c.getChangeUUID())) {
                             consumers.remove(c.getChangeUUID()).accept(dataEntry);
                         }
+                        this.changed = new Date().getTime();
                         fireListeners(Modification.CREATE, dataEntry);
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -333,6 +413,7 @@ public class DataTable {
                             }
                             this.indexes.values().forEach(i->i.delete(de));
                             size--;
+                            this.changed = new Date().getTime();
                             fireListeners(Modification.DELETE, de);
                         }
                     } else {
@@ -348,6 +429,10 @@ public class DataTable {
                     try {
                         DataEntry de = keyToEntry.get(u.getKey());
                         if (de != null) {
+                            if(de.getVersion()>=u.getVersion()){
+                                System.out.println("Ignore already saved change.");
+                                return; // ignore change
+                            }
                             if (de.getVersion() + 1 != u.getVersion()) {
                                 modqueue.add(new ModificationQueueItem(mod, modification));
                             } else {
@@ -381,6 +466,7 @@ public class DataTable {
                                             break;
                                     }
                                 });
+                                this.changed = new Date().getTime();
                                 fireListeners(Modification.UPDATE, de);
                             }
                         } else {
@@ -451,5 +537,165 @@ public class DataTable {
 
     public void setUnsavedIndexModifications(boolean unsavedIndexModifications) {
         this.unsavedIndexModifications = unsavedIndexModifications;
+    }
+
+    public Map<String, Index> getIndexes() {
+        return indexes;
+    }
+
+    public void setIndexes(Map<String, Index> indexes) {
+        this.indexes = indexes;
+    }
+
+    public Set<DataEntry> getDataEntries() {
+        return dataEntries;
+    }
+
+    public void setDataEntries(Set<DataEntry> dataEntries) {
+        this.dataEntries = dataEntries;
+    }
+
+    public Map<String, DataEntry> getKeyToEntry() {
+        return keyToEntry;
+    }
+
+    public void setKeyToEntry(Map<String, DataEntry> keyToEntry) {
+        this.keyToEntry = keyToEntry;
+    }
+
+    public long getChanged() {
+        return changed;
+    }
+
+    public void setChanged(long changed) {
+        this.changed = changed;
+    }
+
+    public Queue<Object[]> getIndexQueue() {
+        return indexQueue;
+    }
+
+    public void setIndexQueue(Queue<Object[]> indexQueue) {
+        this.indexQueue = indexQueue;
+    }
+
+    public ProducerHandler getProducer() {
+        return producer;
+    }
+
+    public void setProducer(ProducerHandler producer) {
+        this.producer = producer;
+    }
+
+    public ConsumerHandler getConsumer() {
+        return consumer;
+    }
+
+    public void setConsumer(ConsumerHandler consumer) {
+        this.consumer = consumer;
+    }
+
+    public Map<String, Consumer<DataEntry>> getConsumers() {
+        return consumers;
+    }
+
+    public void setConsumers(Map<String, Consumer<DataEntry>> consumers) {
+        this.consumers = consumers;
+    }
+
+    public Map<Modification, Set<Consumer<DataEntry>>> getListeners() {
+        return listeners;
+    }
+
+    public void setListeners(Map<Modification, Set<Consumer<DataEntry>>> listeners) {
+        this.listeners = listeners;
+    }
+
+    public String getBootstrap() {
+        return bootstrap;
+    }
+
+    public void setBootstrap(String bootstrap) {
+        this.bootstrap = bootstrap;
+    }
+
+    public String getTable() {
+        return table;
+    }
+
+    public void setTable(String table) {
+        this.table = table;
+    }
+
+    public List<Field> getFields() {
+        return fields;
+    }
+
+    public void setFields(List<Field> fields) {
+        this.fields = fields;
+    }
+
+    public Class getClazz() {
+        return clazz;
+    }
+
+    public void setClazz(Class clazz) {
+        this.clazz = clazz;
+    }
+
+    public StartupRun getStartupCode() {
+        return startupCode;
+    }
+
+    public void setStartupCode(StartupRun startupCode) {
+        this.startupCode = startupCode;
+    }
+
+    public boolean isInStartup() {
+        return inStartup;
+    }
+
+    public void setInStartup(boolean inStartup) {
+        this.inStartup = inStartup;
+    }
+
+    public long getCounter() {
+        return counter;
+    }
+
+    public void setCounter(long counter) {
+        this.counter = counter;
+    }
+
+    public long getLastReq() {
+        return lastReq;
+    }
+
+    public void setLastReq(long lastReq) {
+        this.lastReq = lastReq;
+    }
+
+    public Stack<ModificationQueueItem> getModqueue() {
+        return modqueue;
+    }
+
+    public void setModqueue(Stack<ModificationQueueItem> modqueue) {
+        this.modqueue = modqueue;
+    }
+
+    public List<Thread> getThreads() {
+        return threads;
+    }
+
+    public void setThreads(List<Thread> threads) {
+        this.threads = threads;
+    }
+
+    public Map<Integer, Long> getPartitionOffsets() {
+        return partitionOffsets;
+    }
+
+    public void setPartitionOffsets(Map<Integer, Long> partitionOffsets) {
+        this.partitionOffsets = partitionOffsets;
     }
 }

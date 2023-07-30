@@ -1,5 +1,6 @@
 package com.nucleocore.nucleodb.kafkaLedger;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Queues;
 import com.nucleocore.nucleodb.database.tables.DataTable;
@@ -27,7 +28,30 @@ public class ConsumerHandler implements Runnable {
         this.table = table;
         this.consumer = createConsumer(bootstrap, groupName);
 
-        this.subscribe(table.split(","));
+        this.subscribe(new String[]{table});
+
+        consumer.commitSync();
+
+        while(true) {
+            consumer.commitAsync();
+            Set<TopicPartition> partitions = getConsumer().assignment();
+            if(partitions.size()>0){
+                break;
+            }
+            getConsumer().poll(Duration.ofMillis(5));
+            try{
+                Thread.sleep(500);
+            }catch (Exception e){
+
+            }
+        }
+
+        for(Map.Entry<Integer, Long> tmp: this.getDatabase().getPartitionOffsets().entrySet()){
+            this.getConsumer().seek(
+                new TopicPartition(table, tmp.getKey()),
+                tmp.getValue().longValue()+1
+            );
+        };
 
         new Thread(this).start();
         for(int x=0;x<6;x++)
@@ -69,6 +93,7 @@ public class ConsumerHandler implements Runnable {
 
     private boolean initialLoad(){
         if(this.endMap==null) {
+
             Set<TopicPartition> partitions = getConsumer().assignment();
             Map<TopicPartition, Long> tmp = getConsumer().endOffsets(partitions);
 
@@ -86,22 +111,19 @@ public class ConsumerHandler implements Runnable {
         consumer.commitAsync();
         try {
             do {
-
                 ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofMillis(5));
-
-
                 if (!rs.isEmpty()) {
                     //System.out.println("RECEIVED DATA");
                     Iterator<ConsumerRecord<Integer, String>> iter = rs.iterator();
                     while (iter.hasNext()) {
-                        String pop = iter.next().value();
+                        ConsumerRecord<Integer,String> record =  iter.next();
+                        String pop = record.value();
                         System.out.println("Change added to queue.");
                         queue.add(pop);
+                        this.getDatabase().getPartitionOffsets().put(record.partition(), record.offset());
                     }
                 }
-                
                 consumer.commitAsync();
-
                 if(!startup && initialLoad()){
                     this.database.startup();
                     startup = true;

@@ -3,10 +3,11 @@ package com.nucleocore.nucleodb.test;
 
 import com.nucleocore.nucleodb.database.utils.DataEntry;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class User {
+public class User implements Serializable{
 
     private String name;
 

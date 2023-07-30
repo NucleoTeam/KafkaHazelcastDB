@@ -5,17 +5,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.nucleodb.database.utils.DataEntry;
 
 import javax.json.Json;
+import javax.json.JsonNumber;
 import javax.json.JsonPointer;
+import javax.json.JsonString;
 import javax.json.JsonStructure;
 import javax.json.JsonValue;
 import javax.json.JsonReader;
+import java.io.Serial;
+import java.io.Serializable;
 import java.io.StringReader;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public abstract class Index{
+public abstract class Index implements Serializable{
   JsonPointer indexedKey;
   String indexedKeyStr;
   public Index(String indexedKey) {
@@ -27,15 +31,15 @@ public abstract class Index{
 
   public List<String> getIndexValue(DataEntry dataEntry) throws JsonProcessingException {
     String json = dataEntry.getReference().toString();
-    System.out.println(json);
     try (JsonReader reader = Json.createReader(new StringReader(json))) {
       JsonValue value = indexedKey.getValue(reader.read());
       switch (value.getValueType()) {
         case ARRAY:
           return value.asJsonArray().stream().map(val -> val.toString()).collect(Collectors.toList());
         case STRING:
+          return Arrays.asList(((JsonString)value).getString());
         case NUMBER:
-          return Arrays.asList(value.toString());
+          return Arrays.asList(((JsonNumber)value).numberValue().toString());
       }
     }
     return Arrays.asList();

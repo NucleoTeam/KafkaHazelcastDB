@@ -82,17 +82,14 @@ public class UserSample{
           System.out.println(db.getTable("usertest").size());
           break;
         case 3:
-          time = System.currentTimeMillis();
-          List<DataEntry> dataIndex = db.getTable("usertest").search("/user", "Firestarthe");
-          if (dataIndex != null) {
-            System.out.println("returned: " + dataIndex.size());
-            try {
-              System.out.println(new ObjectMapper().writeValueAsString(dataIndex.stream().map(de->de.getData()).collect(Collectors.toList())));
-            } catch (JsonProcessingException e) {
-              throw new RuntimeException(e);
+          for (int j = 0; j < 75; j++) {
+            time = System.currentTimeMillis();
+            List<DataEntry> dataIndex = db.getTable("usertest").search("/user", "Firestarthe");
+            if (dataIndex != null) {
+              System.out.println("returned: " + dataIndex.size());
             }
+            System.out.println(System.currentTimeMillis() - time);
           }
-          System.out.println(System.currentTimeMillis() - time);
           break;
         case 4:
           time = System.currentTimeMillis();
@@ -115,6 +112,30 @@ public class UserSample{
           DataEntry de = db.getTable("usertest").searchOne("/user", "Firestarthe");
           ((User)de.getData()).setUser("changedUser");
           db.getTable("usertest").save(de);
+          break;
+        case 8:
+          time = System.currentTimeMillis();
+          try {
+            System.out.println(new ObjectMapper().writeValueAsString(db.getTable("usertest").getEntries()));
+          } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+          }
+          try {
+            System.out.println(new ObjectMapper().writeValueAsString(db.getTable("usertest").getIndexes()));
+          } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+          }
+          System.out.println(System.currentTimeMillis() - time);
+          break;
+        case 9:
+          for (int j = 0; j < 75; j++) {
+            time = System.currentTimeMillis();
+            List<DataEntry> dataIndex = db.getTable("usertest").get("/user", "Firestarthe");
+            if (dataIndex != null) {
+              System.out.println("returned: " + dataIndex.size());
+            }
+            System.out.println(System.currentTimeMillis() - time);
+          }
           break;
       }
     }

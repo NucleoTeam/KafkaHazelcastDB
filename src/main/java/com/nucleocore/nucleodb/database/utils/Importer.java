@@ -76,7 +76,6 @@ public class Importer {
 
                 }
                 customerMap.clear();
-                //System.out.println(new ObjectMapper().writeValueAsString(obj));
                 if(table!=null){
                     table.insert(obj);
                 }

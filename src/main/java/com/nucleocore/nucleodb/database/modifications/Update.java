@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.nucleocore.nucleodb.database.utils.DataEntry;
 import com.nucleocore.nucleodb.database.utils.JsonOperations;
+import com.nucleocore.nucleodb.database.utils.Serializer;
 
 import java.time.Instant;
 import java.util.Date;
@@ -19,7 +20,7 @@ public class Update extends Modify{
     public String changeUUID;
     public String changes;
     public long version;
-    public String time;
+    public Instant time;
 
     public Update() {
 
@@ -29,12 +30,12 @@ public class Update extends Modify{
         this.changeUUID = changeUUID;
         this.key = entry.getKey();
         try {
-            this.changes = new ObjectMapper().writeValueAsString(changes);
+            this.changes = Serializer.getObjectMapper().getOm().writeValueAsString(changes);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
         this.version = entry.getVersion();
-        this.time = Instant.now().toString();
+        this.time = Instant.now();
     }
 
     public String getKey() {
@@ -47,7 +48,7 @@ public class Update extends Modify{
     @JsonIgnore
     public JsonPatch getChangesPatch() {
         try {
-            return new ObjectMapper().readValue(changes, JsonPatch.class);
+            return Serializer.getObjectMapper().getOm().readValue(changes, JsonPatch.class);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -56,7 +57,7 @@ public class Update extends Modify{
     @JsonIgnore
     public List<JsonOperations> getOperations() {
         try {
-            return new ObjectMapper().readValue(changes, new TypeReference<List<JsonOperations>>(){});
+            return Serializer.getObjectMapper().getOm().readValue(changes, new TypeReference<List<JsonOperations>>(){});
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -78,11 +79,11 @@ public class Update extends Modify{
         this.version = version;
     }
 
-    public String getTime() {
+    public Instant getTime() {
         return time;
     }
 
-    public void setTime(String time) {
+    public void setTime(Instant time) {
         this.time = time;
     }
 

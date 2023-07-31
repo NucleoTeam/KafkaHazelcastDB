@@ -8,6 +8,7 @@ import com.nucleocore.nucleodb.database.utils.ChangeHandler;
 import com.nucleocore.nucleodb.database.utils.DataEntry;
 import com.nucleocore.nucleodb.database.utils.StartupRun;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Scanner;
 import java.util.UUID;
@@ -17,25 +18,6 @@ public class UserSample{
   public static void main(String... args) {
 
     System.out.println("Running database server");
-    User user = new User();
-    User user2 = new User();
-    user2.setUser("OtherUsername");
-    user2.setName("David");
-    user.setName("Nathaniel");
-    user.setUser("Firestarthe");
-    user.getTestingNested().get(0).setNestedValue("yikes");
-    user.getTestingNested().add(new UserNested());
-    ObjectMapper om = new ObjectMapper();
-    try {
-      ChangeHandler changeHandler = new ChangeHandler(User.class).getOperations(user2, user);
-      User val = changeHandler.applyChanges(user2);
-      System.out.println(changeHandler.getPatchJSON());
-      System.out.println(om.writeValueAsString(val));
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    } catch (JsonPatchException e) {
-      throw new RuntimeException(e);
-    }
 
     runTest();
   }
@@ -47,7 +29,7 @@ public class UserSample{
       }
     }, "/user");
 
-    db.launchNucleoTable(null, "usertest", User.class, new StartupRun(){
+    db.launchNucleoTable(null, "usertest", User.class, Instant.ofEpochSecond(1690785144,702348000), new StartupRun(){
       public void run() {
         System.out.println("STARTUP COMPLETE");
       }
@@ -106,7 +88,7 @@ public class UserSample{
           System.out.println(System.currentTimeMillis() - time);
           break;
         case 6:
-          db.getTable("usertest");
+          db.getTable("usertest").get("/user", "Firestarthe");
           break;
         case 7:
           DataEntry de = db.getTable("usertest").searchOne("/user", "Firestarthe");

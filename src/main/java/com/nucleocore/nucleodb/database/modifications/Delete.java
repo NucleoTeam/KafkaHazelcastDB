@@ -10,7 +10,7 @@ public class Delete extends Modify{
     public String key;
     public long version;
 
-    public String time;
+    public Instant time;
 
     public Delete() {
     }
@@ -19,7 +19,7 @@ public class Delete extends Modify{
         this.key = dataEntry.getKey();
         this.changeUUID = changeUUID;
         this.version = dataEntry.getVersion();
-        this.time = Instant.now().toString();
+        this.time = Instant.now();
     }
 
     public String getKey() {
@@ -38,11 +38,11 @@ public class Delete extends Modify{
         this.version = version;
     }
 
-    public String getTime() {
+    public Instant getTime() {
         return time;
     }
 
-    public void setTime(String time) {
+    public void setTime(Instant time) {
         this.time = time;
     }
 

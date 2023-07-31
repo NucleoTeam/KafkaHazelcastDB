@@ -13,6 +13,7 @@ import java.lang.reflect.Field;
 import java.util.UUID;
 
 public class DataEntry implements Serializable, Comparable<DataEntry> {
+    private static final long serialVersionUID = 1;
 
     public String key;
 
@@ -23,14 +24,14 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
 
     public DataEntry(Object obj) {
         this.data = obj;
-        this.reference = new ObjectMapper().valueToTree(data);
+        this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = UUID.randomUUID().toString();
     }
 
     public DataEntry(Create create) throws ClassNotFoundException, JsonProcessingException {
-        this.data = new ObjectMapper().readValue(create.getData(), Class.forName(create.getMasterClass()));
+        this.data = Serializer.getObjectMapper().getOm().readValue(create.getData(), Class.forName(create.getMasterClass()));
         this.version = create.getVersion();
-        this.reference = new ObjectMapper().valueToTree(data);
+        this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = create.getKey();
     }
 

@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
@@ -56,6 +57,8 @@ public class DataTable implements Serializable {
     private transient Class clazz;
     private transient StartupRun startupCode;
     private transient boolean inStartup = true;
+    private transient boolean save = true;
+    private transient Instant toTime = null;
 
 
     public synchronized Object[] getIndex() {
@@ -67,26 +70,31 @@ public class DataTable implements Serializable {
     public DataTable() {
     }
 
-    public DataTable(String bootstrap, String table, Class clazz, StartupRun startupCode, String... index) {
+    public DataTable(String bootstrap, String table, Class clazz, Instant toTime, StartupRun startupCode, String... index) {
         this.startupCode = startupCode;
         if(bootstrap == null)
             bootstrap = "127.0.0.1:29092";
         this.bootstrap = bootstrap;
         this.table = table;
-        if(new File(tableFileName()).exists()){
-            try {
-                DataTable tmpTable = (DataTable) new ObjectFileReader().readObjectFromFile(tableFileName());
-                this.indexes = tmpTable.indexes;
-                this.dataEntries = tmpTable.dataEntries;
-                this.changed = tmpTable.changed;
-                this.entries = tmpTable.entries;
-                this.partitionOffsets = tmpTable.partitionOffsets;
-                this.keyToEntry = tmpTable.keyToEntry;
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
+        this.toTime = toTime;
+        if(toTime==null) {
+            if (new File(tableFileName()).exists()) {
+                try {
+                    DataTable tmpTable = (DataTable) new ObjectFileReader().readObjectFromFile(tableFileName());
+                    this.indexes = tmpTable.indexes;
+                    this.dataEntries = tmpTable.dataEntries;
+                    this.changed = tmpTable.changed;
+                    this.entries = tmpTable.entries;
+                    this.partitionOffsets = tmpTable.partitionOffsets;
+                    this.keyToEntry = tmpTable.keyToEntry;
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                } catch (ClassNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
             }
+        }else{
+            save = false;
         }
         System.out.println("Connecting to "+bootstrap);
         Properties props = new Properties();
@@ -136,7 +144,9 @@ public class DataTable implements Serializable {
             addAll(Arrays.asList(clazz.getSuperclass().getFields()));
         }};
         new Thread(new ModQueueHandler()).start();
-        new Thread(new SaveHandler(this)).start();
+        if(save) {
+            new Thread(new SaveHandler(this)).start();
+        }
     }
 
     public void consume() {
@@ -186,10 +196,14 @@ public class DataTable implements Serializable {
     private long counter = 0;
     private long lastReq = 0;
 
-    Set<DataEntry> createNewObject(Object o){
-        ObjectMapper om = new ObjectMapper();
+    Set<DataEntry> createNewObject(Set<DataEntry> o){
+
         try {
-            return om.readValue(om.writeValueAsString(o), new TypeReference<TreeSet<DataEntry>>(){});
+            Set<DataEntry> set = Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(o), new TypeReference<TreeSet<DataEntry>>(){});
+            for (DataEntry dataEntry : set) {
+                dataEntry.setData(Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(dataEntry.getData()), clazz));
+            }
+            return set;
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
@@ -243,6 +257,10 @@ public class DataTable implements Serializable {
     }
 
     private boolean saveInternalConsumer(DataEntry entry, Consumer<DataEntry> consumer){
+        if(!save){
+            if(consumer!=null)consumer.accept(null);
+            return false;
+        }
         String changeUUID = UUID.randomUUID().toString();
         if(saveInternal(entry, changeUUID)) {
             if(consumer!=null) {
@@ -266,10 +284,10 @@ public class DataTable implements Serializable {
         }else{
             entry.versionIncrease();
             List<JsonOperations> changes = null;
-            JsonPatch patch = JsonDiff.asJsonPatch(entry.getReference(), new ObjectMapper().valueToTree(entry.getData()));
+            JsonPatch patch = JsonDiff.asJsonPatch(entry.getReference(), Serializer.getObjectMapper().getOm().valueToTree(entry.getData()));
             try {
-                String json = new ObjectMapper().writeValueAsString(patch);
-                changes = new ObjectMapper().readValue(json, List.class);
+                String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
+                changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
@@ -363,6 +381,10 @@ public class DataTable implements Serializable {
                 Create c = (Create) modification;
                 //System.out.println("Create statement called");
                 if (c != null) {
+                    if(toTime!=null && c.getTime().isAfter(toTime)){
+                        System.out.println("Create after target db date");
+                        return;
+                    }
                     try {
                         if(keyToEntry.containsKey(c.getKey())) {
                             System.out.println("Ignore already saved change.");
@@ -401,8 +423,13 @@ public class DataTable implements Serializable {
                 Delete d = (Delete) modification;
                 //System.out.println("Delete statement called");
                 if (d != null) {
+                    if(toTime!=null && d.getTime().isAfter(toTime)){
+                        System.out.println("Delete after target db date");
+                        return;
+                    }
                     DataEntry de = keyToEntry.get(d.getKey());
                     if (de != null) {
+
                         if (de.getVersion() + 1 != d.getVersion()) {
                             modqueue.add(new ModificationQueueItem(mod, modification));
                         } else {
@@ -426,6 +453,10 @@ public class DataTable implements Serializable {
 
                 //System.out.println("Update statement called");
                 if (u != null) {
+                    if(toTime!=null && u.getTime().isAfter(toTime)){
+                        System.out.println("Update after target db date");
+                        return;
+                    }
                     try {
                         DataEntry de = keyToEntry.get(u.getKey());
                         if (de != null) {
@@ -441,8 +472,8 @@ public class DataTable implements Serializable {
                                 }
                                 de.setReference(u.getChangesPatch().apply(de.getReference()));
                                 de.setVersion(u.getVersion());
-                                de.setData(new ObjectMapper().readValue(de.getReference().toString(), de.getData().getClass()));
-                                System.out.println(new ObjectMapper().writeValueAsString(de.getData()));
+                                de.setData(Serializer.getObjectMapper().getOm().readValue(de.getReference().toString(), de.getData().getClass()));
+                                System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(de.getData()));
                                 u.getOperations().forEach(op->{
 
                                     switch(op.getOp()){

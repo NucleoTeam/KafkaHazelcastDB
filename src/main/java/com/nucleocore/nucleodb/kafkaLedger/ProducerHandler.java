@@ -2,6 +2,7 @@ package com.nucleocore.nucleodb.kafkaLedger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.nucleodb.database.modifications.Modify;
+import com.nucleocore.nucleodb.database.utils.Serializer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -47,8 +48,6 @@ public class ProducerHandler implements Runnable {
     }
     @Override
     public void run() {
-        ObjectMapper om = new ObjectMapper();
-        om.enableDefaultTyping();
         do {
             try {
                 latch.await();
@@ -59,7 +58,7 @@ public class ProducerHandler implements Runnable {
                         ProducerRecord record = new ProducerRecord(
                             table,
                             UUID.randomUUID().toString(),
-                            mod.getClass().getSimpleName() + om.writeValueAsString(mod)
+                            mod.getClass().getSimpleName() + Serializer.getObjectMapper().getOm().writeValueAsString(mod)
                         );
                         getProducer().send(record);
                         //System.out.println("Sending to " + table + " datagram: " + mod.getClass().getSimpleName() + om.writeValueAsString(mod));

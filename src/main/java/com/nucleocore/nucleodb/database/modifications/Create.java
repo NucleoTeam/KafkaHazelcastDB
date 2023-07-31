@@ -3,6 +3,7 @@ package com.nucleocore.nucleodb.database.modifications;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.nucleodb.database.utils.DataEntry;
+import com.nucleocore.nucleodb.database.utils.Serializer;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -14,7 +15,7 @@ public class Create extends Modify{
     public String changeUUID;
     public String masterClass;
     public long version;
-    public String time;
+    public Instant time;
 
     public Create() {
     }
@@ -23,9 +24,9 @@ public class Create extends Modify{
         this.changeUUID = changeUUID;
         this.key = entry.getKey();
         this.masterClass = entry.getData().getClass().getName();
-        this.data = new ObjectMapper().writeValueAsString(entry.getData());
+        this.data = Serializer.getObjectMapper().getOm().writeValueAsString(entry.getData());
         this.version = entry.getVersion();
-        this.time = Instant.now().toString();
+        this.time = Instant.now();
     }
 
     public String getKey() {
@@ -73,11 +74,11 @@ public class Create extends Modify{
         this.changeUUID = changeUUID;
     }
 
-    public String getTime() {
+    public Instant getTime() {
         return time;
     }
 
-    public void setTime(String time) {
+    public void setTime(Instant time) {
         this.time = time;
     }
 }

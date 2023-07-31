@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Queues;
 import com.nucleocore.nucleodb.database.tables.DataTable;
 import com.nucleocore.nucleodb.database.utils.Modification;
+import com.nucleocore.nucleodb.database.utils.Serializer;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.*;
@@ -18,10 +19,6 @@ public class ConsumerHandler implements Runnable {
     private Map<TopicPartition, Long> endMap = null;
     private String table;
     private boolean startup = false;
-
-    ObjectMapper om = new ObjectMapper(){{
-        this.enableDefaultTyping();
-    }};
 
     public ConsumerHandler(String bootstrap, String groupName, DataTable database, String table) {
         this.database = database;
@@ -75,7 +72,7 @@ public class ConsumerHandler implements Runnable {
                                 //System.out.println("Action: " + type + " data: "+data);
                                 Modification mod = Modification.get(type);
                                 if (mod != null) {
-                                    database.modify(mod, om.readValue(data, mod.getModification()));
+                                    database.modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));
                                 }
                             }catch (Exception e){
                                 e.printStackTrace();

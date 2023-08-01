@@ -1,7 +1,5 @@
-package com.nucleocore.nucleodb.test;
+package com.nucleocore.nucleodb.usertest;
 
-
-import com.nucleocore.nucleodb.database.utils.DataEntry;
 
 import java.io.Serializable;
 import java.util.ArrayList;

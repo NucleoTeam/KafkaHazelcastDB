@@ -1,5 +1,6 @@
 package com.nucleocore.nucleodb.database.utils;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class Serializer{
@@ -9,6 +10,14 @@ public class Serializer{
   public Serializer() {
     om = new ObjectMapper();
     om.findAndRegisterModules();
+  }
+
+  public static void log(Object o){
+    try {
+      System.out.println(getObjectMapper().getOm().writeValueAsString(o));
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public ObjectMapper getOm() {

@@ -3,6 +3,7 @@ package com.nucleocore.nucleodb.database.utils.index;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.nucleodb.database.utils.DataEntry;
+import com.nucleocore.nucleodb.database.utils.Serializer;
 import com.nucleocore.nucleodb.database.utils.TreeSetExt;
 import org.jetbrains.annotations.NotNull;
 
@@ -41,6 +42,7 @@ public class TreeIndex extends Index implements Serializable{
   @Override
   public void add(DataEntry dataEntry) throws JsonProcessingException {
     List<String> values = getIndexValue(dataEntry);
+    System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(values));
     values.forEach(val->{
       Set<DataEntry> entries;
       synchronized (index) {
@@ -84,6 +86,8 @@ public class TreeIndex extends Index implements Serializable{
   public Set<DataEntry> get(String search) {
     return index.get(search);
   }
+
+
 
   @Override
   public Set<DataEntry> search(String search) {

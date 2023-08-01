@@ -1,4 +1,4 @@
-package com.nucleocore.nucleodb.test;
+package com.nucleocore.nucleodb.usertest;
 
 import java.io.Serializable;
 

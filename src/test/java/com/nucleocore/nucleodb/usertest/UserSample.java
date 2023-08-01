@@ -1,18 +1,15 @@
-package com.nucleocore.nucleodb.test;
+package com.nucleocore.nucleodb.usertest;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.fge.jsonpatch.JsonPatchException;
 import com.nucleocore.nucleodb.NucleoDB;
-import com.nucleocore.nucleodb.database.utils.ChangeHandler;
 import com.nucleocore.nucleodb.database.utils.DataEntry;
 import com.nucleocore.nucleodb.database.utils.StartupRun;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Scanner;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 public class UserSample{
   public static void main(String... args) {
@@ -66,7 +63,7 @@ public class UserSample{
         case 3:
           for (int j = 0; j < 75; j++) {
             time = System.currentTimeMillis();
-            List<DataEntry> dataIndex = db.getTable("usertest").search("/user", "Firestarthe");
+            Set<DataEntry> dataIndex = db.getTable("usertest").search("/user", "Firestarthe");
             if (dataIndex != null) {
               System.out.println("returned: " + dataIndex.size());
             }
@@ -112,7 +109,7 @@ public class UserSample{
         case 9:
           for (int j = 0; j < 75; j++) {
             time = System.currentTimeMillis();
-            List<DataEntry> dataIndex = db.getTable("usertest").get("/user", "Firestarthe");
+            Set<DataEntry> dataIndex = db.getTable("usertest").get("/user", "Firestarthe");
             if (dataIndex != null) {
               System.out.println("returned: " + dataIndex.size());
             }

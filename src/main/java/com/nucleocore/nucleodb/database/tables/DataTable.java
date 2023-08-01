@@ -14,6 +14,9 @@ import com.nucleocore.nucleodb.database.utils.index.Index;
 import com.nucleocore.nucleodb.database.utils.index.TreeIndex;
 import com.nucleocore.nucleodb.kafkaLedger.ConsumerHandler;
 import com.nucleocore.nucleodb.kafkaLedger.ProducerHandler;
+import net.sf.jsqlparser.JSQLParserException;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.statement.select.PlainSelect;
 import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.TopicExistsException;
@@ -171,11 +174,13 @@ public class DataTable implements Serializable {
         System.gc();
     }
 
-    public List<DataEntry> in(String key, List<String> values, Class clazz) {
-        List<DataEntry> tmp = Lists.newArrayList();
+    public Set<DataEntry> in(String key, List<String> values) {
+        Set<DataEntry> tmp = new TreeSet<>();
         try {
             for (String val : values) {
-                List<DataEntry> de = search(key, val);
+                System.out.println(key + " = " +val);
+                Serializer.log(this.indexes.get(key));
+                Set<DataEntry> de = get(key, val);
                 if (de != null) {
                     tmp.addAll(de);
                 }
@@ -210,31 +215,48 @@ public class DataTable implements Serializable {
         return null;
     }
 
-    public List<DataEntry> search(String key, String searchObject) {
+    public Set<DataEntry> search(String key, String searchObject) {
         try {
-            return createNewObject(this.indexes.get(key).search(searchObject)).stream().toList();
+            return createNewObject(this.indexes.get(key).search(searchObject));
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null;
+        return new TreeSet<>();
     }
 
-    public List<DataEntry> get(String key, String value) {
+    public Set<DataEntry> get(String key, String value) {
         try {
             Set<DataEntry> entries = this.indexes.get(key).get(value);
             if(entries!=null) {
-                return createNewObject(entries).stream().toList();
+                return createNewObject(entries);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null;
+        return new TreeSet<>();
     }
 
+    public Set<DataEntry> getNotEqual(String key, String value) {
+        try {
+            Set<DataEntry> foundEntries = this.indexes.get(key).get(value);
+            Set<DataEntry> negation = new TreeSet<>(entries);
+            negation.removeAll(foundEntries);
+            if(entries!=null) {
+                return createNewObject(negation);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new TreeSet<>();
+    }
+
+
     public DataEntry searchOne(String key, String obj) {
-        List<DataEntry> entries = search(key, obj);
+        Set<DataEntry> entries = search(key, obj);
         if (entries != null && entries.size() > 0) {
-            return entries.get(0);
+            Optional<DataEntry> d = entries.stream().findFirst();
+            if(d.isPresent())
+                return d.get();
         }
         return null;
     }
@@ -579,7 +601,7 @@ public class DataTable implements Serializable {
     }
 
     public Set<DataEntry> getDataEntries() {
-        return dataEntries;
+        return createNewObject(dataEntries);
     }
 
     public void setDataEntries(Set<DataEntry> dataEntries) {
@@ -728,5 +750,21 @@ public class DataTable implements Serializable {
 
     public void setPartitionOffsets(Map<Integer, Long> partitionOffsets) {
         this.partitionOffsets = partitionOffsets;
+    }
+
+    public boolean isSave() {
+        return save;
+    }
+
+    public void setSave(boolean save) {
+        this.save = save;
+    }
+
+    public Instant getToTime() {
+        return toTime;
+    }
+
+    public void setToTime(Instant toTime) {
+        this.toTime = toTime;
     }
 }

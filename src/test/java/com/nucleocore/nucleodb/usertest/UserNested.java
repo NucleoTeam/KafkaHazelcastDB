@@ -3,16 +3,17 @@ package com.nucleocore.nucleodb.usertest;
 import java.io.Serializable;
 
 public class UserNested implements Serializable{
-        public UserNested() {
-            nestedValue = "woot";
-        }
-        private String nestedValue;
+  private static final long serialVersionUID = 1;
+  public UserNested() {
+      nestedValue = "woot";
+  }
+  private String nestedValue;
 
-        public String getNestedValue() {
-            return nestedValue;
-        }
+  public String getNestedValue() {
+      return nestedValue;
+  }
 
-        public void setNestedValue(String nestedValue) {
-            this.nestedValue = nestedValue;
-        }
-    }
+  public void setNestedValue(String nestedValue) {
+      this.nestedValue = nestedValue;
+  }
+}

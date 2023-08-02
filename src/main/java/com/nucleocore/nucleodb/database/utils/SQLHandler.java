@@ -5,6 +5,7 @@ import com.nucleocore.nucleodb.NucleoDB;
 import com.nucleocore.nucleodb.database.tables.DataTable;
 import net.sf.jsqlparser.expression.BinaryExpression;
 import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.Parenthesis;
 import net.sf.jsqlparser.expression.StringValue;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
@@ -98,9 +99,9 @@ public class SQLHandler{
       InExpression inExpression = (InExpression) expr;
       System.out.println("In");
       ExpressionList expressionList = (ExpressionList) inExpression.getRightItemsList();
-      String left = ((Column) inExpression.getLeftExpression()).getColumnName();
+      String left = ((Column) inExpression.getLeftExpression()).getFullyQualifiedName();
       List<String> vals = expressionList.getExpressions().stream().map(f->((StringValue)f).getValue()).collect(Collectors.toList());
-      Set<DataEntry> valz = table.in("/" + left, vals);
+      Set<DataEntry> valz = table.in( left, vals);
       try {
         System.out.println(left + " = " + Serializer.getObjectMapper().getOm().writeValueAsString(vals) + " size: " + valz.size());
       } catch (JsonProcessingException e) {
@@ -109,24 +110,27 @@ public class SQLHandler{
       return valz;
     } else if (expr instanceof LikeExpression) {
       BinaryExpression binary = (BinaryExpression) expr;
-      String left = ((Column) binary.getLeftExpression()).getColumnName();
+      String left = ((Column) binary.getLeftExpression()).getFullyQualifiedName();
       String right = ((StringValue) binary.getRightExpression()).getValue();
-      Set<DataEntry> vals = table.search("/" + left, right);
+      Set<DataEntry> vals = table.search(left, right);
       System.out.println(left + " like " + right + " size: " + vals.size());
       return vals;
+    } else if (expr instanceof Parenthesis){
+      Parenthesis parenthesis = (Parenthesis) expr;
+      return evaluateWhere(parenthesis.getExpression(), table);
     } else if (expr instanceof BinaryExpression) {
       BinaryExpression binary = (BinaryExpression) expr;
-      String left = ((Column) binary.getLeftExpression()).getColumnName();
+      String left = ((Column) binary.getLeftExpression()).getFullyQualifiedName();
       if (expr instanceof EqualsTo) {
         String right = ((StringValue) binary.getRightExpression()).getValue();
 
-        Set<DataEntry> vals = table.get("/" + left, right);
+        Set<DataEntry> vals = table.get(left, right);
         System.out.println(left + " = " + right + " size: " + vals.size());
         return vals;
       } else if (expr instanceof NotEqualsTo) {
         String right = ((StringValue) binary.getRightExpression()).getValue();
         System.out.println(left + " != " + right);
-        return table.getNotEqual("/" + left, right);
+        return table.getNotEqual(left, right);
       } else {
         System.out.println(binary.getClass().getName());
         System.out.println(binary.getLeftExpression().getClass().getName());

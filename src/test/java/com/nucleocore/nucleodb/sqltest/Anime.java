@@ -8,7 +8,7 @@ public class Anime implements Serializable{
   private static final long serialVersionUID = 1;
   String name;
   List<String> tags = new ArrayList<>();
-  List<VoiceActor> actors = new ArrayList<>();
+  List<VoiceActor> actors;
   String image;
 
   public Anime() {

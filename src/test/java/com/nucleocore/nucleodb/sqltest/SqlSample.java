@@ -22,9 +22,10 @@ public class SqlSample{
 
       //populateDB(db);
 
-      db.sql("SELECT * FROM anime WHERE actors.name='Maaya Sakamoto' LIMIT 20;", AnimeDTO.class);
-      db.sql("SELECT * FROM anime WHERE actors.name='Megumi Toyoguchi' and tags in ('Fantasy') LIMIT 20;", AnimeDTO.class);
-      db.sql("SELECT * FROM anime WHERE actors.name='Megumi Toyoguchi' and tags='Action' or tags='Fantasy' LIMIT 20;", AnimeDTO.class);
+      db.select("SELECT * FROM anime WHERE actors.name='Maaya Sakamoto' LIMIT 1;", AnimeDTO.class);
+      db.select("SELECT * FROM anime WHERE actors.name='Megumi Toyoguchi' and tags in ('Fantasy') LIMIT 1;", AnimeDTO.class);
+      db.select("SELECT * FROM anime WHERE actors.name='Megumi Toyoguchi' and (tags='Action' or tags='Fantasy') LIMIT 1;", AnimeDTO.class);
+      db.insert("INSERT INTO anime SET name='Woot', actors=((name='Megumi Toyoguchi', character='Witch', tags=('works?')), (name='Maaya Sakamoto')), tags=('Action','Fantasy')");
     } catch (JSQLParserException e) {
       throw new RuntimeException(e);
     }

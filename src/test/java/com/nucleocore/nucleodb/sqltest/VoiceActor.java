@@ -1,11 +1,14 @@
 package com.nucleocore.nucleodb.sqltest;
 
 import java.io.Serializable;
+import java.util.List;
 
 public class VoiceActor implements Serializable{
   private static final long serialVersionUID = 1;
   String name;
   String character;
+
+  List<String> tags;
 
   public VoiceActor() {
   }
@@ -33,5 +36,13 @@ public class VoiceActor implements Serializable{
 
   public void setCharacter(String character) {
     this.character = character;
+  }
+
+  public List<String> getTags() {
+    return tags;
+  }
+
+  public void setTags(List<String> tags) {
+    this.tags = tags;
   }
 }

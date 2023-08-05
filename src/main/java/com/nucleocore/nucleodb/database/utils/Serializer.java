@@ -1,6 +1,7 @@
 package com.nucleocore.nucleodb.database.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class Serializer{
@@ -10,6 +11,7 @@ public class Serializer{
   public Serializer() {
     om = new ObjectMapper();
     om.findAndRegisterModules();
+    om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
   }
 
   public static void log(Object o){

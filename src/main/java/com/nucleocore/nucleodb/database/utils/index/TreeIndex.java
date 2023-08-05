@@ -8,10 +8,13 @@ import com.nucleocore.nucleodb.database.utils.TreeSetExt;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
@@ -29,7 +32,7 @@ public class TreeIndex extends Index implements Serializable{
 
   private boolean unique;
   private Map<DataEntry, Set<Set<DataEntry>>> reverseMap = new TreeMap<>();
-  private Map<String, Set<DataEntry>> index = new TreeMap<>();
+  private Map<Object, Set<DataEntry>> index = new TreeMap<>();
 
 
   public TreeIndex(String indexedKey) {
@@ -41,7 +44,7 @@ public class TreeIndex extends Index implements Serializable{
 
   @Override
   public void add(DataEntry dataEntry) throws JsonProcessingException {
-    List<String> values = getIndexValue(dataEntry);
+    List<Object> values = getIndexValue(dataEntry);
     System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(values));
     values.forEach(val->{
       Set<DataEntry> entries;
@@ -83,15 +86,38 @@ public class TreeIndex extends Index implements Serializable{
   }
 
   @Override
-  public Set<DataEntry> get(String search) {
-    return index.get(search);
+  public Set<DataEntry> get(Object search) {
+    Optional<Object> optionalO = index.keySet().stream().findFirst();
+    if(optionalO.isPresent()) {
+      Object o = optionalO.get();
+      if (o.getClass() == Float.class || o.getClass() == float.class) {
+        if (search.getClass() == Double.class)
+          return index.get(Double.valueOf((Double) search).floatValue());
+        if (search.getClass() == Long.class)
+          return index.get(Long.valueOf((Long) search).floatValue());
+      } else if (o.getClass() == Integer.class || o.getClass() == int.class) {
+        if (search.getClass() == Double.class)
+          return index.get(Double.valueOf((Double) search).intValue());
+        if (search.getClass() == Long.class)
+          return index.get(Long.valueOf((Long) search).intValue());
+      } else {
+        return index.get(search);
+      }
+    }
+    return new TreeSetExt<>();
   }
 
 
 
   @Override
-  public Set<DataEntry> search(String search) {
-    return index.keySet().stream().filter(key->key.contains(search)).map(key->index.get(key)).filter(i->i!=null).reduce(new TreeSet<>(), (a,b)->{
+  public Set<DataEntry> search(Object searchObj) {
+    return index.keySet().stream().filter(key->{
+      if(key instanceof String && searchObj instanceof String){
+        return ((String) key).contains((String)searchObj);
+      }else{
+        return key.equals(searchObj);
+      }
+    }).map(key->index.get(key)).filter(i->i!=null).reduce(new TreeSet<>(), (a,b)->{
       a.addAll(b);
       return a;
     });
@@ -105,11 +131,11 @@ public class TreeIndex extends Index implements Serializable{
     this.reverseMap = reverseMap;
   }
 
-  public Map<String, Set<DataEntry>> getIndex() {
+  public Map<Object, Set<DataEntry>> getIndex() {
     return index;
   }
 
-  public void setIndex(Map<String, Set<DataEntry>> index) {
+  public void setIndex(Map<Object, Set<DataEntry>> index) {
     this.index = index;
   }
 

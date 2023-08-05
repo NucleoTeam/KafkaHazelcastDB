@@ -39,7 +39,7 @@ public abstract class Index implements Serializable{
 
 
 
-  public List<String> getIndexValue(DataEntry dataEntry) throws JsonProcessingException {
+  public List<Object> getIndexValue(DataEntry dataEntry) throws JsonProcessingException {
     return getValues(Queues.newLinkedBlockingDeque(Arrays.asList(this.indexedKeyStr.split("\\."))), dataEntry.getData());
     /*String json = dataEntry.getReference().toString();
     try (JsonReader reader = Json.createReader(new StringReader(json))) {
@@ -65,22 +65,15 @@ public abstract class Index implements Serializable{
     return Arrays.asList();*/
   }
 
-  public List<String> getValues(Queue<String> pointer, Object start) throws JsonProcessingException {
+  public List<Object> getValues(Queue<String> pointer, Object start) throws JsonProcessingException {
     Object current = start;
     if(pointer.isEmpty()){
-      if(current instanceof String){
-        System.out.println(current);
-        return Arrays.asList((String)current);
-      }else if(current instanceof Integer){
-        return Arrays.asList(((Integer)current).toString());
-      }else if(current instanceof Float) {
-        return Arrays.asList(((Float) current).toString());
-      }
-      return new LinkedList<>();
+      return Arrays.asList(current);
     }
     try {
       String name = pointer.poll();
-      System.out.println(name);
+      Serializer.log(name);
+      Serializer.log(current.getClass().getName());
       current = new PropertyDescriptor(name, current.getClass()).getReadMethod().invoke(current);
     } catch (IntrospectionException | InvocationTargetException | IllegalAccessException e) {
       e.printStackTrace();
@@ -91,10 +84,10 @@ public abstract class Index implements Serializable{
         try {
           return getValues(Queues.newLinkedBlockingDeque(pointer), c);
         } catch (JsonProcessingException e) {
-          return new LinkedList<String>();
+          return new LinkedList();
         }
-      }).reduce(new LinkedList<>(), (a, b)->{
-        a.addAll(b);
+      }).reduce(new LinkedList(), (a, b)->{
+        boolean b1 = a.addAll(b);
         return a;
       });
     }else if(current instanceof Object){
@@ -116,16 +109,16 @@ public abstract class Index implements Serializable{
     System.out.println("Modify ERROR");
   }
 
-  public Set<DataEntry> get(String getByStr) {
+  public Set<DataEntry> get(Object search){
     return null;
   }
 
-  public Set<DataEntry> getNotEqual(String notEqualVal) {
+  public Set<DataEntry> getNotEqual(Object notEqualVal) {
     return null;
   }
 
 
-  public Set<DataEntry> search(String search) {
+  public Set<DataEntry> search(Object searchObj) {
     return null;
   }
 

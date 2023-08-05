@@ -1,13 +1,12 @@
 package com.nucleocore.nucleodb.sqltest;
 
 import com.nucleocore.nucleodb.NucleoDB;
-import com.nucleocore.nucleodb.database.utils.SQLHandler;
+import com.nucleocore.nucleodb.database.utils.Serializer;
 import com.nucleocore.nucleodb.database.utils.StartupRun;
-import com.nucleocore.nucleodb.usertest.User;
 import net.sf.jsqlparser.JSQLParserException;
 
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Set;
 
 public class SqlSample{
   public static void main(String[] args) {
@@ -16,7 +15,7 @@ public class SqlSample{
       public void run() {
         System.out.println("STARTUP COMPLETE");
       }
-    }, "name", "tags", "actors.name");
+    }, "name", "tags", "actors.name", "votes", "actors.tags");
     try {
       //db.getTable("anime").setSave(false);
 
@@ -25,7 +24,10 @@ public class SqlSample{
       db.select("SELECT * FROM anime WHERE actors.name='Maaya Sakamoto' LIMIT 1;", AnimeDTO.class);
       db.select("SELECT * FROM anime WHERE actors.name='Megumi Toyoguchi' and tags in ('Fantasy') LIMIT 1;", AnimeDTO.class);
       db.select("SELECT * FROM anime WHERE actors.name='Megumi Toyoguchi' and (tags='Action' or tags='Fantasy') LIMIT 1;", AnimeDTO.class);
-      db.insert("INSERT INTO anime SET name='Woot', actors=((name='Megumi Toyoguchi', character='Witch', tags=('works?')), (name='Maaya Sakamoto')), tags=('Action','Fantasy')");
+      Set<AnimeDTO> response = db.select("SELECT * FROM anime WHERE votes in (5.5) LIMIT 1;", AnimeDTO.class);
+      Serializer.log(response);
+      //DataEntry de = db.insert("INSERT INTO anime SET name='Woot', rating=2.5, votes=(1.2,5.5,2.4,3.4), actors=((name='Megumi Toyoguchi', character='Witch', tags=('works?')), (name='Maaya Sakamoto')), tags=('Action','Fantasy')");
+      //Serializer.log(de);
     } catch (JSQLParserException e) {
       throw new RuntimeException(e);
     }

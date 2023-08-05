@@ -174,10 +174,10 @@ public class DataTable implements Serializable {
         System.gc();
     }
 
-    public Set<DataEntry> in(String key, List<String> values) {
+    public Set<DataEntry> in(String key, List<Object> values) {
         Set<DataEntry> tmp = new TreeSet<>();
         try {
-            for (String val : values) {
+            for (Object val : values) {
                 System.out.println(key + " = " +val);
                 Serializer.log(this.indexes.get(key));
                 Set<DataEntry> de = get(key, val);
@@ -224,7 +224,7 @@ public class DataTable implements Serializable {
         return new TreeSet<>();
     }
 
-    public Set<DataEntry> get(String key, String value) {
+    public Set<DataEntry> get(String key, Object value) {
         try {
             Set<DataEntry> entries = this.indexes.get(key).get(value);
             if(entries!=null) {

@@ -11,6 +11,10 @@ public class Anime implements Serializable{
   List<VoiceActor> actors;
   String image;
 
+  Float rating;
+
+  List<Float> votes;
+
   public Anime() {
   }
 
@@ -55,5 +59,21 @@ public class Anime implements Serializable{
 
   public void setActors(List<VoiceActor> actors) {
     this.actors = actors;
+  }
+
+  public Float getRating() {
+    return rating;
+  }
+
+  public void setRating(Float rating) {
+    this.rating = rating;
+  }
+
+  public List<Float> getVotes() {
+    return votes;
+  }
+
+  public void setVotes(List<Float> votes) {
+    this.votes = votes;
   }
 }

@@ -178,8 +178,8 @@ public class DataTable implements Serializable {
         Set<DataEntry> tmp = new TreeSet<>();
         try {
             for (Object val : values) {
-                System.out.println(key + " = " +val);
-                Serializer.log(this.indexes.get(key));
+                //System.out.println(key + " = " +val);
+                //Serializer.log(this.indexes.get(key));
                 Set<DataEntry> de = get(key, val);
                 if (de != null) {
                     tmp.addAll(de);
@@ -215,7 +215,7 @@ public class DataTable implements Serializable {
         return null;
     }
 
-    public Set<DataEntry> search(String key, String searchObject) {
+    public Set<DataEntry> search(String key, Object searchObject) {
         try {
             return createNewObject(this.indexes.get(key).search(searchObject));
         } catch (Exception e) {
@@ -236,7 +236,7 @@ public class DataTable implements Serializable {
         return new TreeSet<>();
     }
 
-    public Set<DataEntry> getNotEqual(String key, String value) {
+    public Set<DataEntry> getNotEqual(String key, Object value) {
         try {
             Set<DataEntry> foundEntries = this.indexes.get(key).get(value);
             Set<DataEntry> negation = new TreeSet<>(entries);
@@ -251,7 +251,7 @@ public class DataTable implements Serializable {
     }
 
 
-    public DataEntry searchOne(String key, String obj) {
+    public DataEntry searchOne(String key, Object obj) {
         Set<DataEntry> entries = search(key, obj);
         if (entries != null && entries.size() > 0) {
             Optional<DataEntry> d = entries.stream().findFirst();

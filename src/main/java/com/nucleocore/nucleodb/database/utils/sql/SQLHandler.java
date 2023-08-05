@@ -106,17 +106,17 @@ public class SQLHandler{
       AndExpression andExpression = (AndExpression) expr;
       Set<DataEntry> leftEntries = evaluateWhere(andExpression.getLeftExpression(), table);
       leftEntries.retainAll(evaluateWhere(andExpression.getRightExpression(), table));
-      System.out.println("and " + leftEntries.size());
+      //System.out.println("and " + leftEntries.size());
       return leftEntries;
     } else if (expr instanceof OrExpression) {
       OrExpression orExpression = (OrExpression) expr;
       Set<DataEntry> leftEntries = evaluateWhere(orExpression.getLeftExpression(), table);
       leftEntries.addAll(evaluateWhere(orExpression.getRightExpression(), table));
-      System.out.println("or " + leftEntries.size());
+      //System.out.println("or " + leftEntries.size());
       return leftEntries;
     } else if (expr instanceof InExpression) {
       InExpression inExpression = (InExpression) expr;
-      System.out.println("In");
+      //System.out.println("In");
       ExpressionList expressionList = (ExpressionList) inExpression.getRightItemsList();
       String left = ((Column) inExpression.getLeftExpression()).getFullyQualifiedName();
       List<Object> vals = expressionList.getExpressions().stream().map(f -> {
@@ -130,18 +130,18 @@ public class SQLHandler{
         return null;
       }).collect(Collectors.toList());
       Set<DataEntry> valz = table.in(left, vals);
-      try {
+      /*try {
         System.out.println(left + " = " + Serializer.getObjectMapper().getOm().writeValueAsString(vals) + " size: " + valz.size());
       } catch (JsonProcessingException e) {
         throw new RuntimeException(e);
-      }
+      }*/
       return valz;
     } else if (expr instanceof LikeExpression) {
       BinaryExpression binary = (BinaryExpression) expr;
       String left = ((Column) binary.getLeftExpression()).getFullyQualifiedName();
       String right = ((StringValue) binary.getRightExpression()).getValue();
       Set<DataEntry> vals = table.search(left, right);
-      System.out.println(left + " like " + right + " size: " + vals.size());
+//      System.out.println(left + " like " + right + " size: " + vals.size());
       return vals;
     } else if (expr instanceof Parenthesis) {
       Parenthesis parenthesis = (Parenthesis) expr;
@@ -155,20 +155,20 @@ public class SQLHandler{
         if(rightExpression instanceof StringValue) {
           String right = ((StringValue) rightExpression).getValue();
           vals = table.get(left, right);
-          System.out.println(left + " = " + right + " size: " + vals.size());
+//          System.out.println(left + " = " + right + " size: " + vals.size());
         }else if(rightExpression instanceof DoubleValue) {
           Double right = ((DoubleValue) rightExpression ).getValue();
           vals = table.get(left, right);
-          System.out.println(left + " = " + right + " size: " + vals.size());
+//          System.out.println(left + " = " + right + " size: " + vals.size());
         }else if(rightExpression instanceof LongValue) {
           Long right = ((LongValue) rightExpression ).getValue();
           vals = table.get(left, right);
-          System.out.println(left + " = " + right + " size: " + vals.size());
+//          System.out.println(left + " = " + right + " size: " + vals.size());
         }
         return vals;
       } else if (expr instanceof NotEqualsTo) {
         String right = ((StringValue) binary.getRightExpression()).getValue();
-        System.out.println(left + " != " + right);
+//        System.out.println(left + " != " + right);
         return table.getNotEqual(left, right);
       } else {
         System.out.println(binary.getClass().getName());

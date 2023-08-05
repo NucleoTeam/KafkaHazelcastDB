@@ -45,7 +45,7 @@ public class TreeIndex extends Index implements Serializable{
   @Override
   public void add(DataEntry dataEntry) throws JsonProcessingException {
     List<Object> values = getIndexValue(dataEntry);
-    System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(values));
+    //System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(values));
     values.forEach(val->{
       Set<DataEntry> entries;
       synchronized (index) {
@@ -65,22 +65,22 @@ public class TreeIndex extends Index implements Serializable{
         }
       }
       rMap.add(entries);
-      System.out.println("Add, "+ this.getIndexedKey() + " = " +val);
+      //System.out.println("Add, "+ this.getIndexedKey() + " = " +val);
 
     });
   }
 
   @Override
   public void delete(DataEntry dataEntry) {
-    System.out.println("Delete "+dataEntry);
+    //System.out.println("Delete "+dataEntry);
     reverseMap.get(dataEntry).forEach(c -> c.remove(dataEntry));
     reverseMap.remove(dataEntry);
-    System.out.println(reverseMap.get(dataEntry));
+    //System.out.println(reverseMap.get(dataEntry));
   }
 
   @Override
   public void modify(DataEntry dataEntry) throws JsonProcessingException {
-    System.out.println("Modify, "+ this.getIndexedKey() + " = " +dataEntry);
+    //System.out.println("Modify, "+ this.getIndexedKey() + " = " +dataEntry);
     delete(dataEntry);
     add(dataEntry);
   }

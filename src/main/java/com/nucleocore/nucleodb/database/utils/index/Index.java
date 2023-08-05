@@ -72,14 +72,14 @@ public abstract class Index implements Serializable{
     }
     try {
       String name = pointer.poll();
-      Serializer.log(name);
-      Serializer.log(current.getClass().getName());
+      //Serializer.log(name);
+      //Serializer.log(current.getClass().getName());
       current = new PropertyDescriptor(name, current.getClass()).getReadMethod().invoke(current);
     } catch (IntrospectionException | InvocationTargetException | IllegalAccessException e) {
       e.printStackTrace();
     }
     if(current instanceof Collection){
-      System.out.println(current.getClass().getName());
+      //System.out.println(current.getClass().getName());
       return ((Collection<?>) current).stream().map(c-> {
         try {
           return getValues(Queues.newLinkedBlockingDeque(pointer), c);

@@ -20,11 +20,13 @@ public class SqlSample{
       //db.getTable("anime").setSave(false);
 
       //populateDB(db);
-
-      db.select("SELECT * FROM anime WHERE actors.name='Maaya Sakamoto' LIMIT 1;", AnimeDTO.class);
-      db.select("SELECT * FROM anime WHERE actors.name='Megumi Toyoguchi' and tags in ('Fantasy') LIMIT 1;", AnimeDTO.class);
-      db.select("SELECT * FROM anime WHERE actors.name='Megumi Toyoguchi' and (tags='Action' or tags='Fantasy') LIMIT 1;", AnimeDTO.class);
-      Set<AnimeDTO> response = db.select("SELECT * FROM anime WHERE votes in (5.5) LIMIT 1;", AnimeDTO.class);
+      Set<AnimeDTO> response = db.select("SELECT * FROM anime WHERE actors.name='Maaya Sakamoto' LIMIT 1;", AnimeDTO.class);
+      Serializer.log(response);
+      response = db.select("SELECT * FROM anime WHERE actors.name='Megumi Toyoguchi' and tags in ('Fantasy') LIMIT 1;", AnimeDTO.class);
+      Serializer.log(response);
+      response = db.select("SELECT * FROM anime WHERE actors.name='Megumi Toyoguchi' and (tags='Action' or tags='Fantasy') LIMIT 1;", AnimeDTO.class);
+      Serializer.log(response);
+      response = db.select("SELECT * FROM anime WHERE votes in (5.5) LIMIT 1;", AnimeDTO.class);
       Serializer.log(response);
       //DataEntry de = db.insert("INSERT INTO anime SET name='Woot', rating=2.5, votes=(1.2,5.5,2.4,3.4), actors=((name='Megumi Toyoguchi', character='Witch', tags=('works?')), (name='Maaya Sakamoto')), tags=('Action','Fantasy')");
       //Serializer.log(de);

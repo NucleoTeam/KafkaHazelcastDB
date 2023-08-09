@@ -40,6 +40,9 @@ public class AnimeDTO{
   @JsonDeserialize(using = CustomActorNameDeserializer.class)
   List<String> actors = new LinkedList<>();
 
+  @JsonProperty("rating")
+  Float rating;
+
 
 
   public AnimeDTO() {
@@ -67,5 +70,13 @@ public class AnimeDTO{
 
   public void setActors(List<String> actors) {
     this.actors = actors;
+  }
+
+  public Float getRating() {
+    return rating;
+  }
+
+  public void setRating(Float rating) {
+    this.rating = rating;
   }
 }

@@ -226,7 +226,12 @@ public class DataTable implements Serializable {
 
     public Set<DataEntry> get(String key, Object value) {
         try {
-            Set<DataEntry> entries = this.indexes.get(key).get(value);
+            Set<DataEntry> entries = new TreeSetExt<>();
+            if(key.equals("id")) {
+                entries = new TreeSet<>(Arrays.asList(this.keyToEntry.get(value)));
+            }else{
+                entries = this.indexes.get(key).get(value);
+            }
             if(entries!=null) {
                 return createNewObject(entries);
             }
@@ -238,7 +243,12 @@ public class DataTable implements Serializable {
 
     public Set<DataEntry> getNotEqual(String key, Object value) {
         try {
-            Set<DataEntry> foundEntries = this.indexes.get(key).get(value);
+            Set<DataEntry> foundEntries = new TreeSetExt<>();
+            if(key.equals("id")) {
+                foundEntries = new TreeSet<>(Arrays.asList(this.keyToEntry.get(value)));
+            }else{
+                foundEntries = this.indexes.get(key).get(value);
+            }
             Set<DataEntry> negation = new TreeSet<>(entries);
             negation.removeAll(foundEntries);
             if(entries!=null) {

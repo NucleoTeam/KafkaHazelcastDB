@@ -1,6 +1,8 @@
 package com.nucleocore.nucleodb.database.utils.sql;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.Ordering;
+import com.google.common.collect.Queues;
 import com.nucleocore.nucleodb.NucleoDB;
 import com.nucleocore.nucleodb.database.tables.DataTable;
 import com.nucleocore.nucleodb.database.utils.DataEntry;
@@ -13,6 +15,7 @@ import net.sf.jsqlparser.expression.LongValue;
 import net.sf.jsqlparser.expression.Parenthesis;
 import net.sf.jsqlparser.expression.RowConstructor;
 import net.sf.jsqlparser.expression.StringValue;
+import net.sf.jsqlparser.expression.ValueListExpression;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
 import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
@@ -22,9 +25,12 @@ import net.sf.jsqlparser.expression.operators.relational.LikeExpression;
 import net.sf.jsqlparser.expression.operators.relational.NotEqualsTo;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.insert.Insert;
+import net.sf.jsqlparser.statement.select.OrderByElement;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.SelectItem;
+import net.sf.jsqlparser.statement.update.Update;
+import net.sf.jsqlparser.statement.update.UpdateSet;
 
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
@@ -34,16 +40,78 @@ import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
+import java.util.Stack;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import java.util.function.ToDoubleFunction;
+import java.util.function.ToIntFunction;
+import java.util.function.ToLongFunction;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class SQLHandler{
-  public static <T> Set<T> handleSelect(Select select, NucleoDB nucleoDB, Class<T> clazz) {
+
+  public static class NullComparator implements Comparator<Object>{
+    Function function;
+    public NullComparator(Function function) {
+      this.function = function;
+    }
+
+    @Override
+    public int compare(Object o1, Object o2) {
+      o1 = this.function.apply(o1);
+      o2 = this.function.apply(o2);
+      if(o1==null && o2==null){
+        return 0;
+      }
+      if(o1==null && o2!=null){
+        return 1;
+      }
+      if(o1!=null && o2==null){
+        return -1;
+      }
+      if(o1 instanceof String && o2 instanceof String) {
+        return ((String) o1).compareTo((String)o2);
+      }
+      if(o1 instanceof Integer && o2 instanceof Integer) {
+        return ((Integer) o1).compareTo((Integer)o2);
+      }
+      if(o1 instanceof Long && o2 instanceof Long) {
+        return ((Long) o1).compareTo((Long)o2);
+      }
+      if(o1 instanceof Double && o2 instanceof Double) {
+        return ((Double) o1).compareTo((Double)o2);
+      }
+      if(o1 instanceof Float && o2 instanceof Float) {
+        return ((Float) o1).compareTo((Float)o2);
+      }
+      if(o1 instanceof Object && o2 instanceof Object) {
+        try {
+          return Serializer.getObjectMapper().getOm().writeValueAsString(o1).compareTo(Serializer.getObjectMapper().getOm().writeValueAsString(o2));
+        } catch (JsonProcessingException e) {
+        }
+      }
+      return 0;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return false;
+    }
+  }
+  public static <T> List<T> handleSelect(Select select, NucleoDB nucleoDB, Class<T> clazz) {
     PlainSelect plainSelect = (PlainSelect) select.getSelectBody();
     String tableName = plainSelect.getFromItem().toString();
     List<SelectItem> selectItems = plainSelect.getSelectItems();
@@ -51,7 +119,7 @@ public class SQLHandler{
     DataTable table = nucleoDB.getTable(tableName);
     if (table == null) {
       System.out.println("Table not found.");
-      return new TreeSet<>();
+      return new LinkedList<>();
     }
 
     // Handle WHERE clauses
@@ -62,34 +130,117 @@ public class SQLHandler{
     } else {
       foundEntries = evaluateWhere(where, table);
     }
-    List<T> items = new ArrayList<>();
-    for (int i = 0; i < foundEntries.size(); i++) {
-      try {
-        T data = clazz.getConstructor().newInstance();
-        items.add(data);
-      } catch (Exception e) {
-        e.printStackTrace();
+    List<DataEntry> sortedEntries = foundEntries.stream().toList();
+    if(plainSelect.getOrderByElements()!=null) {
+      Comparator comparator = null;
+      for (OrderByElement orderByElement : plainSelect.getOrderByElements()) {
+        Expression expr = orderByElement.getExpression();
+        //Serializer.log(expr.getClass().getName());
+        if (expr instanceof Column) {
+          Column columnExpression = ((Column) expr);
+          String column = "data."+columnExpression.getFullyQualifiedName();
+          //Serializer.log("adding sort on "+column);
+          Map<Object, Map<String, Object>> cache = new HashMap<>();
+          Function function = s -> {
+            // handle cache
+            Map<String, Object> objCache = cache.get(s);
+            if(objCache!=null && objCache.containsKey(column)){
+              return objCache.get(column);
+            }
+            Queue<String> queue = Queues.newLinkedBlockingDeque(Arrays.asList(column.split("\\.")));
+            //Serializer.log(queue);
+            Object o = s;
+            PropertyDescriptor columnField;
+            while (!queue.isEmpty()) {
+              String next = queue.poll();
+              //Serializer.log("going to: "+next);
+              if (next.matches("i([0-9]+)")) {
+                if (o instanceof List) {
+                  Pattern pattern = Pattern.compile("i([0-9]+)");
+                  Matcher matcher = pattern.matcher(next);
+                  if (matcher.find()) {
+                    int index = Integer.valueOf(matcher.group(1));
+                    o = ((List<?>) o).get(index);
+                  } else {
+                    o=null;
+                    break;
+                  }
+                }
+              } else {
+                try {
+                  columnField = new PropertyDescriptor(next, o.getClass());
+                  o = columnField.getReadMethod().invoke(o);
+                }catch (Exception e){
+                  o=null;
+                  break;
+                }
+              }
+            }
+            if(o==s){
+              return null;
+            }
+            objCache = cache.get(s);
+            if(objCache==null){
+              objCache = new HashMap<>();
+              cache.put(s, objCache);
+            }
+            objCache.put(column, o);
+            return o;
+          };
+
+          if (comparator == null) {
+            if (!orderByElement.isAsc()) {
+              //Serializer.log("reverse");
+              comparator = new NullComparator(function).reversed();
+            }else{
+              comparator = new NullComparator(function);
+            }
+          } else {
+
+            if (!orderByElement.isAsc()) {
+              //Serializer.log("reverse");
+              comparator = comparator.thenComparing(new NullComparator(function)).reversed();
+            }else{
+              comparator = comparator.thenComparing(new NullComparator(function));
+            }
+          }
+        }
+      }
+      sortedEntries = (List<DataEntry>) sortedEntries.stream().sorted(comparator).collect(Collectors.toList());
+    }
+    int offset = 0;
+    int count = 25;
+    if(plainSelect.getLimit()!=null){
+      if(plainSelect.getLimit().getOffset()!=null) {
+        if(plainSelect.getLimit().getOffset() instanceof LongValue){
+          offset = Long.valueOf(((LongValue) plainSelect.getLimit().getOffset()).getValue()).intValue();
+        }
+      }
+      if(plainSelect.getLimit().getRowCount() instanceof LongValue){
+        count = Long.valueOf(((LongValue) plainSelect.getLimit().getRowCount()).getValue()).intValue();
       }
     }
+    sortedEntries = sortedEntries.subList((offset>sortedEntries.size())?sortedEntries.size():offset, (offset+count>sortedEntries.size())?sortedEntries.size():offset+count);
     Set<PropertyDescriptor> keyFields = Arrays.stream(clazz.getDeclaredFields())
-        .filter(field->field.isAnnotationPresent(PrimaryKey.class))
-        .map(field-> {
+        .filter(field -> field.isAnnotationPresent(PrimaryKey.class))
+        .map(field -> {
           try {
             return new PropertyDescriptor(field.getName(), clazz);
           } catch (IntrospectionException e) {
             throw new RuntimeException(e);
           }
         }).collect(Collectors.toSet());
-    return (Set<T>) foundEntries.stream().map(f -> {
+
+    return (List<T>)  sortedEntries.stream().map(f -> {
       try {
         Object o = Serializer.getObjectMapper().getOm().readValue(
             Serializer.getObjectMapper().getOm().writeValueAsString(f.getData()),
             clazz
         );
-        keyFields.forEach(propertyDescriptor ->{
+        keyFields.forEach(propertyDescriptor -> {
           try {
             propertyDescriptor.getWriteMethod().invoke(o, f.getKey());
-          }catch (Exception e){
+          } catch (Exception e) {
             e.printStackTrace();
           }
         });
@@ -98,7 +249,7 @@ public class SQLHandler{
         e.printStackTrace();
       }
       return null;
-    }).collect(Collectors.toSet());
+    }).collect(Collectors.toList());
   }
 
   public static Set<DataEntry> evaluateWhere(Expression expr, DataTable table) {
@@ -120,11 +271,11 @@ public class SQLHandler{
       ExpressionList expressionList = (ExpressionList) inExpression.getRightItemsList();
       String left = ((Column) inExpression.getLeftExpression()).getFullyQualifiedName();
       List<Object> vals = expressionList.getExpressions().stream().map(f -> {
-        if(f instanceof StringValue) {
+        if (f instanceof StringValue) {
           return ((StringValue) f).getValue();
-        } else if(f instanceof DoubleValue) {
+        } else if (f instanceof DoubleValue) {
           return ((DoubleValue) f).getValue();
-        } else if(f instanceof LongValue) {
+        } else if (f instanceof LongValue) {
           return ((LongValue) f).getValue();
         }
         return null;
@@ -152,16 +303,16 @@ public class SQLHandler{
       Set<DataEntry> vals = new TreeSetExt<>();
       if (expr instanceof EqualsTo) {
         Expression rightExpression = binary.getRightExpression();
-        if(rightExpression instanceof StringValue) {
+        if (rightExpression instanceof StringValue) {
           String right = ((StringValue) rightExpression).getValue();
           vals = table.get(left, right);
 //          System.out.println(left + " = " + right + " size: " + vals.size());
-        }else if(rightExpression instanceof DoubleValue) {
-          Double right = ((DoubleValue) rightExpression ).getValue();
+        } else if (rightExpression instanceof DoubleValue) {
+          Double right = ((DoubleValue) rightExpression).getValue();
           vals = table.get(left, right);
 //          System.out.println(left + " = " + right + " size: " + vals.size());
-        }else if(rightExpression instanceof LongValue) {
-          Long right = ((LongValue) rightExpression ).getValue();
+        } else if (rightExpression instanceof LongValue) {
+          Long right = ((LongValue) rightExpression).getValue();
           vals = table.get(left, right);
 //          System.out.println(left + " = " + right + " size: " + vals.size());
         }
@@ -223,61 +374,71 @@ public class SQLHandler{
           PropertyDescriptor propertyDescriptor = new PropertyDescriptor(column, obj.getClass());
           propertyDescriptor.getWriteMethod().invoke(obj, ((StringValue) expression).getValue());
         }
-      }else if (expression instanceof LongValue) {
-        if(column==null){
-          if(obj instanceof Collection){
-            if(field != null) {
+      } else if (expression instanceof LongValue) {
+        if (column == null) {
+          if (obj instanceof Collection) {
+            if (field != null) {
               ParameterizedType listType = (ParameterizedType) field.getGenericType();
               Class listValueType = Class.forName(listType.getActualTypeArguments()[0].getTypeName());
-              if(listValueType == Long.class){
+              if (listValueType == Long.class) {
                 ((Collection) obj).add(((LongValue) expression).getValue());
-              }else if(listValueType == Integer.class){
+              } else if (listValueType == Integer.class) {
                 ((Collection) obj).add(((LongValue) expression).getValue());
-              }else{
-                Serializer.log("In LongValue "+listValueType.getName());
+              } else {
+                Serializer.log("In LongValue " + listValueType.getName());
               }
-            }else {
+            } else {
               ((Collection) obj).add(((LongValue) expression).getValue());
             }
-          }else{
+          } else {
             System.out.println("lost long");
           }
-        }else {
+        } else {
           PropertyDescriptor propertyDescriptor = new PropertyDescriptor(column, obj.getClass());
-          if(propertyDescriptor.getPropertyType().isAssignableFrom(Integer.class)){
+          if (propertyDescriptor.getPropertyType().isAssignableFrom(Integer.class)) {
             propertyDescriptor.getWriteMethod().invoke(obj, Long.valueOf(((LongValue) expression).getValue()).intValue());
-          }else if(propertyDescriptor.getPropertyType().isAssignableFrom(Long.class)){
+          } else if (propertyDescriptor.getPropertyType().isAssignableFrom(Long.class)) {
             propertyDescriptor.getWriteMethod().invoke(obj, ((LongValue) expression).getValue());
           }
         }
-      }else if (expression instanceof DoubleValue) {
-        if(column==null){
-          if(obj instanceof Collection){
-            if(field != null) {
+      } else if (expression instanceof DoubleValue) {
+        if (column == null) {
+          if (obj instanceof Collection) {
+            if (field != null) {
               ParameterizedType listType = (ParameterizedType) field.getGenericType();
               Class listValueType = Class.forName(listType.getActualTypeArguments()[0].getTypeName());
-              if(listValueType == Float.class){
+              if (listValueType == Float.class) {
                 ((Collection) obj).add(Double.valueOf(((DoubleValue) expression).getValue()).floatValue());
-              }else if(listValueType == Double.class){
+              } else if (listValueType == Double.class) {
                 ((Collection) obj).add(((DoubleValue) expression).getValue());
-              }else{
-                Serializer.log("In DoubleValue "+listValueType.getName());
+              } else {
+                Serializer.log("In DoubleValue " + listValueType.getName());
               }
-            }else {
+            } else {
               ((Collection) obj).add(((DoubleValue) expression).getValue());
             }
-          }else{
+          } else {
             System.out.println("lost long");
           }
-        }else {
+        } else {
           PropertyDescriptor propertyDescriptor = new PropertyDescriptor(column, obj.getClass());
-          if(propertyDescriptor.getPropertyType().isAssignableFrom(Float.class)){
+          if (propertyDescriptor.getPropertyType().isAssignableFrom(Float.class)) {
             propertyDescriptor.getWriteMethod().invoke(obj, Double.valueOf(((DoubleValue) expression).getValue()).floatValue());
-          }else if(propertyDescriptor.getPropertyType().isAssignableFrom(Double.class)){
+          } else if (propertyDescriptor.getPropertyType().isAssignableFrom(Double.class)) {
             propertyDescriptor.getWriteMethod().invoke(obj, ((DoubleValue) expression).getValue());
           }
         }
-      }else if (expression instanceof RowConstructor) {
+      }else if (expression instanceof ValueListExpression){
+        ((ValueListExpression) expression).getExpressionList().getExpressions().forEach(expr-> {
+          try {
+            setColumnVal(expr, column, obj, field);
+          } catch (InvocationTargetException e) {
+            throw new RuntimeException(e);
+          } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+          }
+        });
+      } else if (expression instanceof RowConstructor) {
         PropertyDescriptor propertyDescriptor = null;
         if (column != null) {
           propertyDescriptor = new PropertyDescriptor(column, obj.getClass());
@@ -326,13 +487,13 @@ public class SQLHandler{
             }
           });
         }
-      }else if(expression instanceof EqualsTo) {
+      } else if (expression instanceof EqualsTo) {
         String columnName = ((Column) ((EqualsTo) expression).getLeftExpression()).getColumnName();
         PropertyDescriptor propertyDescriptor = new PropertyDescriptor(columnName, obj.getClass());
-        if(propertyDescriptor.getPropertyType().isAssignableFrom(List.class)) {
+        if (propertyDescriptor.getPropertyType().isAssignableFrom(List.class)) {
 
           List listObject = (List) propertyDescriptor.getReadMethod().invoke(obj);
-          if(listObject==null){
+          if (listObject == null) {
             ParameterizedType listType = (ParameterizedType) obj.getClass().getDeclaredField(columnName).getGenericType();
             Class listValueType = Class.forName(listType.getActualTypeArguments()[0].getTypeName());
             listObject = Serializer.getObjectMapper().getOm().readValue(
@@ -346,17 +507,144 @@ public class SQLHandler{
           }
           Field newField = obj.getClass().getDeclaredField(columnName);
           setColumnVal(((EqualsTo) expression).getRightExpression(), null, listObject, newField);
-        }else{
+        } else {
           setColumnVal(((EqualsTo) expression).getRightExpression(), columnName, obj, field);
         }
-      }else if(expression instanceof Parenthesis){
+      } else if (expression instanceof Parenthesis) {
         setColumnVal(((Parenthesis) expression).getExpression(), column, obj, field);
-        //Serializer.log(.getClass().getName());
       } else {
-        System.out.println("last: "+expression.getClass().getName());
+        System.out.println("last: " + expression.getClass().getName());
       }
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  public static boolean handleUpdate(Update sqlStatement, NucleoDB nucleoDB) {
+    String tableName = sqlStatement.getTable().getName();
+    try {
+      DataTable table = nucleoDB.getTable(tableName);
+
+      Set<DataEntry> dataEntries = evaluateWhere(sqlStatement.getWhere(), table);
+
+      for (UpdateSet updateSet : sqlStatement.getUpdateSets()) {
+        List<String> columns = updateSet.getColumns().stream().map(col -> col.getFullyQualifiedName()).collect(Collectors.toList());
+        List<Expression> expressions = updateSet.getExpressions();
+        for (int i = 0; i < columns.size(); i++) {
+          applyChangesToEntries(columns.get(i), expressions.get(i), dataEntries);
+        }
+      }
+      AtomicReference<TreeSetExt<DataEntry>> dataEntriesList = new AtomicReference<>();
+      dataEntriesList.set(new TreeSetExt<>());
+      for (DataEntry dataEntryUnsaved : dataEntries) {
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        dataEntryUnsaved.versionIncrease();
+        table.save(dataEntryUnsaved, dataEntryNew -> {
+          dataEntriesList.get().add(dataEntryNew);
+          countDownLatch.countDown();
+        });
+        countDownLatch.await();
+      }
+      Serializer.log("Saved changed "+dataEntriesList.get().size());
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return false;
+  }
+
+  public static void applyChangesToEntries(String column, Expression expression, Set<DataEntry> dataEntries) {
+    Queue<String> columnPointer = Queues.newArrayDeque();
+    dataEntries.forEach(de -> {
+      columnPointer.addAll(Arrays.asList(column.split("\\.")));
+      Object obj = de.getData();
+      Field field = null;
+      PropertyDescriptor propertyDescriptor = null;
+      Class fieldClazz = null;
+      try {
+        if(field !=null) fieldClazz = Class.forName(field.getType().getTypeName());
+      } catch (ClassNotFoundException e) {
+        throw new RuntimeException(e);
+      }
+      String columnName = null;
+      while (!columnPointer.isEmpty()) {
+        columnName = columnPointer.poll();
+        if (columnName.matches("i([0-9]+)")) {
+          Pattern pattern = Pattern.compile("i([0-9]+)");
+          Matcher matcher = pattern.matcher(columnName);
+          if (matcher.find()) {
+            int index = Integer.valueOf(matcher.group(1));
+            if (fieldClazz.isAssignableFrom(List.class)) {
+              ParameterizedType listType = (ParameterizedType) field.getGenericType();
+              try {
+                Class listValueType = Class.forName(listType.getActualTypeArguments()[0].getTypeName());
+                if (((List) obj).size() > index && !listValueType.isAssignableFrom(String.class)) {
+                  obj = ((List) obj).get(index);
+                } else {
+                  columnName = null;
+                }
+              } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+              }
+            }
+          }
+        } else if (columnName.equalsIgnoreCase("new")) {
+          try {
+            if (fieldClazz.isAssignableFrom(List.class)) {
+              ParameterizedType listType = (ParameterizedType) field.getGenericType();
+              Class listValueType = Class.forName(listType.getActualTypeArguments()[0].getTypeName());
+              Object o = listValueType.getConstructor().newInstance();
+              ((List) obj).add(o);
+              obj = o;
+              columnName = null;
+            } else {
+              Object tmp = field.getDeclaringClass().getConstructor().newInstance();
+              field.set(obj, tmp);
+              obj = tmp;
+            }
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
+        } else {
+          try {
+            field = obj.getClass().getDeclaredField(columnName);
+            propertyDescriptor = new PropertyDescriptor(columnName, obj.getClass());
+            fieldClazz = Class.forName(field.getType().getTypeName());
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
+          try {
+            if (fieldClazz.isAssignableFrom(List.class)) {
+              Object tmp = propertyDescriptor.getReadMethod().invoke(obj);
+              ParameterizedType listType = (ParameterizedType) field.getGenericType();
+              try {
+                if (tmp == null) {
+                  Class listValueType = Class.forName(listType.getActualTypeArguments()[0].getTypeName());
+                  tmp = Serializer.getObjectMapper().getOm().readValue(
+                      "[]",
+                      Serializer.getObjectMapper().getOm().getTypeFactory().constructCollectionType(
+                          List.class,
+                          listValueType
+                      )
+                  );
+                  field.set(obj, tmp);
+                }
+              } catch (Exception e) {
+                e.printStackTrace();
+              }
+              obj = tmp;
+            }
+          } catch (IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+          }
+        }
+      }
+      try {
+        setColumnVal(expression, columnName, obj, field);
+      } catch (InvocationTargetException e) {
+        throw new RuntimeException(e);
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    });
   }
 }

@@ -29,6 +29,17 @@ public class Anime implements Serializable{
     this.actors = actors;
   }
 
+  public Anime(String name, Float rating) {
+    this.name = name;
+    this.rating = rating;
+  }
+
+  public Anime(String name, List<String> tags, Float rating) {
+    this.name = name;
+    this.tags = tags;
+    this.rating = rating;
+  }
+
   public String getName() {
     return name;
   }

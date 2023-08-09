@@ -9,6 +9,7 @@ import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.update.Update;
 
 import java.time.Instant;
 import java.util.*;
@@ -17,7 +18,7 @@ public class NucleoDB {
     private TreeMap<String, DataTable> tables = new TreeMap<>();
     static String latestSave = "";
 
-    public <T> Set<T> select(String sqlStr, Class clazz) throws JSQLParserException {
+    public <T> List<T> select(String sqlStr, Class clazz) throws JSQLParserException {
         try {
             Statement sqlStatement = CCJSqlParserUtil.parse(sqlStr);
 
@@ -39,6 +40,17 @@ public class NucleoDB {
             e.printStackTrace();
         }
         return null;
+    }
+    public boolean update(String sqlStr) {
+        try {
+            Statement sqlStatement = CCJSqlParserUtil.parse(sqlStr);
+            if (sqlStatement instanceof Update) {
+                return SQLHandler.handleUpdate((Update) sqlStatement, this);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return false;
     }
 
     public DataTable getTable(String table){

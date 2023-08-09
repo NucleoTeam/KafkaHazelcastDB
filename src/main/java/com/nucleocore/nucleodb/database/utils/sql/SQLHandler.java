@@ -111,6 +111,7 @@ public class SQLHandler{
       return false;
     }
   }
+  static Map<Object, Map<String, Object>> cache = new HashMap<>();
   public static <T> List<T> handleSelect(Select select, NucleoDB nucleoDB, Class<T> clazz) {
     PlainSelect plainSelect = (PlainSelect) select.getSelectBody();
     String tableName = plainSelect.getFromItem().toString();
@@ -140,7 +141,7 @@ public class SQLHandler{
           Column columnExpression = ((Column) expr);
           String column = "data."+columnExpression.getFullyQualifiedName();
           //Serializer.log("adding sort on "+column);
-          Map<Object, Map<String, Object>> cache = new HashMap<>();
+
           Function function = s -> {
             // handle cache
             Map<String, Object> objCache = cache.get(s);

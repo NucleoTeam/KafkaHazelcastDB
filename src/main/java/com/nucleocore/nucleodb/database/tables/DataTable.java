@@ -202,7 +202,6 @@ public class DataTable implements Serializable {
     private long lastReq = 0;
 
     Set<DataEntry> createNewObject(Set<DataEntry> o){
-
         try {
             Set<DataEntry> set = Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(o), new TypeReference<TreeSet<DataEntry>>(){});
             for (DataEntry dataEntry : set) {
@@ -217,7 +216,7 @@ public class DataTable implements Serializable {
 
     public Set<DataEntry> search(String key, Object searchObject) {
         try {
-            return createNewObject(this.indexes.get(key).search(searchObject));
+            return this.indexes.get(key).search(searchObject);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -233,7 +232,7 @@ public class DataTable implements Serializable {
                 entries = this.indexes.get(key).get(value);
             }
             if(entries!=null) {
-                return createNewObject(entries);
+                return entries;
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -252,7 +251,7 @@ public class DataTable implements Serializable {
             Set<DataEntry> negation = new TreeSet<>(entries);
             negation.removeAll(foundEntries);
             if(entries!=null) {
-                return createNewObject(negation);
+                return negation;
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -611,7 +610,7 @@ public class DataTable implements Serializable {
     }
 
     public Set<DataEntry> getDataEntries() {
-        return createNewObject(dataEntries);
+        return dataEntries;
     }
 
     public void setDataEntries(Set<DataEntry> dataEntries) {

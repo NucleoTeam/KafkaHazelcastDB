@@ -17,12 +17,8 @@ public class SqlSample{
       public void run() {
         System.out.println("STARTUP COMPLETE");
         try {
-          db.getTable("anime").setSave(false);
+          //db.getTable("anime").setSave(false);
 
-          for (int i = 0; i < 300; i++) {
-
-
-            //populateDB(db);
             long time = System.currentTimeMillis();
             List<AnimeDTO> response = db.select("SELECT * FROM anime WHERE actors.name='Maaya Sakamoto' LIMIT 1;", AnimeDTO.class);
             Serializer.log(response);
@@ -47,16 +43,34 @@ public class SqlSample{
             response = db.select("SELECT * FROM anime WHERE votes in (5.5) LIMIT 1;", AnimeDTO.class);
             Serializer.log(response);
             Serializer.log((System.currentTimeMillis() - time) + "ms to fetch");
-          }
+            time = System.currentTimeMillis();
+            response = db.select("SELECT * FROM anime WHERE name='Bleach'", AnimeDTO.class);
+            Serializer.log(response);
+            Serializer.log((System.currentTimeMillis() - time) + "ms to fetch");
+          time = System.currentTimeMillis();
+          response = db.select("SELECT * FROM anime WHERE tags in ('Horror');", AnimeDTO.class);
+          Serializer.log(response);
+          Serializer.log((System.currentTimeMillis() - time) + "ms to fetch");
           //DataEntry de = db.insert("INSERT INTO anime SET name='Woot', rating=2.5, votes=(1.2,5.5,2.4,3.4), actors=((name='Megumi Toyoguchi', character='Witch', tags=('works?')), (name='Maaya Sakamoto')), tags=('Action','Fantasy')");
           //Serializer.log(de);
           //Serializer.log(db.update("UPDATE anime SET name='.Hack//Sign', actors.i0.name='test', actors.new=(name='actor1', tags=('tagOne','tagTwo')) WHERE id='a0f5fd74-18b4-40d0-8d7b-a5bbef2c6182'"));
         } catch (Exception e) {
-          throw new RuntimeException(e);
+          e.printStackTrace();
         }
       }
     }, "name", "tags", "actors.name", "votes", "actors.tags");
+    //populateDB(db);
+    /*try {
+      populateDBTwo(db);
+    } catch (JSQLParserException e) {
+      e.printStackTrace();
+    }*/
+  }
 
+  static void populateDBTwo(NucleoDB db) throws JSQLParserException {
+    Serializer.log(db.sql("INSERT INTO anime SET name='Hellsing Ultimate', tags=('Action','Horror','Supernatural'), actors=((name='Maaya Sakamoto',character='Rip Van Winkle'),(name='Fumiko Orikasa', character='Seras Victoria'))"));
+    Serializer.log(db.sql("DELETE FROM anime WHERE name='Bleach'"));
+    Serializer.log(db.sql("INSERT INTO anime SET name='Bleach', tags=('Action','Adventure','Fantasy'), actors=((name='Fumiko Orikasa', character='Rukia Kuchiki'))"));
   }
 
   static void populateDB(NucleoDB db) {

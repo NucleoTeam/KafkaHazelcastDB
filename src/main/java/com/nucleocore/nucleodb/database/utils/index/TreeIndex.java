@@ -73,7 +73,9 @@ public class TreeIndex extends Index implements Serializable{
   @Override
   public void delete(DataEntry dataEntry) {
     //System.out.println("Delete "+dataEntry);
-    reverseMap.get(dataEntry).forEach(c -> c.remove(dataEntry));
+    Set<Set<DataEntry>> i = reverseMap.get(dataEntry);
+    if(i!=null)
+      i.forEach(c -> c.remove(dataEntry));
     reverseMap.remove(dataEntry);
     //System.out.println(reverseMap.get(dataEntry));
   }

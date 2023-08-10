@@ -24,6 +24,7 @@ import net.sf.jsqlparser.expression.operators.relational.InExpression;
 import net.sf.jsqlparser.expression.operators.relational.LikeExpression;
 import net.sf.jsqlparser.expression.operators.relational.NotEqualsTo;
 import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.OrderByElement;
 import net.sf.jsqlparser.statement.select.PlainSelect;
@@ -112,6 +113,89 @@ public class SQLHandler{
     }
   }
   static Map<Object, Map<String, Object>> cache = new HashMap<>();
+
+  public static Function createComparatorFunction(String column){
+    return s -> {
+      // handle cache
+      Map<String, Object> objCache = cache.get(s);
+      if(objCache!=null && objCache.containsKey(column)){
+        Serializer.log("Use cache for "+column +" for "+s.toString());
+        return objCache.get(column);
+      }
+      Serializer.log("Grab data from  "+column +" for "+s.toString());
+      Queue<String> queue = Queues.newLinkedBlockingDeque(Arrays.asList(column.split("\\.")));
+      //Serializer.log(queue);
+      Object o = s;
+      PropertyDescriptor columnField;
+      while (!queue.isEmpty()) {
+        String next = queue.poll();
+        //Serializer.log("going to: "+next);
+        if (next.matches("i([0-9]+)")) {
+          if (o instanceof List) {
+            Pattern pattern = Pattern.compile("i([0-9]+)");
+            Matcher matcher = pattern.matcher(next);
+            if (matcher.find()) {
+              int index = Integer.valueOf(matcher.group(1));
+              o = ((List<?>) o).get(index);
+            } else {
+              o=null;
+              break;
+            }
+          }
+        } else {
+          try {
+            columnField = new PropertyDescriptor(next, o.getClass());
+            o = columnField.getReadMethod().invoke(o);
+          }catch (Exception e){
+            o=null;
+            break;
+          }
+        }
+      }
+      if(o==s){
+        return null;
+      }
+      objCache = cache.get(s);
+      if(objCache==null){
+        objCache = new HashMap<>();
+        cache.put(s, objCache);
+      }
+      objCache.put(column, o);
+      return o;
+    };
+  }
+  public static Comparator createSorting(List<OrderByElement> orderByElements){
+    Comparator comparator = null;
+    for (OrderByElement orderByElement : orderByElements) {
+      Expression expr = orderByElement.getExpression();
+      //Serializer.log(expr.getClass().getName());
+      if (expr instanceof Column) {
+        Column columnExpression = ((Column) expr);
+        String column = "data."+columnExpression.getFullyQualifiedName();
+        //Serializer.log("adding sort on "+column);
+
+        Function function = createComparatorFunction(column);
+
+        if (comparator == null) {
+          if (!orderByElement.isAsc()) {
+            //Serializer.log("reverse");
+            comparator = new NullComparator(function).reversed();
+          }else{
+            comparator = new NullComparator(function);
+          }
+        } else {
+
+          if (!orderByElement.isAsc()) {
+            //Serializer.log("reverse");
+            comparator = comparator.thenComparing(new NullComparator(function)).reversed();
+          }else{
+            comparator = comparator.thenComparing(new NullComparator(function));
+          }
+        }
+      }
+    }
+    return comparator;
+  }
   public static <T> List<T> handleSelect(Select select, NucleoDB nucleoDB, Class<T> clazz) {
     PlainSelect plainSelect = (PlainSelect) select.getSelectBody();
     String tableName = plainSelect.getFromItem().toString();
@@ -133,81 +217,7 @@ public class SQLHandler{
     }
     List<DataEntry> sortedEntries = foundEntries.stream().toList();
     if(plainSelect.getOrderByElements()!=null) {
-      Comparator comparator = null;
-      for (OrderByElement orderByElement : plainSelect.getOrderByElements()) {
-        Expression expr = orderByElement.getExpression();
-        //Serializer.log(expr.getClass().getName());
-        if (expr instanceof Column) {
-          Column columnExpression = ((Column) expr);
-          String column = "data."+columnExpression.getFullyQualifiedName();
-          //Serializer.log("adding sort on "+column);
-
-          Function function = s -> {
-            // handle cache
-            Map<String, Object> objCache = cache.get(s);
-            if(objCache!=null && objCache.containsKey(column)){
-              return objCache.get(column);
-            }
-            Queue<String> queue = Queues.newLinkedBlockingDeque(Arrays.asList(column.split("\\.")));
-            //Serializer.log(queue);
-            Object o = s;
-            PropertyDescriptor columnField;
-            while (!queue.isEmpty()) {
-              String next = queue.poll();
-              //Serializer.log("going to: "+next);
-              if (next.matches("i([0-9]+)")) {
-                if (o instanceof List) {
-                  Pattern pattern = Pattern.compile("i([0-9]+)");
-                  Matcher matcher = pattern.matcher(next);
-                  if (matcher.find()) {
-                    int index = Integer.valueOf(matcher.group(1));
-                    o = ((List<?>) o).get(index);
-                  } else {
-                    o=null;
-                    break;
-                  }
-                }
-              } else {
-                try {
-                  columnField = new PropertyDescriptor(next, o.getClass());
-                  o = columnField.getReadMethod().invoke(o);
-                }catch (Exception e){
-                  o=null;
-                  break;
-                }
-              }
-            }
-            if(o==s){
-              return null;
-            }
-            objCache = cache.get(s);
-            if(objCache==null){
-              objCache = new HashMap<>();
-              cache.put(s, objCache);
-            }
-            objCache.put(column, o);
-            return o;
-          };
-
-          if (comparator == null) {
-            if (!orderByElement.isAsc()) {
-              //Serializer.log("reverse");
-              comparator = new NullComparator(function).reversed();
-            }else{
-              comparator = new NullComparator(function);
-            }
-          } else {
-
-            if (!orderByElement.isAsc()) {
-              //Serializer.log("reverse");
-              comparator = comparator.thenComparing(new NullComparator(function)).reversed();
-            }else{
-              comparator = comparator.thenComparing(new NullComparator(function));
-            }
-          }
-        }
-      }
-      sortedEntries = (List<DataEntry>) sortedEntries.stream().sorted(comparator).collect(Collectors.toList());
+      sortedEntries = (List<DataEntry>) sortedEntries.stream().sorted(createSorting(plainSelect.getOrderByElements())).collect(Collectors.toList());
     }
     int offset = 0;
     int count = 25;
@@ -647,5 +657,53 @@ public class SQLHandler{
         throw new RuntimeException(e);
       }
     });
+  }
+
+  public static boolean handleDelete(Delete sqlStatement, NucleoDB nucleoDB) {
+    String tableName = sqlStatement.getTable().getName();
+    try {
+      DataTable table = nucleoDB.getTable(tableName);
+
+
+      List<DataEntry> dataEntries = evaluateWhere(sqlStatement.getWhere(), table).stream().toList();
+
+      if(sqlStatement.getOrderByElements()!=null) {
+        dataEntries = (List<DataEntry>) dataEntries.stream().sorted(createSorting(sqlStatement.getOrderByElements())).collect(Collectors.toList());
+      }
+
+      int offset = 0;
+      int count = Integer.MAX_VALUE;
+      if(sqlStatement.getLimit()!=null){
+        if(sqlStatement.getLimit().getOffset()!=null) {
+          if(sqlStatement.getLimit().getOffset() instanceof LongValue){
+            offset = Long.valueOf(((LongValue) sqlStatement.getLimit().getOffset()).getValue()).intValue();
+          }
+        }
+        if(sqlStatement.getLimit().getRowCount() instanceof LongValue){
+          count = Long.valueOf(((LongValue) sqlStatement.getLimit().getRowCount()).getValue()).intValue();
+        }
+      }
+
+      dataEntries = dataEntries.subList((offset>dataEntries.size())?dataEntries.size():offset, (offset+count>dataEntries.size())?dataEntries.size():offset+count);
+
+      Serializer.log("TO DELETE");
+      Serializer.log(dataEntries);
+      CountDownLatch countDownLatch = new CountDownLatch(dataEntries.size());
+      dataEntries.forEach(x->{
+        new Thread(()-> {
+          table.delete(x, (d) -> {
+            Serializer.log("DELETED ");
+            Serializer.log(d);
+            countDownLatch.countDown();
+          });
+        }).start();
+      });
+      countDownLatch.await();
+
+      Serializer.log("Deleted changed "+dataEntries.size());
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return false;
   }
 }

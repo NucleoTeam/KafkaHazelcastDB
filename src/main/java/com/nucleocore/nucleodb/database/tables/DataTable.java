@@ -213,6 +213,16 @@ public class DataTable implements Serializable {
         }
         return null;
     }
+    DataEntry createNewObject(DataEntry o){
+        try {
+            DataEntry dataEntry = Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(o), DataEntry.class);
+            dataEntry.setData(Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(dataEntry.getData()), clazz));
+            return dataEntry;
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     public Set<DataEntry> search(String key, Object searchObject) {
         try {
@@ -274,6 +284,13 @@ public class DataTable implements Serializable {
         return size;
     }
 
+    public boolean delete(DataEntry obj, Consumer<DataEntry> consumer){
+        return deleteInternalConsumer(obj, consumer);
+    }
+    public boolean delete(DataEntry entry){
+        return deleteInternalConsumer(entry, null);
+    }
+
     public boolean insert(Object obj){
         return saveInternalConsumer(new DataEntry(obj), null);
     }
@@ -332,6 +349,23 @@ public class DataTable implements Serializable {
         return false;
     }
 
+    private boolean deleteInternalConsumer(DataEntry entry, Consumer<DataEntry> consumer){
+        if(!save){
+            if(consumer!=null) consumer.accept(null);
+            return false;
+        }
+        DataEntry entryDelete = createNewObject(entry);
+        String changeUUID = UUID.randomUUID().toString();
+        entryDelete.versionIncrease();
+        Delete delete = new Delete(changeUUID, entryDelete);
+        producer.push(delete);
+        if(consumer!=null) {
+            consumers.put(changeUUID, consumer);
+        }
+        return true;
+    }
+
+
     class ModificationQueueItem {
         private Modification mod;
         private Object modification;
@@ -387,6 +421,7 @@ public class DataTable implements Serializable {
             while(true) {
                 while (!modqueue.isEmpty()) {
                     System.out.println("SOMETHING FOUND");
+                    Serializer.log(modqueue);
                     mqi = modqueue.pop();
                     if(mqi != null) {
                         modify(mqi.getMod(), mqi.getModification());
@@ -460,17 +495,22 @@ public class DataTable implements Serializable {
                     }
                     DataEntry de = keyToEntry.get(d.getKey());
                     if (de != null) {
-
+                        if(de.getVersion()>=d.getVersion()){
+                            System.out.println("Ignore already saved change.");
+                            return; // ignore change
+                        }
                         if (de.getVersion() + 1 != d.getVersion()) {
+                            Serializer.log("Version not ready!");
                             modqueue.add(new ModificationQueueItem(mod, modification));
                         } else {
-                            synchronized (entries) {
-                                entries.remove(de);
-                                keyToEntry.remove(de.getKey());
-                                dataEntries.remove(de);
-                            }
+                            entries.remove(de);
+                            keyToEntry.remove(de.getKey());
+                            dataEntries.remove(de);
                             this.indexes.values().forEach(i->i.delete(de));
                             size--;
+                            if (consumers.containsKey(d.getChangeUUID())) {
+                                consumers.remove(d.getChangeUUID()).accept(de);
+                            }
                             this.changed = new Date().getTime();
                             fireListeners(Modification.DELETE, de);
                         }
@@ -496,6 +536,7 @@ public class DataTable implements Serializable {
                                 return; // ignore change
                             }
                             if (de.getVersion() + 1 != u.getVersion()) {
+                                Serializer.log("Version not ready!");
                                 modqueue.add(new ModificationQueueItem(mod, modification));
                             } else {
                                 if (consumers.containsKey(de.getKey())) {
@@ -506,7 +547,6 @@ public class DataTable implements Serializable {
                                 de.setData(Serializer.getObjectMapper().getOm().readValue(de.getReference().toString(), de.getData().getClass()));
                                 System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(de.getData()));
                                 u.getOperations().forEach(op->{
-
                                     switch(op.getOp()){
                                         case "replace":
                                         case "add":

@@ -7,6 +7,7 @@ import com.nucleocore.nucleodb.database.utils.StartupRun;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.update.Update;
@@ -17,6 +18,42 @@ import java.util.*;
 public class NucleoDB {
     private TreeMap<String, DataTable> tables = new TreeMap<>();
     static String latestSave = "";
+
+    public <T> Object sql(String sqlStr) throws JSQLParserException {
+        try {
+            Statement sqlStatement = CCJSqlParserUtil.parse(sqlStr);
+            if (sqlStatement instanceof Select) {
+                return SQLHandler.handleSelect((Select) sqlStatement, this, null);
+            }else if (sqlStatement instanceof Insert) {
+                return SQLHandler.handleInsert((Insert) sqlStatement, this);
+            }else if (sqlStatement instanceof Update) {
+                return SQLHandler.handleUpdate((Update) sqlStatement, this);
+            }else if (sqlStatement instanceof Delete) {
+                return SQLHandler.handleDelete((Delete) sqlStatement, this);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public <T> Object sql(String sqlStr, Class clazz) throws JSQLParserException {
+        try {
+            Statement sqlStatement = CCJSqlParserUtil.parse(sqlStr);
+
+            if (sqlStatement instanceof Select) {
+                return SQLHandler.handleSelect((Select) sqlStatement, this, clazz);
+            }else if (sqlStatement instanceof Insert) {
+                return SQLHandler.handleInsert((Insert) sqlStatement, this);
+            }else if (sqlStatement instanceof Update) {
+                return SQLHandler.handleUpdate((Update) sqlStatement, this);
+            }else if (sqlStatement instanceof Delete) {
+                return SQLHandler.handleDelete((Delete) sqlStatement, this);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     public <T> List<T> select(String sqlStr, Class clazz) throws JSQLParserException {
         try {
@@ -54,7 +91,7 @@ public class NucleoDB {
     }
 
     public DataTable getTable(String table){
-        return (DataTable)tables.get(table);
+        return tables.get(table);
     }
     public DataTable launchNucleoTable(String bootstrap, String table, Class clazz, String... index){
         StartupRun startup = new StartupRun(){

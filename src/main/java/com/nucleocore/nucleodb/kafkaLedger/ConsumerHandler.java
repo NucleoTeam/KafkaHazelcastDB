@@ -26,6 +26,7 @@ public class ConsumerHandler implements Runnable {
         this.consumer = createConsumer(bootstrap, groupName);
 
         this.subscribe(new String[]{table});
+        Serializer.log(table);
 
         consumer.commitSync();
 
@@ -69,7 +70,7 @@ public class ConsumerHandler implements Runnable {
                             try {
                                 String type = entry.substring(0, 6);
                                 String data = entry.substring(6);
-                                //System.out.println("Action: " + type + " data: "+data);
+                                System.out.println("Action: " + type + " data: "+data);
                                 Modification mod = Modification.get(type);
                                 if (mod != null) {
                                     database.modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));

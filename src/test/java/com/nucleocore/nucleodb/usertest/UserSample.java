@@ -5,9 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.nucleodb.NucleoDB;
 import com.nucleocore.nucleodb.database.utils.DataEntry;
 import com.nucleocore.nucleodb.database.utils.StartupRun;
+import com.nucleocore.nucleodb.test.User;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 
@@ -20,17 +20,13 @@ public class UserSample{
   }
   public static void runTest(){
     NucleoDB db = new NucleoDB();
-    db.launchNucleoTable(null, "playerlist", User.class, new StartupRun(){
-      public void run() {
-        System.out.println("STARTUP COMPLETE");
-      }
-    }, "/user");
+    db.launchTable("127.0.0.1:29092", "playerlist", User.class, table->{
+      System.out.println("STARTUP COMPLETE");
+    }).setIndexes("user").build();
 
-    db.launchNucleoTable(null, "usertest", User.class, Instant.ofEpochSecond(1690785144,702348000), new StartupRun(){
-      public void run() {
+    db.launchTable("127.0.0.1:29092", "usertest", User.class, table -> {
         System.out.println("STARTUP COMPLETE");
-      }
-    }, "/user");
+    }).setIndexes("user").setReadToTime(Instant.ofEpochSecond(1690785144,702348000)).build();
     //db.getTable("test4").addListener(Modification.DELETE, (d)->System.out.println("Deleted "+d.getClass().getName()));
     // db.getTable("userDataTest").addListener(Modification.CREATE, (d)->System.out.println("Created "+d.getClass().getName()));
     ObjectMapper om = new ObjectMapper();

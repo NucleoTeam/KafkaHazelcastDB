@@ -349,7 +349,7 @@ public class SQLHandler{
     String tableName = sqlStatement.getTable().getName();
     try {
       DataTable table = nucleoDB.getTable(tableName);
-      Object obj = table.getClazz().getConstructor().newInstance();
+      Object obj = table.getConfig().getClazz().getConstructor().newInstance();
 
       String[] columns = sqlStatement.getSetColumns().stream().map(c -> c.getColumnName()).collect(Collectors.toList()).toArray(new String[0]);
 
@@ -688,17 +688,23 @@ public class SQLHandler{
 
       Serializer.log("TO DELETE");
       Serializer.log(dataEntries);
-      CountDownLatch countDownLatch = new CountDownLatch(dataEntries.size());
-      dataEntries.forEach(x->{
-        new Thread(()-> {
-          table.delete(x, (d) -> {
-            Serializer.log("DELETED ");
-            Serializer.log(d);
-            countDownLatch.countDown();
-          });
-        }).start();
-      });
-      countDownLatch.await();
+      if(dataEntries.size()!=0) {
+        CountDownLatch countDownLatch = new CountDownLatch(dataEntries.size());
+        dataEntries.forEach(x -> {
+          new Thread(() -> {
+            if (table.getDataEntries().contains(x)) {
+              table.delete(x, (d) -> {
+                Serializer.log("DELETED ");
+                Serializer.log(d);
+                countDownLatch.countDown();
+              });
+            } else {
+              countDownLatch.countDown();
+            }
+          }).start();
+        });
+        countDownLatch.await();
+      }
 
       Serializer.log("Deleted changed "+dataEntries.size());
     } catch (Exception e) {

@@ -1,4 +1,4 @@
-package com.nucleocore.nucleodb.sqltest;
+package com.nucleocore.nucleodb.test.sql;
 
 import java.io.Serializable;
 import java.util.ArrayList;

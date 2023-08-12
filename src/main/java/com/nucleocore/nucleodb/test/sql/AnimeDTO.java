@@ -1,4 +1,4 @@
-package com.nucleocore.nucleodb.sqltest;
+package com.nucleocore.nucleodb.test.sql;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JacksonException;
@@ -7,7 +7,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.nucleocore.nucleodb.database.utils.Serializer;
 import com.nucleocore.nucleodb.database.utils.sql.PrimaryKey;
 
 import java.io.IOException;

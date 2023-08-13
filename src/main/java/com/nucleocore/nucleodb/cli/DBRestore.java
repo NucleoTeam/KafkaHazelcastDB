@@ -3,7 +3,7 @@ package com.nucleocore.nucleodb.cli;
 import com.nucleocore.nucleodb.NucleoDB;
 import com.nucleocore.nucleodb.database.utils.Serializer;
 
-public class DBExport{
+public class DBRestore{
   public static void main(String[] args) throws ClassNotFoundException {
     NucleoDB db = new NucleoDB();
     Serializer.log(args);

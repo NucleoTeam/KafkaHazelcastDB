@@ -54,7 +54,7 @@ public class DataTableBuilder{
   }
 
   public DataTableBuilder setSaveChanges(boolean saveChanges) {
-    this.setSaveChanges(saveChanges);
+    this.config.setSaveChanges(saveChanges);
     return this;
   }
 

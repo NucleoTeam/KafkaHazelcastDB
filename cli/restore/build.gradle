@@ -1,0 +1,26 @@
+plugins {
+    id 'java'
+    id 'nucleodb.java-conventions'
+    id 'application'
+}
+
+group = 'com.nucleodb.restore'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(project(':shared'))
+    implementation(project(':library'))
+}
+
+application {
+    mainClass = 'com.nucleocore.library.cli.DBRestore'
+}
+
+
+test {
+    useJUnitPlatform()
+}

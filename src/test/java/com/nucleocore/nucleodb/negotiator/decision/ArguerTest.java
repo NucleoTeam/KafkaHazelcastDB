@@ -1,9 +1,7 @@
 package com.nucleocore.nucleodb.negotiator.decision;
 
-import com.nucleocore.nucleodb.NucleoDBNode;
-import com.nucleocore.nucleodb.negotiator.decision.hash.HashMeta;
-import com.nucleocore.nucleodb.negotiator.decision.support.ArgumentKafkaMessage;
-import com.nucleocore.nucleodb.negotiator.decision.support.ArgumentStep;
+import com.nucleocore.lib.NucleoDBNode;
+import com.nucleocore.lib.negotiator.decision.Arguer;
 import junit.framework.TestCase;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;

@@ -1,11 +1,10 @@
 package com.nucleocore.nucleodb.sqltest;
 
-import com.nucleocore.nucleodb.NucleoDB;
-import com.nucleocore.nucleodb.database.utils.Serializer;
-import com.nucleocore.nucleodb.database.utils.StartupRun;
-import com.nucleocore.nucleodb.test.sql.Anime;
-import com.nucleocore.nucleodb.test.sql.AnimeDTO;
-import com.nucleocore.nucleodb.test.sql.VoiceActor;
+import com.nucleocore.lib.NucleoDB;
+import com.nucleocore.lib.database.utils.Serializer;
+import com.nucleocore.lib.test.sql.Anime;
+import com.nucleocore.lib.test.sql.AnimeDTO;
+import com.nucleocore.lib.test.sql.VoiceActor;
 import net.sf.jsqlparser.JSQLParserException;
 
 import java.util.Arrays;

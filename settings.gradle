@@ -1,2 +1,5 @@
 rootProject.name = 'database'
+include 'memcache', 'shared', 'library'
+include ':cli:backup'
+include ':cli:restore'
 

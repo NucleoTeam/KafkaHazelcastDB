@@ -2,10 +2,9 @@ package com.nucleocore.nucleodb.usertest;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nucleocore.nucleodb.NucleoDB;
-import com.nucleocore.nucleodb.database.utils.DataEntry;
-import com.nucleocore.nucleodb.database.utils.StartupRun;
-import com.nucleocore.nucleodb.test.User;
+import com.nucleocore.lib.NucleoDB;
+import com.nucleocore.lib.database.utils.DataEntry;
+import com.nucleocore.lib.test.User;
 
 import java.time.Instant;
 import java.util.Scanner;

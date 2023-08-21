@@ -52,7 +52,7 @@ public class DataTable implements Serializable{
   private transient ProducerHandler producer = null;
   private transient ConsumerHandler consumer = null;
   private transient Map<String, Consumer<DataEntry>> consumers = new TreeMap<>();
-  private transient Map<Modification, Set<Consumer<DataEntry>>> listeners = new TreeMap<>();
+  private static Map<Modification, Set<Consumer<DataEntry>>> listeners = new TreeMap<>();
   private transient boolean unsavedIndexModifications = false;
   private transient int size = 0;
   private transient boolean buildIndex = true;
@@ -165,9 +165,9 @@ public class DataTable implements Serializable{
 
   public void consume() {
     if (this.config.getBootstrap() != null) {
-      System.out.println("TEST");
       String consumer = UUID.randomUUID().toString();
       for (String kafkaBroker : this.config.getBootstrap().split(",")) {
+        System.out.println(this.config.getTable() +" with "+consumer + " connecting to: "+kafkaBroker);
         new ConsumerHandler(kafkaBroker, consumer, this, this.config.getTable());
       }
     }
@@ -562,7 +562,7 @@ public class DataTable implements Serializable{
             }
             size++;
             if (consumers.containsKey(c.getChangeUUID())) {
-              consumers.remove(c.getChangeUUID()).accept(dataEntry);
+              new Thread(()->consumers.remove(c.getChangeUUID()).accept(dataEntry)).start();
             }
             this.changed = new Date().getTime();
             fireListeners(Modification.CREATE, dataEntry);
@@ -595,7 +595,7 @@ public class DataTable implements Serializable{
               this.indexes.values().forEach(i -> i.delete(de));
               size--;
               if (consumers.containsKey(d.getChangeUUID())) {
-                consumers.remove(d.getChangeUUID()).accept(de);
+                new Thread(()->consumers.remove(d.getChangeUUID()).accept(de)).start();
               }
               this.changed = new Date().getTime();
               fireListeners(Modification.DELETE, de);
@@ -608,7 +608,7 @@ public class DataTable implements Serializable{
       case UPDATE:
         Update u = (Update) modification;
 
-        //System.out.println("Update statement called");
+        System.out.println("Update statement called");
         if (u != null) {
           if (this.config.getReadToTime() != null && u.getTime().isAfter( this.config.getReadToTime())) {
             System.out.println("Update after target db date");
@@ -625,9 +625,6 @@ public class DataTable implements Serializable{
                 Serializer.log("Version not ready!");
                 modqueue.add(new ModificationQueueItem(mod, modification));
               } else {
-                if (consumers.containsKey(de.getKey())) {
-                  consumers.remove(de.getKey()).accept(de);
-                }
                 de.setReference(u.getChangesPatch().apply(de.getReference()));
                 de.setVersion(u.getVersion());
                 de.setData(Serializer.getObjectMapper().getOm().readValue(de.getReference().toString(), de.getData().getClass()));
@@ -655,6 +652,9 @@ public class DataTable implements Serializable{
                   }
                 });
                 this.changed = new Date().getTime();
+                if (consumers.containsKey(u.getChangeUUID())) {
+                  new Thread(()->consumers.remove(u.getChangeUUID()).accept(de)).start();
+                }
                 fireListeners(Modification.UPDATE, de);
               }
             } else {

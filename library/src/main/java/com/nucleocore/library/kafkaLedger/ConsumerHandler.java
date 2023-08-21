@@ -38,18 +38,29 @@ public class ConsumerHandler implements Runnable {
             try{
                 Thread.sleep(500);
             }catch (Exception e){
-
+                e.printStackTrace();
             }
         }
 
+        for (Object topicPartition : this.getConsumer().assignment()) {
+            this.getConsumer().seek(
+                new TopicPartition(table, ((TopicPartition)topicPartition).partition()),
+                0
+            );
+        }
+
+
         for(Map.Entry<Integer, Long> tmp: this.getDatabase().getPartitionOffsets().entrySet()){
+            Serializer.log(tmp.getKey()+" offset "+(tmp.getValue().longValue()+1));
             this.getConsumer().seek(
                 new TopicPartition(table, tmp.getKey()),
                 tmp.getValue().longValue()+1
             );
         };
 
+
         new Thread(this).start();
+
         for(int x=0;x<6;x++)
             new Thread(new QueueHandler()).start();
     }
@@ -107,9 +118,9 @@ public class ConsumerHandler implements Runnable {
         consumer.commitAsync();
         try {
             do {
-                ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofMillis(5));
+                ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofMillis(100));
                 if (!rs.isEmpty()) {
-                    //System.out.println("RECEIVED DATA");
+                    System.out.println("RECEIVED DATA");
                     Iterator<ConsumerRecord<Integer, String>> iter = rs.iterator();
                     while (iter.hasNext()) {
                         ConsumerRecord<Integer,String> record =  iter.next();
@@ -121,7 +132,7 @@ public class ConsumerHandler implements Runnable {
                 }
                 consumer.commitAsync();
                 if(!startup && initialLoad()){
-                    this.database.startup();
+                    new Thread(()->this.database.startup()).start();
                     startup = true;
                 }
             } while (!Thread.interrupted());

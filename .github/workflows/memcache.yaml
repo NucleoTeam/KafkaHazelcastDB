@@ -1,7 +1,6 @@
 name: Publish memcached server
 on:
-  release:
-    types: [created]
+  push
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -21,4 +20,5 @@ jobs:
         with:
           arguments: ":memcache:publish"
         env:
+          GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

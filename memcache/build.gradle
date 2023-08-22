@@ -11,10 +11,10 @@ repositories {
     mavenCentral()
     maven {
         name = 'GitHubPackages'
-        url = uri("https://maven.pkg.github.com/OWNER/REPO") // Replace 'OWNER' and 'REPO' with appropriate values
+        url = uri("https://maven.pkg.github.com/NucleoTeam/NucleoDB") // Replace 'OWNER' and 'REPO' with appropriate values
         credentials {
-            username = project.findProperty("gpr.user") ?: System.getenv("USERNAME_GITHUB")
-            password = project.findProperty("gpr.token") ?: System.getenv("TOKEN_GITHUB")
+            username = System.getenv("GITHUB_ACTOR")
+            password = System.getenv("GITHUB_TOKEN")
         }
     }
 }

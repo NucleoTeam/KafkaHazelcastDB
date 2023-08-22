@@ -44,4 +44,4 @@ jobs:
           context: .
           file: ./memcache/Dockerfile
           push: true
-          tags: ghcr.io/NucleoTeam/ndb-memcache:latest
+          tags: ghcr.io/nucleoteam/ndb-memcache:latest

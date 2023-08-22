@@ -44,4 +44,4 @@ jobs:
           context: .
           file: ./cli/backup/Dockerfile
           push: true
-          tags: ghcr.io/NucleoTeam/ndb-backup:latest
+          tags: ghcr.io/nucleoteam/ndb-backup:latest

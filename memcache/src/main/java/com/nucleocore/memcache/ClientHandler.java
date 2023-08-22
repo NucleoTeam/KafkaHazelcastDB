@@ -10,6 +10,7 @@ import javax.xml.crypto.Data;
 import java.io.*;
 import java.net.*;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -56,7 +57,10 @@ public class ClientHandler implements Runnable{
           case "flush_all":
             int countdown = this.table.getEntries().size();
             CountDownLatch countDownLatch = new CountDownLatch(countdown);
-            this.table.getEntries().parallelStream().forEach(entry->this.table.delete(entry, (de)->countDownLatch.countDown()));
+            List<DataEntry> entryList = new LinkedList<>(this.table.getEntries());
+            for (int i = 0; i < entryList.size(); i++) {
+              this.table.delete(entryList.get(i), (de)->countDownLatch.countDown());
+            }
             countDownLatch.await();
             out.print("OK\r\n");
             break;

@@ -1,6 +1,7 @@
 plugins {
     id 'nucleodb.java-conventions'
     id("java")
+    id 'maven-publish'
     id 'application'
 }
 

@@ -18,7 +18,7 @@ jobs:
       - name: Publish package
         uses: gradle/gradle-build-action@749f47bda3e44aa060e82d7b3ef7e40d953bd629
         with:
-          arguments: ":memcache:shadowJar :memcache:publish"
+          arguments: ":cli:restore:shadowJar :cli:restore:publish"
         env:
           GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -42,6 +42,6 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: ./memcache/Dockerfile
+          file: ./cli/backup/Dockerfile
           push: true
-          tags: ghcr.io/NucleoTeam/ndb-memcache:latest
+          tags: ghcr.io/NucleoTeam/ndb-restore:latest

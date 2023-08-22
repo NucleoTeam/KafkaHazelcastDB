@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.nucleocore"
-version = "1.05.20"
+version = "1.05.21"
 
 repositories {
     mavenCentral()

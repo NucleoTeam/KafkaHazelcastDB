@@ -43,7 +43,7 @@ shadowJar {
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
+        shadow(MavenPublication) {
             from components.java
 
             // Additional configuration, e.g., add artifacts, set up pom details, etc.

@@ -3,6 +3,7 @@ plugins {
     id("java")
     id 'maven-publish'
     id 'application'
+    id 'com.github.johnrengelman.shadow' version '7.0.0'
 }
 
 group = "com.nucleocore"
@@ -27,13 +28,24 @@ dependencies {
 }
 
 application {
-    mainClass = 'com.nucleocore.memcache.NDBMemcache'
+    mainClass = ''
+}
+
+shadowJar {
+    archiveBaseName.set(group)
+    archiveVersion.set(version)
+    archiveClassifier.set('')
+
+    manifest {
+        attributes 'Main-Class': 'com.nucleocore.memcache.NDBMemcache'
+    }
 }
 
 publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
+            artifact shadowJar
 
             // Additional configuration, e.g., add artifacts, set up pom details, etc.
             pom {

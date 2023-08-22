@@ -28,17 +28,13 @@ dependencies {
 }
 
 application {
-    mainClass = ''
+    mainClass = 'com.nucleocore.memcache.NDBMemcache'
 }
 
 shadowJar {
     archiveBaseName.set(group)
     archiveVersion.set(version)
     archiveClassifier.set('')
-
-    manifest {
-        attributes 'Main-Class': 'com.nucleocore.memcache.NDBMemcache'
-    }
 }
 
 publishing {

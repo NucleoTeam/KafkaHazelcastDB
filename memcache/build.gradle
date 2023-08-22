@@ -45,7 +45,6 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
-            artifact shadowJar
 
             // Additional configuration, e.g., add artifacts, set up pom details, etc.
             pom {

@@ -35,6 +35,10 @@ shadowJar {
     archiveBaseName.set(group)
     archiveVersion.set(version)
     archiveClassifier.set('')
+
+    manifest {
+        attributes 'Main-Class': 'com.nucleocore.memcache.NDBMemcache'
+    }
 }
 
 publishing {

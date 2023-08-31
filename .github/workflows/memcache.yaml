@@ -20,8 +20,8 @@ jobs:
         with:
           arguments: ":memcache:shadowJar :memcache:publish"
         env:
-          SYNLOAD_REPO_USER: ${{ env.SYNLOAD_REPO_USER}}
-          SYNLOAD_REPO_PASS: ${{ env.SYNLOAD_REPO_PASS}}
+          SYNLOAD_REPO_USER: ${{ secrets.SYNLOAD_REPO_USER}}
+          SYNLOAD_REPO_PASS: ${{ secrets.SYNLOAD_REPO_PASS}}
   docker-publish:
     runs-on: ubuntu-latest
     permissions:

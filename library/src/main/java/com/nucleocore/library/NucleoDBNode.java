@@ -2,10 +2,6 @@ package com.nucleocore.library;
 
 import com.github.f4b6a3.uuid.UuidCreator;
 import com.nucleocore.library.negotiator.decision.hash.responses.ReasonResponse;
-import org.hyperic.sigar.CpuPerc;
-import org.hyperic.sigar.Mem;
-import org.hyperic.sigar.Sigar;
-import org.hyperic.sigar.SigarException;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -53,17 +49,18 @@ public class NucleoDBNode {
     return load;
   }
   public ReasonResponse.CPUPercent[] getCPUPercent() {
-    int len = cpuPercs.length;
-    ReasonResponse.CPUPercent[] cpuPercVals = new ReasonResponse.CPUPercent[len];
-    double adjustment = getAdjustedResources()*0.03;
-    for(int i=0;i<len;i++){
-      cpuPercVals[i] = new ReasonResponse.CPUPercent(cpuPercs[i].getCombined()+adjustment, cpuPercs[i].getIdle()-adjustment, cpuPercs[i].getUser()+adjustment, cpuPercs[i].getSys(), cpuPercs[i].getNice());
-    }
-    return cpuPercVals;
+//    int len = cpuPercs.length;
+//    ReasonResponse.CPUPercent[] cpuPercVals = new ReasonResponse.CPUPercent[len];
+//    double adjustment = getAdjustedResources()*0.03;
+//    for(int i=0;i<len;i++){
+//      cpuPercVals[i] = new ReasonResponse.CPUPercent(cpuPercs[i].getCombined()+adjustment, cpuPercs[i].getIdle()-adjustment, cpuPercs[i].getUser()+adjustment, cpuPercs[i].getSys(), cpuPercs[i].getNice());
+//    }
+    return null;
   }
   public ReasonResponse.Memory getMemory() {
-    long adjustment = getAdjustedResources()*256*7;
-    return new ReasonResponse.Memory(mem.getTotal(), mem.getUsed()+adjustment, mem.getActualUsed()+adjustment, mem.getFree()-adjustment, mem.getActualFree()-adjustment);
+//    long adjustment = getAdjustedResources()*256*7;
+//    return new ReasonResponse.Memory(mem.getTotal(), mem.getUsed()+adjustment, mem.getActualUsed()+adjustment, mem.getFree()-adjustment, mem.getActualFree()-adjustment);
+    return null;
   }
 
   public String getUniqueId() {
@@ -82,28 +79,28 @@ public class NucleoDBNode {
     return usedSlots.get();
   }
 
-  Mem mem;
-  CpuPerc[] cpuPercs;
+  //Mem mem;
+  //CpuPerc[] cpuPercs;
   double[] load;
 
   public void execute() {
-    Executors.newFixedThreadPool(1).execute(()-> {
-      Sigar sigar = new Sigar();
-      while (true) {
-        try {
-          mem = sigar.getMem();
-          load = sigar.getLoadAverage();
-          cpuPercs = sigar.getCpuPercList();
-        } catch (SigarException e) {
-          e.printStackTrace();
-        }
-        try {
-          Thread.sleep(400);
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-      }
-    });
+//    Executors.newFixedThreadPool(1).execute(()-> {
+//      Sigar sigar = new Sigar();
+//      while (true) {
+//        try {
+//          mem = sigar.getMem();
+//          load = sigar.getLoadAverage();
+//          cpuPercs = sigar.getCpuPercList();
+//        } catch (SigarException e) {
+//          e.printStackTrace();
+//        }
+//        try {
+//          Thread.sleep(400);
+//        } catch (InterruptedException e) {
+//          e.printStackTrace();
+//        }
+//      }
+//    });
   }
 
   public void setData(Map<String, Object> objects) {

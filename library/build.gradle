@@ -1,4 +1,5 @@
 plugins {
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'java'
     id 'java-library'
     id 'nucleodb.java-conventions'
@@ -19,6 +20,13 @@ repositories {
     }
 }
 
+shadowJar {
+    minimize()
+    archiveBaseName.set(group)
+    archiveVersion.set(version)
+    archiveClassifier.set('')
+}
+
 dependencies {
     implementation(project(':shared'))
 }
@@ -27,7 +35,7 @@ dependencies {
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            from components.java
+            artifact shadowJar
 
             // Additional configuration, e.g., add artifacts, set up pom details, etc.
             pom {

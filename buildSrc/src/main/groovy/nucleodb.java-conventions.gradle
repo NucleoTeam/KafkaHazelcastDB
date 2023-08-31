@@ -7,6 +7,9 @@ version = '1.0'
 
 repositories {
     mavenCentral()
+    maven{
+        url "https://repo.synload.com/"
+    }
 }
 
 dependencies {

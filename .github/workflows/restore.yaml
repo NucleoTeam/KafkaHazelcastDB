@@ -1,4 +1,4 @@
-name: Publish memcached server
+name: Publish restore cli
 on:
   push
 jobs:
@@ -20,8 +20,8 @@ jobs:
         with:
           arguments: ":cli:restore:shadowJar :cli:restore:publish"
         env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SYNLOAD_REPO_USER: ${{ env.SYNLOAD_REPO_USER}}
+          SYNLOAD_REPO_PASS: ${{ env.SYNLOAD_REPO_PASS}}
   docker-publish:
     runs-on: ubuntu-latest
     permissions:

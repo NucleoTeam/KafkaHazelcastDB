@@ -12,11 +12,11 @@ version = '1.0.0'
 repositories {
     mavenCentral()
     maven {
-        name = 'GitHubPackages'
-        url = uri("https://maven.pkg.github.com/NucleoTeam/NucleoDB") // Replace 'OWNER' and 'REPO' with appropriate values
+        name = 'SynloadRepo'
+        url = uri("https://nexus.synload.com/repository/maven-repo-releases/") // Replace 'OWNER' and 'REPO' with appropriate values
         credentials {
-            username = System.getenv("GITHUB_ACTOR")
-            password = System.getenv("GITHUB_TOKEN")
+            username = System.getenv("SYNLOAD_REPO_USER")
+            password = System.getenv("SYNLOAD_REPO_PASS")
         }
     }
 }
@@ -43,8 +43,8 @@ publishing {
 
             // Additional configuration, e.g., add artifacts, set up pom details, etc.
             pom {
-                name = 'NucleoDB Backup Server'
-                description = 'Backup for nucleodb'
+                name = 'NucleoDB Backup'
+                description = 'backup nucleodb table'
                 url = 'https://github.com/NucleoTeam/NucleoDB'
                 licenses {
                     license {
@@ -69,11 +69,11 @@ publishing {
     }
     repositories {
         maven {
-            name = 'GitHubPackages'
-            url = uri("https://maven.pkg.github.com/NucleoTeam/NucleoDB")
+            name = 'SynloadRepo'
+            url = uri("https://nexus.synload.com/repository/maven-repo-releases/")
             credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_TOKEN")
+                username = System.getenv("SYNLOAD_REPO_USER")
+                password = System.getenv("SYNLOAD_REPO_PASS")
             }
         }
     }

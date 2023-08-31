@@ -6,17 +6,17 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '7.0.0'
 }
 
-group = "com.nucleocore.memcache"
+group = "com.nucleocore.mysql"
 version = "1.05.21"
 
 repositories {
     mavenCentral()
     maven {
         name = 'GitHubPackages'
-        url = uri("https://nexus.synload.com/repository/maven-repo-releases/") // Replace 'OWNER' and 'REPO' with appropriate values
+        url = uri("https://maven.pkg.github.com/NucleoTeam/NucleoDB") // Replace 'OWNER' and 'REPO' with appropriate values
         credentials {
-            username = System.getenv("SYNLOAD_REPO_USER")
-            password = System.getenv("SYNLOAD_REPO_PASS")
+            username = System.getenv("GITHUB_ACTOR")
+            password = System.getenv("GITHUB_TOKEN")
         }
     }
 }
@@ -74,11 +74,11 @@ publishing {
     }
     repositories {
         maven {
-            name = 'SynloadRepo'
-            url = uri("https://nexus.synload.com/repository/maven-repo-releases/")
+            name = 'GitHubPackages'
+            url = uri("https://maven.pkg.github.com/NucleoTeam/NucleoDB")
             credentials {
-                username = System.getenv("SYNLOAD_REPO_USER")
-                password = System.getenv("SYNLOAD_REPO_PASS")
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
             }
         }
     }

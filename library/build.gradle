@@ -1,9 +1,10 @@
 plugins {
-    id 'com.github.johnrengelman.shadow' version '7.0.0'
+
     id 'java'
     id 'java-library'
     id 'nucleodb.java-conventions'
     id 'maven-publish'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 group = 'com.nucleocore'
@@ -19,18 +20,28 @@ repositories {
         }
     }
 }
-
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(19)
+    }
+}
+compileJava {
+    options.release = 19
+}
 shadowJar {
-    minimize()
     archiveBaseName.set(group)
     archiveVersion.set(version)
     archiveClassifier.set('')
+    minimize{
+        exclude(dependency('org.*:.*:.*'))
+        exclude(dependency('com.*:.*:.*'))
+        exclude(dependency('net.*:.*:.*'))
+    }
 }
 
 dependencies {
     implementation(project(':shared'))
 }
-
 
 publishing {
     publications {

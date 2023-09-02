@@ -32,11 +32,7 @@ shadowJar {
     archiveBaseName.set(group)
     archiveVersion.set(version)
     archiveClassifier.set('')
-    minimize{
-        exclude(dependency('org.*:.*:.*'))
-        exclude(dependency('com.*:.*:.*'))
-        exclude(dependency('net.*:.*:.*'))
-    }
+    minimize()
 }
 
 dependencies {

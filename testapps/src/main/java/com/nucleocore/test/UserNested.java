@@ -1,4 +1,4 @@
-package com.nucleocore.library.test;
+package com.nucleocore.test;
 
 import java.io.Serializable;
 

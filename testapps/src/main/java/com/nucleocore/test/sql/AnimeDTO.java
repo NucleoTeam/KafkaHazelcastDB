@@ -1,4 +1,4 @@
-package com.nucleocore.library.test.sql;
+package com.nucleocore.test.sql;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JacksonException;

@@ -2,7 +2,7 @@ plugins {
 
     id 'java'
     id 'java-library'
-    id 'nucleodb.java-conventions'
+    id 'nucleodb.library'
     id 'maven-publish'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
@@ -32,11 +32,9 @@ shadowJar {
     archiveBaseName.set(group)
     archiveVersion.set(version)
     archiveClassifier.set('')
-    minimize()
 }
 
 dependencies {
-    implementation(project(':shared'))
 }
 
 publishing {

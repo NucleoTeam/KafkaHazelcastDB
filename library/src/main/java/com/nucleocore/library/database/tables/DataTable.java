@@ -71,7 +71,7 @@ public class DataTable implements Serializable{
       try {
         DataTable tmpTable = (DataTable) new ObjectFileReader().readObjectFromFile(config.getTableFileName());
         this.dataEntries = tmpTable.dataEntries;
-        if(tmpTable.config!=null)
+        if (tmpTable.config != null)
           this.config.merge(tmpTable.config);
         this.changed = tmpTable.changed;
         this.entries = tmpTable.entries;
@@ -117,6 +117,7 @@ public class DataTable implements Serializable{
     }
     client.close();
   }
+
   public DataTable(DataTableConfig config) {
     this.config = config;
 
@@ -125,7 +126,7 @@ public class DataTable implements Serializable{
       loadSavedData();
     }
 
-    if(config.isWrite()) {
+    if (config.isWrite()) {
       createTopics();
     }
 
@@ -141,8 +142,7 @@ public class DataTable implements Serializable{
     }};
 
 
-
-    if(config.isRead()) {
+    if (config.isRead()) {
       System.out.println("Connecting to " + config.getBootstrap());
       new Thread(new ModQueueHandler()).start();
       this.consume();
@@ -156,7 +156,7 @@ public class DataTable implements Serializable{
       new Thread(new SaveHandler(this)).start();
     }
 
-    if(!config.isRead()){
+    if (!config.isRead()) {
       if (this.config.getStartupRun() != null) {
         this.config.getStartupRun().run(this);
       }
@@ -167,13 +167,13 @@ public class DataTable implements Serializable{
     if (this.config.getBootstrap() != null) {
       String consumer = UUID.randomUUID().toString();
       for (String kafkaBroker : this.config.getBootstrap().split(",")) {
-        System.out.println(this.config.getTable() +" with "+consumer + " connecting to: "+kafkaBroker);
+        System.out.println(this.config.getTable() + " with " + consumer + " connecting to: " + kafkaBroker);
         new ConsumerHandler(kafkaBroker, consumer, this, this.config.getTable());
       }
     }
   }
 
-  public void exportTo(DataTable tb){
+  public void exportTo(DataTable tb) {
     for (DataEntry de : this.entries) {
       Serializer.log("INSERTING " + de.getKey());
       try {
@@ -259,20 +259,20 @@ public class DataTable implements Serializable{
   }
 
   public Set<DataEntry> get(String key, Object value) {
+    Set<DataEntry> entries = new TreeSet<>();
     try {
-      Set<DataEntry> entries = new TreeSetExt<>();
       if (key.equals("id")) {
         entries = new TreeSet<>(Arrays.asList(this.keyToEntry.get(value)));
-      } else {
-        entries = this.indexes.get(key).get(value);
-      }
-      if (entries != null) {
-        return entries;
+      } else if (this.indexes.containsKey(key)) {
+        Set<DataEntry> tmpEntries = this.indexes.get(key).get(value);
+        if (tmpEntries != null) {
+          entries = tmpEntries;
+        }
       }
     } catch (Exception e) {
       e.printStackTrace();
     }
-    return new TreeSet<>();
+    return entries;
   }
 
   public Set<DataEntry> getNotEqual(String key, Object value) {
@@ -562,7 +562,7 @@ public class DataTable implements Serializable{
             }
             size++;
             if (consumers.containsKey(c.getChangeUUID())) {
-              new Thread(()->consumers.remove(c.getChangeUUID()).accept(dataEntry)).start();
+              new Thread(() -> consumers.remove(c.getChangeUUID()).accept(dataEntry)).start();
             }
             this.changed = new Date().getTime();
             fireListeners(Modification.CREATE, dataEntry);
@@ -595,7 +595,7 @@ public class DataTable implements Serializable{
               this.indexes.values().forEach(i -> i.delete(de));
               size--;
               if (consumers.containsKey(d.getChangeUUID())) {
-                new Thread(()->consumers.remove(d.getChangeUUID()).accept(de)).start();
+                new Thread(() -> consumers.remove(d.getChangeUUID()).accept(de)).start();
               }
               this.changed = new Date().getTime();
               fireListeners(Modification.DELETE, de);
@@ -610,7 +610,7 @@ public class DataTable implements Serializable{
 
         System.out.println("Update statement called");
         if (u != null) {
-          if (this.config.getReadToTime() != null && u.getTime().isAfter( this.config.getReadToTime())) {
+          if (this.config.getReadToTime() != null && u.getTime().isAfter(this.config.getReadToTime())) {
             System.out.println("Update after target db date");
             return;
           }
@@ -653,7 +653,7 @@ public class DataTable implements Serializable{
                 });
                 this.changed = new Date().getTime();
                 if (consumers.containsKey(u.getChangeUUID())) {
-                  new Thread(()->consumers.remove(u.getChangeUUID()).accept(de)).start();
+                  new Thread(() -> consumers.remove(u.getChangeUUID()).accept(de)).start();
                 }
                 fireListeners(Modification.UPDATE, de);
               }

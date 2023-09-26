@@ -340,6 +340,7 @@ public class SQLHandler{
   public static DataEntry handleInsert(Insert sqlStatement, NucleoDB nucleoDB) {
     String tableName = sqlStatement.getTable().getName();
     try {
+      Serializer.log("looking at table: "+tableName);
       DataTable table = nucleoDB.getTable(tableName);
       Object obj = table.getConfig().getClazz().getConstructor().newInstance();
 
@@ -374,6 +375,7 @@ public class SQLHandler{
             System.out.println("lost string");
           }
         } else {
+
           PropertyDescriptor propertyDescriptor = new PropertyDescriptor(column, obj.getClass());
           propertyDescriptor.getWriteMethod().invoke(obj, ((StringValue) expression).getValue());
         }

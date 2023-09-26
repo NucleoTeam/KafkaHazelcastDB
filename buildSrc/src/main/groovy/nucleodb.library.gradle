@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.nucleodb'
-version = '1.6.4'
+version = '1.7.0'
 
 repositories {
     mavenCentral()
@@ -24,6 +24,7 @@ dependencies {
     compileOnly group: 'net.sf.supercsv', name: 'super-csv-java8', version: '2.4.0'
     compileOnly 'com.github.f4b6a3:uuid-creator:4.5.0'
     compileOnly 'com.google.guava:guava:28.1-jre'
+    compileOnly 'org.reflections:reflections:0.10.2'
     compileOnly 'com.github.java-json-tools:json-patch:1.13'
     compileOnly 'org.glassfish:javax.json:1.1.4'
     compileOnly group: 'org.apache.commons', name: 'commons-collections4', version: '4.4'

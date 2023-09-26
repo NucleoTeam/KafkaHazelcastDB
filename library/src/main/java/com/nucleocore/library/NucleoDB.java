@@ -1,5 +1,14 @@
 package com.nucleocore.library;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.Queues;
+import com.nucleocore.library.database.tables.annotation.Index;
+import com.nucleocore.library.database.tables.annotation.Relationship;
+import com.nucleocore.library.database.tables.annotation.Relationships;
+import com.nucleocore.library.database.tables.annotation.Table;
+import com.nucleocore.library.database.utils.Serializer;
+import com.nucleocore.library.database.utils.TreeSetExt;
+import com.nucleocore.library.database.utils.index.TreeIndex;
 import com.nucleocore.library.database.utils.sql.SQLHandler;
 import com.nucleocore.library.database.tables.DataTable;
 import com.nucleocore.library.database.tables.DataTableBuilder;
@@ -12,12 +21,173 @@ import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.update.Update;
+import org.reflections.Reflections;
 
+import java.lang.reflect.Field;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 
 public class NucleoDB {
     private TreeMap<String, DataTable> tables = new TreeMap<>();
     static String latestSave = "";
+
+    public NucleoDB() {
+    }
+
+    public class TableData {
+
+    }
+
+    public NucleoDB(String bootstrap, String packageToScan) {
+        Set<Class<?>> types = new Reflections(packageToScan).getTypesAnnotatedWith(Table.class);
+        CountDownLatch latch = new CountDownLatch(types.size());
+        Set<DataTableBuilder> tables = new TreeSetExt<>();
+        Map<String, Set<String>> indexes = new TreeMap<>();
+
+        for (Class<?> type : types) {
+            String tableName = type.getAnnotation(Table.class).value();
+            processTableClass(tableName, indexes, type);
+            tables.add(launchTable(bootstrap, tableName, type, (t) -> {
+                latch.countDown();
+            }));
+        }
+        for (DataTableBuilder table : tables) {
+            table.setIndexes(indexes.get(table.getConfig().getTable()).toArray(new String[0]));
+            table.build();
+        }
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        
+    }
+
+    public Set<DataEntry> getAllRelated(DataEntry dataEntry){
+        Set<DataEntry> set = new TreeSetExt<>();
+        if(dataEntry.getData().getClass().isAnnotationPresent(Table.class)){
+            Table localTable = dataEntry.getData().getClass().getAnnotation(Table.class);
+            String localTableName = localTable.value();
+            for (Relationship relationship : getRelationships(dataEntry.getData().getClass())) {
+                getRelatedByRelationship(dataEntry, set, localTableName, relationship);
+            }
+        }
+        return set;
+    }
+
+    public Set<DataEntry> getRelated(DataEntry dataEntry, Class clazz){
+        Set<DataEntry> set = new TreeSetExt<>();
+        if(dataEntry.getData().getClass().isAnnotationPresent(Table.class)){
+            Table localTable = dataEntry.getData().getClass().getAnnotation(Table.class);
+            String localTableName = localTable.value();
+            for (Relationship relationship : getRelationships(dataEntry.getData().getClass())) {
+                if (relationship.clazz() == clazz) {
+                    getRelatedByRelationship(dataEntry, set, localTableName, relationship);
+                }else{
+                    Serializer.log("Relation ignored");
+                }
+            }
+        }
+        return set;
+    }
+
+    public Set<DataEntry> getRelatedRemote(DataEntry dataEntry, Class clazz, String index){
+        Set<DataEntry> set = new TreeSetExt<>();
+        if(dataEntry.getData().getClass().isAnnotationPresent(Table.class)){
+            Table localTable = dataEntry.getData().getClass().getAnnotation(Table.class);
+            String localTableName = localTable.value();
+            for (Relationship relationship : getRelationships(dataEntry.getData().getClass())) {
+                if (relationship.clazz() == clazz && index.equals(relationship.remoteKey())) {
+                    getRelatedByRelationship(dataEntry, set, localTableName, relationship);
+                }else{
+                    Serializer.log("Relation ignored");
+                }
+            }
+        }
+        return set;
+    }
+
+    public Set<DataEntry> getRelatedLocal(DataEntry dataEntry, Class clazz, String index){
+        Set<DataEntry> set = new TreeSetExt<>();
+        if(dataEntry.getData().getClass().isAnnotationPresent(Table.class)){
+            Table localTable = dataEntry.getData().getClass().getAnnotation(Table.class);
+            String localTableName = localTable.value();
+            for (Relationship relationship : getRelationships(dataEntry.getData().getClass())) {
+                if (relationship.clazz() == clazz && index.equals(relationship.localKey())) {
+                    getRelatedByRelationship(dataEntry, set, localTableName, relationship);
+                }else{
+                    Serializer.log("Relation ignored");
+                }
+            }
+        }
+        return set;
+    }
+
+    private void getRelatedByRelationship(DataEntry dataEntry, Set<DataEntry> set, String localTableName, Relationship relationship) {
+        if(relationship.clazz().isAnnotationPresent(Table.class)) {
+            Table remoteTable = (Table) relationship.clazz().getAnnotation(Table.class);
+            String remoteTableName = remoteTable.value();
+            Serializer.log("getting for relationship from "+localTableName+" to "+remoteTableName);
+            try {
+                Serializer.log(relationship.localKey());
+                List<Object> values = new TreeIndex().getValues(Queues.newLinkedBlockingDeque(Arrays.asList(relationship.localKey().split("\\."))), dataEntry.getData());
+                if(values.size()>0){
+                    for (Object value : values) {
+                        set.addAll(this.getTable(remoteTableName).get(relationship.remoteKey(), value));
+                    }
+                }
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+        }else{
+            Serializer.log("Target class not a NucleoDB Table.");
+        }
+
+    }
+
+    private void processRelationship(String tableName, Map<String, Set<String>> indexes, Relationship relationship){
+        indexes.get(tableName).add(relationship.localKey());
+        if(relationship.clazz().isAnnotationPresent(Table.class)) {
+            String tableNameRemote = ((Table)relationship.clazz().getAnnotation(Table.class)).value();
+            if (!indexes.containsKey(tableNameRemote)) {
+                processTableClass(tableNameRemote, indexes, relationship.clazz());
+            }
+            indexes.get(tableNameRemote).add(relationship.remoteKey());
+        }
+    }
+
+    private List<Relationship> getRelationships(Class<?> clazz){
+        List<Relationship> relationships = new LinkedList<>();
+        if(clazz.isAnnotationPresent(Relationship.class)){
+            Relationship relationship = clazz.getAnnotation(Relationship.class);
+            relationships.add(relationship);
+        }
+        if(clazz.isAnnotationPresent(Relationships.class)){
+            Relationships relationship = clazz.getAnnotation(Relationships.class);
+            relationships.addAll(Arrays.stream(relationship.value()).toList());
+        }
+        return relationships;
+    }
+
+    private void processTableClass(String tableName, Map<String, Set<String>> indexes, Class<?> clazz){
+        if(!indexes.containsKey(tableName)){
+            indexes.put(tableName, new TreeSetExt<>());
+        }
+        for (Field declaredField : clazz.getDeclaredFields()) {
+            if(declaredField.isAnnotationPresent(Index.class)) {
+                Index i = declaredField.getAnnotation(Index.class);
+                if(i.value().isEmpty()){
+                    indexes.get(tableName).addAll(Arrays.asList(declaredField.getName().toLowerCase()));
+                }else{
+                    indexes.get(tableName).addAll(Arrays.asList(i.value()));
+                }
+            }
+        }
+
+        for (Relationship relationship : getRelationships(clazz)) {
+            processRelationship(tableName, indexes, relationship);
+        }
+    }
 
     public <T> Object sql(String sqlStr) throws JSQLParserException {
         try {

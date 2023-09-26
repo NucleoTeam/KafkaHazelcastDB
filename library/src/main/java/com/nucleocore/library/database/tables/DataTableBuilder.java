@@ -1,11 +1,15 @@
 package com.nucleocore.library.database.tables;
 
 import com.nucleocore.library.NucleoDB;
+import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.StartupRun;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.Instant;
+import java.util.Arrays;
 
-public class DataTableBuilder{
+public class DataTableBuilder implements Comparable{
+  private static final long serialVersionUID = 1;
   DataTableConfig config = new DataTableConfig();
   NucleoDB db = null;
   public static DataTableBuilder createReadOnly(String bootstrap, String table, Class clazz){
@@ -83,7 +87,17 @@ public class DataTableBuilder{
   }
 
   public DataTableBuilder setIndexes(String... indexes) {
-    this.config.setIndexes(indexes);
+    int inLen = indexes.length;
+    int oldLen = this.config.getIndexes().length;
+    String[] newIndexArray = new String[inLen+oldLen];
+
+    for (int i = 0; i < inLen; i++) {
+      newIndexArray[i] = indexes[i];
+    }
+    for (int i = 0; i < oldLen; i++) {
+      newIndexArray[inLen+i] = this.config.getIndexes()[i];
+    }
+    this.config.setIndexes(newIndexArray);
     return this;
   }
   public DataTableBuilder setStartupRun(StartupRun startupRun) {
@@ -111,5 +125,14 @@ public class DataTableBuilder{
   public DataTableBuilder setDb(NucleoDB db) {
     this.db = db;
     return this;
+  }
+
+  public DataTableConfig getConfig() {
+    return config;
+  }
+
+  @Override
+  public int compareTo(@NotNull Object o) {
+    return this.getConfig().getTable().compareTo(((DataTableBuilder) o).getConfig().getTable());
   }
 }

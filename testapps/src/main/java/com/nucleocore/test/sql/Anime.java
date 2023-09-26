@@ -1,15 +1,22 @@
-package com.nucleocore.library.test.sql;
+package com.nucleocore.test.sql;
+
+import com.nucleocore.library.database.tables.annotation.Index;
+import com.nucleocore.library.database.tables.annotation.Table;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+@Table("anime")
 public class Anime implements Serializable{
   private static final long serialVersionUID = 1;
+  @Index()
   String name;
   List<String> tags = new ArrayList<>();
   List<VoiceActor> actors;
   String image;
+
+  String owner;
 
   Float rating;
 
@@ -86,5 +93,13 @@ public class Anime implements Serializable{
 
   public void setVotes(List<Float> votes) {
     this.votes = votes;
+  }
+
+  public String getOwner() {
+    return owner;
+  }
+
+  public void setOwner(String owner) {
+    this.owner = owner;
   }
 }

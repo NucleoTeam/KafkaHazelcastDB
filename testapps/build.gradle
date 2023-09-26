@@ -1,0 +1,21 @@
+plugins {
+    id 'java'
+    id 'nucleodb.app'
+    id 'maven-publish'
+    id 'application'
+}
+
+group = 'com.nucleocore'
+version = 'unspecified'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(project(':library'))
+}
+
+test {
+    useJUnitPlatform()
+}

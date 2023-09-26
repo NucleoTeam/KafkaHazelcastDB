@@ -1,37 +1,39 @@
 plugins {
+    id 'nucleodb.library'
     id 'java'
-    id 'nucleodb.app'
     id 'maven-publish'
-    id 'application'
     id 'com.github.johnrengelman.shadow' version '7.0.0'
 }
 
-group = 'com.nucleocore.backup'
+group = 'com.nucleocore.spring'
 
 repositories {
     mavenCentral()
-    maven {
-        name = 'SynloadRepo'
-        url = uri("https://nexus.synload.com/repository/maven-repo-releases/") // Replace 'OWNER' and 'REPO' with appropriate values
-        credentials {
-            username = System.getenv("SYNLOAD_REPO_USER")
-            password = System.getenv("SYNLOAD_REPO_PASS")
-        }
+}
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(19)
     }
 }
-
+compileJava {
+    options.release = 19
+}
 dependencies {
     implementation(project(':library'))
+    implementation('org.neo4j:neo4j-cypher-dsl-parser:2023.6.0')
 }
 
-application {
-    mainClass = 'com.nucleocore.library.cli.DBBackup'
+test {
+    useJUnitPlatform()
 }
-
 shadowJar {
     archiveBaseName.set(group)
     archiveVersion.set(version)
     archiveClassifier.set('')
+
+    manifest {
+        attributes 'Main-Class': 'com.nucleocore.memcache.NDBMemcache'
+    }
 }
 
 publishing {
@@ -41,8 +43,8 @@ publishing {
 
             // Additional configuration, e.g., add artifacts, set up pom details, etc.
             pom {
-                name = 'NucleoDB Backup'
-                description = 'backup nucleodb table'
+                name = 'NucleoDB Spring Integration'
+                description = 'NucleoDB Spring Integration'
                 url = 'https://github.com/NucleoTeam/NucleoDB'
                 licenses {
                     license {

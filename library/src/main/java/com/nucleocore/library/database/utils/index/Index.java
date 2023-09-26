@@ -51,6 +51,9 @@ public abstract class Index implements Serializable{
   }
 
   public List<Object> getValues(Queue<String> pointer, Object start) throws JsonProcessingException {
+    if(start== null){
+      return new LinkedList<>();
+    }
     Object current = start;
     if(pointer.isEmpty()){
       return Arrays.asList(current);
@@ -61,7 +64,8 @@ public abstract class Index implements Serializable{
       //Serializer.log(current.getClass().getName());
       current = new PropertyDescriptor(name, current.getClass()).getReadMethod().invoke(current);
     } catch (IntrospectionException | InvocationTargetException | IllegalAccessException e) {
-      e.printStackTrace();
+      //e.printStackTrace();
+      return new LinkedList<>();
     }
     if(current instanceof Collection){
       //System.out.println(current.getClass().getName());

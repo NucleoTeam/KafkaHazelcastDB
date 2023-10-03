@@ -12,13 +12,11 @@ import java.util.UUID;
 
 public class DataEntry implements Serializable, Comparable<DataEntry> {
     private static final long serialVersionUID = 1;
-
     public String key;
-
     public long version = -1;
-
     private JsonNode reference;
     public Object data;
+    private transient String tableName;
 
     public DataEntry(Object obj) {
         this.data = obj;
@@ -86,6 +84,14 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
 
     public void setData(Object data) {
         this.data = data;
+    }
+
+    public String getTableName() {
+        return tableName;
+    }
+
+    public void setTableName(String tableName) {
+        this.tableName = tableName;
     }
 
     @Override

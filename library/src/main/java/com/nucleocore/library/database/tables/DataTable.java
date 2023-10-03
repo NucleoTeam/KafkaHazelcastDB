@@ -10,7 +10,7 @@ import com.nucleocore.library.database.modifications.Delete;
 import com.nucleocore.library.database.modifications.Update;
 import com.nucleocore.library.database.utils.DataEntry;
 import com.nucleocore.library.database.utils.JsonOperations;
-import com.nucleocore.library.database.utils.Modification;
+import com.nucleocore.library.database.modifications.Modification;
 import com.nucleocore.library.database.utils.ObjectFileReader;
 import com.nucleocore.library.database.utils.ObjectFileWriter;
 import com.nucleocore.library.database.utils.Serializer;
@@ -78,6 +78,7 @@ public class DataTable implements Serializable{
         this.indexes = tmpTable.indexes;
         this.partitionOffsets = tmpTable.partitionOffsets;
         this.keyToEntry = tmpTable.keyToEntry;
+        this.entries.forEach(e->e.setTableName(this.config.getTable()));
       } catch (IOException e) {
         throw new RuntimeException(e);
       } catch (ClassNotFoundException e) {
@@ -454,7 +455,8 @@ public class DataTable implements Serializable{
   }
 
 
-  class ModificationQueueItem{
+  class ModificationQueueItem implements Serializable{
+    private static final long serialVersionUID = 1;
     private Modification mod;
     private Object modification;
 
@@ -543,6 +545,8 @@ public class DataTable implements Serializable{
             }
             DataEntry dataEntry = new DataEntry(c);
 
+            dataEntry.setTableName(this.config.getTable());
+
             synchronized (entries) {
               entries.add(dataEntry);
             }
@@ -628,7 +632,7 @@ public class DataTable implements Serializable{
                 de.setReference(u.getChangesPatch().apply(de.getReference()));
                 de.setVersion(u.getVersion());
                 de.setData(Serializer.getObjectMapper().getOm().readValue(de.getReference().toString(), de.getData().getClass()));
-                System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(de.getData()));
+                //System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(de.getData()));
                 u.getOperations().forEach(op -> {
                   switch (op.getOp()) {
                     case "replace":

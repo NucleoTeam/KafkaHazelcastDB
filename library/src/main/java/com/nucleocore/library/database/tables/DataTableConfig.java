@@ -18,6 +18,8 @@ public class DataTableConfig implements Serializable{
   boolean write = true;
   String[] indexes = new String[0];
   transient StartupRun startupRun = null;
+
+
   String tableFileName;
   public DataTableConfig() {
   }
@@ -114,5 +116,4 @@ public class DataTableConfig implements Serializable{
   public String getTableFileName() {
     return tableFileName;
   }
-
 }

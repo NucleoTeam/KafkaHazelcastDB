@@ -1,11 +1,14 @@
 package com.nucleocore.test;
 
 import com.nucleocore.library.NucleoDB;
+import com.nucleocore.library.database.tables.Connection;
+import com.nucleocore.library.database.tables.ConnectionHandler;
 import com.nucleocore.library.database.utils.DataEntry;
 import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.test.sql.Anime;
 import net.sf.jsqlparser.JSQLParserException;
 
+import java.util.Optional;
 import java.util.Set;
 
 public class AnimeTest{
@@ -22,10 +25,21 @@ public class AnimeTest{
 //    a.setName("Kizumonogatari: Koyomi Vamp");
 //    a.setOwner("firestar");
 //    nucleoDB.getTable("anime").insert(a, (dataEntry)->{
-    Set<DataEntry> entries = nucleoDB.getTable("anime").get("name", "Zoku Owarimonogatari");
-    Serializer.log(entries);
-    entries.retainAll(nucleoDB.getRelatedRemote(new DataEntry(new User("dave", "me")), Anime.class, "owner"));
-    Serializer.log(entries);
+    //nucleoDB.getTable("user").insert(new User("dave", "me"));
+    Optional<DataEntry> anime = nucleoDB.getTable("anime").get("name", "Zoku Owarimonogatari").stream().findFirst();
+    //Optional<DataEntry> user =  nucleoDB.getTable("user").get("name", "dave").stream().findFirst();
+    Serializer.log(nucleoDB.getConnectionHandler().getByLabel(anime.get(), "ADMIN_USER"));
+//    nucleoDB.getConnectionHandler().save(new Connection(anime.get(), "ADMIN_USER", user.get()), (c)->{
+//      Serializer.log(c);
+//      Serializer.log(nucleoDB.getConnectionHandler().get(anime.get()));
+//    });
+
+//    Set<DataEntry> entries = nucleoDB.getTable("anime").get("name", "Zoku Owarimonogatari");
+//    nucleoDB.getConnectionHandler().save(new Connection());
+//    Serializer.log(entries);
+//
+//    entries.retainAll(nucleoDB.getRelated(new DataEntry(), Anime.class));
+//    Serializer.log(entries);
     //});
   }
 }

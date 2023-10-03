@@ -1,13 +1,14 @@
-package com.nucleocore.library.database.utils;
-
-import com.nucleocore.library.database.modifications.Create;
-import com.nucleocore.library.database.modifications.Delete;
-import com.nucleocore.library.database.modifications.Update;
+package com.nucleocore.library.database.modifications;
 
 public enum Modification {
     DELETE(Delete.class),
     UPDATE(Update.class),
-    CREATE(Create.class);
+    CREATE(Create.class),
+
+    CONNECTIONCREATE(ConnectionCreate.class),
+    CONNECTIONDELETE(ConnectionDelete.class),
+    CONNECTIONUPDATE(ConnectionUpdate.class);
+
     private final Class modification;
     Modification(Class modification){
         this.modification = modification;

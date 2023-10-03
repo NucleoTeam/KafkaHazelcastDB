@@ -1,8 +1,9 @@
 package com.nucleocore.library.kafkaLedger;
 
 import com.google.common.collect.Queues;
+import com.nucleocore.library.database.tables.ConnectionHandler;
 import com.nucleocore.library.database.tables.DataTable;
-import com.nucleocore.library.database.utils.Modification;
+import com.nucleocore.library.database.modifications.Modification;
 import com.nucleocore.library.database.utils.Serializer;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
@@ -13,7 +14,8 @@ import java.util.*;
 
 public class ConsumerHandler implements Runnable {
     private KafkaConsumer consumer = null;
-    private DataTable database;
+    private DataTable database = null;
+    private ConnectionHandler connectionHandler = null;
     private Map<TopicPartition, Long> endMap = null;
     private String table;
     private boolean startup = false;
@@ -49,14 +51,62 @@ public class ConsumerHandler implements Runnable {
             );
         }
 
+        if(this.getDatabase()!=null) {
+            for (Map.Entry<Integer, Long> tmp : this.getDatabase().getPartitionOffsets().entrySet()) {
+                Serializer.log(tmp.getKey() + " offset " + (tmp.getValue().longValue() + 1));
+                this.getConsumer().seek(
+                    new TopicPartition(table, tmp.getKey()),
+                    tmp.getValue().longValue() + 1
+                );
+            }
+        }
 
-        for(Map.Entry<Integer, Long> tmp: this.getDatabase().getPartitionOffsets().entrySet()){
-            Serializer.log(tmp.getKey()+" offset "+(tmp.getValue().longValue()+1));
+        new Thread(this).start();
+
+        for(int x=0;x<6;x++)
+            new Thread(new QueueHandler()).start();
+    }
+
+    public ConsumerHandler(String bootstrap, String groupName, ConnectionHandler connectionHandler, String table) {
+        this.connectionHandler = connectionHandler;
+        this.table = table;
+        this.consumer = createConsumer(bootstrap, groupName);
+
+        this.subscribe(new String[]{table});
+        Serializer.log(table);
+
+        consumer.commitSync();
+
+        while(true) {
+            consumer.commitAsync();
+            Set<TopicPartition> partitions = getConsumer().assignment();
+            if(partitions.size()>0){
+                break;
+            }
+            getConsumer().poll(Duration.ofMillis(5));
+            try{
+                Thread.sleep(500);
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+        }
+
+        for (Object topicPartition : this.getConsumer().assignment()) {
             this.getConsumer().seek(
-                new TopicPartition(table, tmp.getKey()),
-                tmp.getValue().longValue()+1
+                new TopicPartition(table, ((TopicPartition)topicPartition).partition()),
+                0
             );
-        };
+        }
+
+        if(this.getConnectionHandler()!=null) {
+            for (Map.Entry<Integer, Long> tmp : this.getConnectionHandler().getPartitionOffsets().entrySet()) {
+                Serializer.log(tmp.getKey() + " offset " + (tmp.getValue().longValue() + 1));
+                this.getConsumer().seek(
+                    new TopicPartition(table, tmp.getKey()),
+                    tmp.getValue().longValue() + 1
+                );
+            }
+        }
 
 
         new Thread(this).start();
@@ -77,12 +127,13 @@ public class ConsumerHandler implements Runnable {
                         }
                         if(entry!=null) {
                             try {
-                                String type = entry.substring(0, 6);
-                                String data = entry.substring(6);
+                                String type = entry.substring(0, 16);
+                                String data = entry.substring(16);
                                 System.out.println("Action: " + type + " data: "+data);
                                 Modification mod = Modification.get(type);
                                 if (mod != null) {
-                                    database.modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));
+                                    if(database!=null) database.modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));
+                                    if(connectionHandler!=null) connectionHandler .modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));
                                 }
                             }catch (Exception e){
                                 e.printStackTrace();
@@ -127,12 +178,14 @@ public class ConsumerHandler implements Runnable {
                         String pop = record.value();
                         System.out.println("Change added to queue.");
                         queue.add(pop);
-                        this.getDatabase().getPartitionOffsets().put(record.partition(), record.offset());
+                        if(this.getConnectionHandler()!=null) this.getConnectionHandler().getPartitionOffsets().put(record.partition(), record.offset());
+                        if(this.getDatabase()!=null) this.getDatabase().getPartitionOffsets().put(record.partition(), record.offset());
                     }
                 }
                 consumer.commitAsync();
                 if(!startup && initialLoad()){
-                    new Thread(()->this.database.startup()).start();
+                    if(this.database!=null) new Thread(()->this.database.startup()).start();
+                    if(this.connectionHandler!=null) new Thread(()->this.connectionHandler.startup()).start();
                     startup = true;
                 }
             } while (!Thread.interrupted());
@@ -182,5 +235,13 @@ public class ConsumerHandler implements Runnable {
 
     public void setStartup(boolean startup) {
         this.startup = startup;
+    }
+
+    public ConnectionHandler getConnectionHandler() {
+        return connectionHandler;
+    }
+
+    public void setConnectionHandler(ConnectionHandler connectionHandler) {
+        this.connectionHandler = connectionHandler;
     }
 }

@@ -133,7 +133,7 @@ public class ConsumerHandler implements Runnable {
                                 Modification mod = Modification.get(type);
                                 if (mod != null) {
                                     if(database!=null) database.modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));
-                                    if(connectionHandler!=null) connectionHandler .modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));
+                                    if(connectionHandler!=null) connectionHandler.modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));
                                 }
                             }catch (Exception e){
                                 e.printStackTrace();

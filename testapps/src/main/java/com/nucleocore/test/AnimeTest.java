@@ -10,6 +10,7 @@ import net.sf.jsqlparser.JSQLParserException;
 
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 
 public class AnimeTest{
   public static void main(String[] args) {
@@ -27,12 +28,16 @@ public class AnimeTest{
 //    nucleoDB.getTable("anime").insert(a, (dataEntry)->{
     //nucleoDB.getTable("user").insert(new User("dave", "me"));
     Optional<DataEntry> anime = nucleoDB.getTable("anime").get("name", "Zoku Owarimonogatari").stream().findFirst();
-    //Optional<DataEntry> user =  nucleoDB.getTable("user").get("name", "dave").stream().findFirst();
+    Optional<DataEntry> user =  nucleoDB.getTable("user").get("name", "dave").stream().findFirst();
     Serializer.log(nucleoDB.getConnectionHandler().getByLabel(anime.get(), "ADMIN_USER"));
-//    nucleoDB.getConnectionHandler().save(new Connection(anime.get(), "ADMIN_USER", user.get()), (c)->{
-//      Serializer.log(c);
-//      Serializer.log(nucleoDB.getConnectionHandler().get(anime.get()));
-//    });
+//    try {
+//      nucleoDB.getConnectionHandler().saveSync(new Connection(user.get(), "WATCHING", anime.get(), new TreeMap<>(){{
+//        put("time", "2.0402042");
+//      }}));
+//    } catch (InterruptedException e) {
+//      throw new RuntimeException(e);
+//    }
+    Serializer.log(nucleoDB.getConnectionHandler().getByLabelStream(user.get(), "WATCHING").findFirst().get());
 
 //    Set<DataEntry> entries = nucleoDB.getTable("anime").get("name", "Zoku Owarimonogatari");
 //    nucleoDB.getConnectionHandler().save(new Connection());

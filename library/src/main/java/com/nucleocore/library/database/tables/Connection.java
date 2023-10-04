@@ -1,11 +1,14 @@
 package com.nucleocore.library.database.tables;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.utils.DataEntry;
 import org.jetbrains.annotations.NotNull;
 
+import javax.xml.crypto.Data;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -22,6 +25,9 @@ public class Connection implements Serializable, Comparable<Connection>{
   private String label;
 
   public long version = 0;
+
+  @JsonIgnore
+  public transient ConnectionHandler connectionHandler;
 
   private Map<String, String> metadata = new TreeMap<>();
 
@@ -125,6 +131,7 @@ public class Connection implements Serializable, Comparable<Connection>{
     clonedConnection.toKey = this.toKey;
     clonedConnection.toTable = this.toTable;
     clonedConnection.label = this.label;
+    clonedConnection.connectionHandler = this.connectionHandler;
     clonedConnection.version = this.version;
     clonedConnection.metadata = new TreeMap<>(this.metadata); // Create a copy of the metadata map
 
@@ -134,5 +141,36 @@ public class Connection implements Serializable, Comparable<Connection>{
   @Override
   public int compareTo(@NotNull Connection o) {
     return this.getUuid().compareTo(o.getUuid());
+  }
+
+
+  public void setConnectionHandler(ConnectionHandler connectionHandler) {
+    this.connectionHandler = connectionHandler;
+  }
+
+  public DataEntry getTo(){
+    if(this.connectionHandler!=null) {
+      Set<DataEntry> tmp = this.connectionHandler.getNucleoDB().getTable(this.getToTable()).get("id", this.getToKey());
+      if (tmp != null) {
+        Optional<DataEntry> tmpOp = tmp.stream().findFirst();
+        if (tmpOp.isPresent()) {
+          return tmpOp.get();
+        }
+      }
+    }
+    return null;
+  }
+
+  public DataEntry getFrom(){
+    if(this.connectionHandler!=null) {
+      Set<DataEntry> tmp = this.connectionHandler.getNucleoDB().getTable(this.getFromTable()).get("id", this.getFromKey());
+      if (tmp != null) {
+        Optional<DataEntry> tmpOp = tmp.stream().findFirst();
+        if (tmpOp.isPresent()) {
+          return tmpOp.get();
+        }
+      }
+    }
+    return null;
   }
 }

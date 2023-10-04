@@ -1,5 +1,6 @@
 package com.nucleocore.library.database.tables;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.diff.JsonDiff;
@@ -174,6 +175,7 @@ public class ConnectionHandler implements Serializable{
     return null;
   }
   private void addConnection(Connection connection){
+    connection.setConnectionHandler(this);
     connectionByUUID.put(connection.getUuid(), connection);
     String key = connection.getFromKey();
     if(!connections.containsKey(key)){
@@ -229,6 +231,10 @@ public class ConnectionHandler implements Serializable{
     return saveInternalConsumer(connection, null);
   }
 
+  public boolean saveSync(Connection connection) throws InterruptedException {
+    return saveInternalConsumerSync(connection);
+  }
+
   public boolean save(Connection connection, Consumer<Connection> consumer) {
     return saveInternalConsumer(connection, consumer);
   }
@@ -244,17 +250,17 @@ public class ConnectionHandler implements Serializable{
     return false;
   }
 
-  private boolean saveInternalConsumerSync(Connection connection, Consumer<Connection> consumer) throws InterruptedException {
+  private boolean saveInternalConsumerSync(Connection connection) throws InterruptedException {
     if (!this.config.isWrite()) {
-      if (consumer != null) consumer.accept(null);
       return false;
     }
     String changeUUID = UUID.randomUUID().toString();
     if (saveInternalSync(connection, changeUUID)) {
-      if (consumer != null) {
-        consumers.put(changeUUID, consumer);
-      }
-      return true;
+      CountDownLatch countDownLatch = new CountDownLatch(1);
+      consumers.put(changeUUID, (conn) -> {
+        countDownLatch.countDown();
+      });
+      countDownLatch.await();
     }
     return false;
   }

@@ -8,6 +8,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.util.Date;
 import java.util.UUID;
 
 public class DataEntry implements Serializable, Comparable<DataEntry> {
@@ -17,11 +18,14 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
     private JsonNode reference;
     public Object data;
     private transient String tableName;
+    private Date created;
+    private Date modified;
 
     public DataEntry(Object obj) {
         this.data = obj;
         this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = UUID.randomUUID().toString();
+        this.created = new Date();
     }
 
     public DataEntry(Create create) throws ClassNotFoundException, JsonProcessingException {
@@ -29,6 +33,7 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
         this.version = create.getVersion();
         this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = create.getKey();
+        this.created = new Date();
     }
 
 
@@ -43,11 +48,13 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
     }
 
     public DataEntry() {
-        this.key = UUID.randomUUID().toString().replaceAll("-","");
+        this.key = UUID.randomUUID().toString();
+        this.created = new Date();
     }
 
     public DataEntry(String key) {
         this.key = key;
+        this.created = new Date();
     }
 
     public String getKey(){
@@ -64,6 +71,7 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
 
     public void versionIncrease(){
         version+=1;
+        this.modified = new Date();
     }
 
     public void setVersion(long version) {
@@ -92,6 +100,14 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
 
     public void setTableName(String tableName) {
         this.tableName = tableName;
+    }
+
+    public Date getCreated() {
+        return created;
+    }
+
+    public Date getModified() {
+        return modified;
     }
 
     @Override

@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.xml.crypto.Data;
 import java.io.Serializable;
+import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -23,6 +24,7 @@ public class Connection implements Serializable, Comparable<Connection>{
   private String toKey;
   private String toTable;
   private String label;
+  private Date date;
 
   public long version = 0;
 
@@ -33,6 +35,7 @@ public class Connection implements Serializable, Comparable<Connection>{
 
   public Connection() {
     this.setUuid(UUID.randomUUID().toString());
+    this.setDate(new Date());
   }
 
   public Connection(DataEntry from, String label, DataEntry to) {
@@ -42,6 +45,7 @@ public class Connection implements Serializable, Comparable<Connection>{
     this.label = label;
     this.toTable = to.getTableName();
     this.fromTable = from.getTableName();
+    this.setDate(new Date());
   }
 
   public Connection(DataEntry from, String label, DataEntry to, Map<String, String> metadata) {
@@ -52,6 +56,7 @@ public class Connection implements Serializable, Comparable<Connection>{
     this.metadata = metadata;
     this.toTable = to.getTableName();
     this.fromTable = from.getTableName();
+    this.setDate(new Date());
   }
 
   public String getFromKey() {
@@ -120,6 +125,14 @@ public class Connection implements Serializable, Comparable<Connection>{
 
   public void versionIncrease(){
     version+=1;
+  }
+
+  public Date getDate() {
+    return date;
+  }
+
+  public void setDate(Date date) {
+    this.date = date;
   }
 
   @Override

@@ -36,7 +36,7 @@ public class TreeIndex extends Index implements Serializable{
   @Override
   public void add(DataEntry dataEntry) throws JsonProcessingException {
     List<Object> values = getIndexValue(dataEntry);
-    System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(values));
+    //System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(values));
     values.forEach(val->{
       Set<DataEntry> entries;
       synchronized (index) {

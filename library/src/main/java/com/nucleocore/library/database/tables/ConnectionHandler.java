@@ -444,8 +444,8 @@ public class ConnectionHandler implements Serializable{
       ModificationQueueItem mqi;
       while (true) {
         while (!modqueue.isEmpty()) {
-          System.out.println("SOMETHING FOUND");
-          Serializer.log(modqueue);
+          //System.out.println("SOMETHING FOUND");
+          //Serializer.log(modqueue);
           mqi = modqueue.pop();
           if (mqi != null) {
             modify(mqi.getMod(), mqi.getModification());
@@ -471,12 +471,12 @@ public class ConnectionHandler implements Serializable{
         //System.out.println("Create statement called");
         if (c != null) {
           if (this.config.getReadToTime() != null && c.getTime().isAfter(this.config.getReadToTime())) {
-            System.out.println("Create after target db date");
+            //System.out.println("Create after target db date");
             return;
           }
           try {
             if (connectionByUUID.containsKey(c.getConnection().getUuid())) {
-              System.out.println("Ignore already saved change.");
+              //System.out.println("Ignore already saved change.");
               return; // ignore this create
             }
 
@@ -496,17 +496,17 @@ public class ConnectionHandler implements Serializable{
         //System.out.println("Delete statement called");
         if (d != null) {
           if (this.config.getReadToTime() != null && d.getTime().isAfter(this.config.getReadToTime())) {
-            System.out.println("Delete after target db date");
+            //System.out.println("Delete after target db date");
             return;
           }
           Connection conn = connectionByUUID.get(d.getUuid());
           if (conn != null) {
             if (conn.getVersion() >= d.getVersion()) {
-              System.out.println("Ignore already saved change.");
+              //System.out.println("Ignore already saved change.");
               return; // ignore change
             }
             if (conn.getVersion() + 1 != d.getVersion()) {
-              Serializer.log("Version not ready!");
+              //Serializer.log("Version not ready!");
               modqueue.add(new ModificationQueueItem(mod, modification));
             } else {
               this.removeConnection(conn);
@@ -523,21 +523,21 @@ public class ConnectionHandler implements Serializable{
       case CONNECTIONUPDATE:
         ConnectionUpdate u = (ConnectionUpdate) modification;
 
-        System.out.println("Update statement called");
+        //System.out.println("Update statement called");
         if (u != null) {
           if (this.config.getReadToTime() != null && u.getTime().isAfter(this.config.getReadToTime())) {
-            System.out.println("Update after target db date");
+            //System.out.println("Update after target db date");
             return;
           }
           try {
             Connection conn = connectionByUUID.get(u.getUuid());
             if (conn != null) {
               if (conn.getVersion() >= u.getVersion()) {
-                System.out.println("Ignore already saved change.");
+                //System.out.println("Ignore already saved change.");
                 return; // ignore change
               }
               if (conn.getVersion() + 1 != u.getVersion()) {
-                Serializer.log("Version not ready!");
+                //Serializer.log("Version not ready!");
                 modqueue.add(new ModificationQueueItem(mod, modification));
               } else {
                 Connection connectionTmp = Serializer.getObjectMapper().getOm().readValue(

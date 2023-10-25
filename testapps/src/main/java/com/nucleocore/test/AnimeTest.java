@@ -18,17 +18,17 @@ public class AnimeTest{
     NucleoDB nucleoDB = new NucleoDB("127.0.0.1:29092", "com.nucleocore.test");
     Serializer.log(nucleoDB.getTables().keySet());
 
-    Anime a = new Anime();
-    a.setName("Kizumonogatari: Koyomi Vamp");
-    a.setOwner("firestar");
-
-    nucleoDB.getTable("anime").insertDataEntrySync(new DataEntry(a));
-    nucleoDB.getTable("user").insertDataEntrySync(new DataEntry(new User("dave", "me")));
+//    Anime a = new Anime();
+//    a.setName("Kizumonogatari: Koyomi Vamp");
+//    a.setOwner("firestar");
+//
+//    nucleoDB.getTable("anime").insertDataEntrySync(new DataEntry(a));
+//    nucleoDB.getTable("user").insertDataEntrySync(new DataEntry(new User("dave", "me")));
 
     Optional<DataEntry> anime = nucleoDB.getTable("anime").get("name", "Kizumonogatari: Koyomi Vamp").stream().findFirst();
     Optional<DataEntry> user =  nucleoDB.getTable("user").get("name", "dave").stream().findFirst();
     if(anime.isPresent()) {
-      //Serializer.log(nucleoDB.getConnectionHandler().getByLabel(anime.get(), "ADMIN_USER"));
+      Serializer.log(nucleoDB.getConnectionHandler().getByLabel(anime.get(), "ADMIN_USER"));
     }
     if(user.isPresent()) {
       try {
@@ -40,7 +40,7 @@ public class AnimeTest{
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
-      //Serializer.log(nucleoDB.getConnectionHandler().getByLabelStream(user.get(), "WATCHING").findFirst().get());
+      Serializer.log(nucleoDB.getConnectionHandler().getByLabelStream(user.get(), "WATCHING").findFirst().get());
       Optional<Connection> connectionOptional = nucleoDB.getConnectionHandler().getByLabelStream(user.get(), "WATCHING").findFirst();
       if(connectionOptional.isPresent()) {
         nucleoDB.getConnectionHandler().deleteSync(connectionOptional.get());
@@ -50,7 +50,7 @@ public class AnimeTest{
         Serializer.log("connection failed to delete.");
         Serializer.log(connectionOptional.get());
       }else{
-        //Serializer.log("connection not found, successfully deleted connection.");
+        Serializer.log("connection not found, successfully deleted connection.");
       }
     }
 

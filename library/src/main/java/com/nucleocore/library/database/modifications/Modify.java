@@ -1,4 +1,6 @@
 package com.nucleocore.library.database.modifications;
 
-public class Modify{
+import java.io.Serializable;
+
+public class Modify implements Serializable {
 }

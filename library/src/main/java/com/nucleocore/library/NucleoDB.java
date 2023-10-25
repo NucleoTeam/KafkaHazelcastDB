@@ -91,7 +91,7 @@ public class NucleoDB{
         if (relationship.clazz() == clazz) {
           getRelatedByRelationship(dataEntry, set, localTableName, relationship);
         } else {
-          Serializer.log("Relation ignored");
+          //Serializer.log("Relation ignored");
         }
       }
     }
@@ -107,7 +107,7 @@ public class NucleoDB{
         if (relationship.clazz() == clazz && index.equals(relationship.remoteKey())) {
           getRelatedByRelationship(dataEntry, set, localTableName, relationship);
         } else {
-          Serializer.log("Relation ignored");
+          //Serializer.log("Relation ignored");
         }
       }
     }
@@ -123,7 +123,7 @@ public class NucleoDB{
         if (relationship.clazz() == clazz && index.equals(relationship.localKey())) {
           getRelatedByRelationship(dataEntry, set, localTableName, relationship);
         } else {
-          Serializer.log("Relation ignored");
+          //Serializer.log("Relation ignored");
         }
       }
     }
@@ -134,9 +134,9 @@ public class NucleoDB{
     if (relationship.clazz().isAnnotationPresent(Table.class)) {
       Table remoteTable = (Table) relationship.clazz().getAnnotation(Table.class);
       String remoteTableName = remoteTable.value();
-      Serializer.log("getting for relationship from " + localTableName + " to " + remoteTableName);
+      //Serializer.log("getting for relationship from " + localTableName + " to " + remoteTableName);
       try {
-        Serializer.log(relationship.localKey());
+        //Serializer.log(relationship.localKey());
         List<Object> values = new TreeIndex().getValues(Queues.newLinkedBlockingDeque(Arrays.asList(relationship.localKey().split("\\."))), dataEntry.getData());
         if (values.size() > 0) {
           for (Object value : values) {

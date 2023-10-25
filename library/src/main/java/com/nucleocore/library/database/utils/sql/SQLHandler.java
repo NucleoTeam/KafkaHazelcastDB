@@ -111,10 +111,10 @@ public class SQLHandler{
       // handle cache
       Map<String, Object> objCache = cache.get(s);
       if(objCache!=null && objCache.containsKey(column)){
-        Serializer.log("Use cache for "+column +" for "+s.toString());
+        //Serializer.log("Use cache for "+column +" for "+s.toString());
         return objCache.get(column);
       }
-      Serializer.log("Grab data from  "+column +" for "+s.toString());
+      //Serializer.log("Grab data from  "+column +" for "+s.toString());
       Queue<String> queue = Queues.newLinkedBlockingDeque(Arrays.asList(column.split("\\.")));
       //Serializer.log(queue);
       Object o = s;
@@ -325,13 +325,13 @@ public class SQLHandler{
 //        System.out.println(left + " != " + right);
         return table.getNotEqual(left, right);
       } else {
-        System.out.println(binary.getClass().getName());
-        System.out.println(binary.getLeftExpression().getClass().getName());
-        System.out.println(binary.getRightExpression().getClass().getName());
+        //System.out.println(binary.getClass().getName());
+        //System.out.println(binary.getLeftExpression().getClass().getName());
+        //System.out.println(binary.getRightExpression().getClass().getName());
       }
       // Other binary expressions can be added similarly
     } else {
-      System.out.println(expr.getClass().getName());
+      //System.out.println(expr.getClass().getName());
     }
     // Other conditions (like OrExpression) can be added similarly
     return new TreeSet<>();
@@ -340,7 +340,7 @@ public class SQLHandler{
   public static DataEntry handleInsert(Insert sqlStatement, NucleoDB nucleoDB) {
     String tableName = sqlStatement.getTable().getName();
     try {
-      Serializer.log("looking at table: "+tableName);
+      //Serializer.log("looking at table: "+tableName);
       DataTable table = nucleoDB.getTable(tableName);
       Object obj = table.getConfig().getClazz().getConstructor().newInstance();
 
@@ -372,7 +372,7 @@ public class SQLHandler{
           if (obj instanceof Collection) {
             ((Collection) obj).add(((StringValue) expression).getValue());
           } else {
-            System.out.println("lost string");
+            //System.out.println("lost string");
           }
         } else {
 
@@ -390,13 +390,13 @@ public class SQLHandler{
               } else if (listValueType == Integer.class) {
                 ((Collection) obj).add(((LongValue) expression).getValue());
               } else {
-                Serializer.log("In LongValue " + listValueType.getName());
+                //Serializer.log("In LongValue " + listValueType.getName());
               }
             } else {
               ((Collection) obj).add(((LongValue) expression).getValue());
             }
           } else {
-            System.out.println("lost long");
+            //System.out.println("lost long");
           }
         } else {
           PropertyDescriptor propertyDescriptor = new PropertyDescriptor(column, obj.getClass());
@@ -417,13 +417,13 @@ public class SQLHandler{
               } else if (listValueType == Double.class) {
                 ((Collection) obj).add(((DoubleValue) expression).getValue());
               } else {
-                Serializer.log("In DoubleValue " + listValueType.getName());
+                //Serializer.log("In DoubleValue " + listValueType.getName());
               }
             } else {
               ((Collection) obj).add(((DoubleValue) expression).getValue());
             }
           } else {
-            System.out.println("lost long");
+            //System.out.println("lost long");
           }
         } else {
           PropertyDescriptor propertyDescriptor = new PropertyDescriptor(column, obj.getClass());
@@ -518,7 +518,7 @@ public class SQLHandler{
       } else if (expression instanceof Parenthesis) {
         setColumnVal(((Parenthesis) expression).getExpression(), column, obj, field);
       } else {
-        System.out.println("last: " + expression.getClass().getName());
+        //System.out.println("last: " + expression.getClass().getName());
       }
     } catch (Exception e) {
       e.printStackTrace();
@@ -550,7 +550,7 @@ public class SQLHandler{
         });
         countDownLatch.await();
       }
-      Serializer.log("Saved changed "+dataEntriesList.get().size());
+      //Serializer.log("Saved changed "+dataEntriesList.get().size());
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -680,16 +680,16 @@ public class SQLHandler{
 
       dataEntries = dataEntries.subList((offset>dataEntries.size())?dataEntries.size():offset, (offset+count>dataEntries.size())?dataEntries.size():offset+count);
 
-      Serializer.log("TO DELETE");
-      Serializer.log(dataEntries);
+      //Serializer.log("TO DELETE");
+      //Serializer.log(dataEntries);
       if(dataEntries.size()!=0) {
         CountDownLatch countDownLatch = new CountDownLatch(dataEntries.size());
         dataEntries.forEach(x -> {
           new Thread(() -> {
             if (table.getDataEntries().contains(x)) {
               table.delete(x, (d) -> {
-                Serializer.log("DELETED ");
-                Serializer.log(d);
+                //Serializer.log("DELETED ");
+                //Serializer.log(d);
                 countDownLatch.countDown();
               });
             } else {
@@ -700,7 +700,7 @@ public class SQLHandler{
         countDownLatch.await();
       }
 
-      Serializer.log("Deleted changed "+dataEntries.size());
+      //Serializer.log("Deleted changed "+dataEntries.size());
     } catch (Exception e) {
       e.printStackTrace();
     }

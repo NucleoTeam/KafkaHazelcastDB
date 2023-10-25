@@ -117,7 +117,7 @@ public class Arguer implements Runnable {
               } else if (isDebug() && obj instanceof ArgumentKafkaMessage) {
                 argumentMessageQueue.add((ArgumentKafkaMessage) obj);
               }else{
-                System.out.println(obj.getClass().getName());
+                //System.out.println(obj.getClass().getName());
               }
               break;
             case RUN_FINAL_ACTION:

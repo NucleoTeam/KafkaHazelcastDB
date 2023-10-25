@@ -29,7 +29,7 @@ public class ConsumerHandler implements Runnable{
     this.consumer = createConsumer(bootstrap, groupName);
 
     this.subscribe(new String[]{table});
-    Serializer.log(table);
+    //Serializer.log(table);
 
     consumer.commitSync();
 
@@ -76,7 +76,7 @@ public class ConsumerHandler implements Runnable{
     this.consumer = createConsumer(bootstrap, groupName);
 
     this.subscribe(new String[]{table});
-    Serializer.log(table);
+    //Serializer.log(table);
 
     consumer.commitSync();
 

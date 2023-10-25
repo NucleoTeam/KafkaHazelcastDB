@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.xml.crypto.Data;
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
@@ -24,7 +25,7 @@ public class Connection implements Serializable, Comparable<Connection>{
   private String toKey;
   private String toTable;
   private String label;
-  private Date date;
+  private Instant date;
 
   public long version = 0;
 
@@ -34,29 +35,29 @@ public class Connection implements Serializable, Comparable<Connection>{
   private Map<String, String> metadata = new TreeMap<>();
 
   public Connection() {
-    this.setUuid(UUID.randomUUID().toString());
-    this.setDate(new Date());
+    this.uuid = UUID.randomUUID().toString();
+    this.date = Instant.now();
   }
 
   public Connection(DataEntry from, String label, DataEntry to) {
-    this.setUuid(UUID.randomUUID().toString());
+    this.uuid = UUID.randomUUID().toString();
     this.fromKey = from.getKey();
     this.toKey = to.getKey();
     this.label = label;
     this.toTable = to.getTableName();
     this.fromTable = from.getTableName();
-    this.setDate(new Date());
+    this.date = Instant.now();
   }
 
   public Connection(DataEntry from, String label, DataEntry to, Map<String, String> metadata) {
-    this.setUuid(UUID.randomUUID().toString());
+    this.uuid = UUID.randomUUID().toString();
     this.fromKey = from.getKey();
     this.toKey = to.getKey();
     this.label = label;
     this.metadata = metadata;
     this.toTable = to.getTableName();
     this.fromTable = from.getTableName();
-    this.setDate(new Date());
+    this.date = Instant.now();
   }
 
   public String getFromKey() {
@@ -127,11 +128,11 @@ public class Connection implements Serializable, Comparable<Connection>{
     version+=1;
   }
 
-  public Date getDate() {
+  public Instant getDate() {
     return date;
   }
 
-  public void setDate(Date date) {
+  public void setDate(Instant date) {
     this.date = date;
   }
 
@@ -156,12 +157,8 @@ public class Connection implements Serializable, Comparable<Connection>{
     return this.getUuid().compareTo(o.getUuid());
   }
 
-
-  public void setConnectionHandler(ConnectionHandler connectionHandler) {
-    this.connectionHandler = connectionHandler;
-  }
-
-  public DataEntry getTo(){
+  @JsonIgnore
+  public DataEntry toEntry(){
     if(this.connectionHandler!=null) {
       Set<DataEntry> tmp = this.connectionHandler.getNucleoDB().getTable(this.getToTable()).get("id", this.getToKey());
       if (tmp != null) {
@@ -173,8 +170,8 @@ public class Connection implements Serializable, Comparable<Connection>{
     }
     return null;
   }
-
-  public DataEntry getFrom(){
+  @JsonIgnore
+  public DataEntry fromEntry(){
     if(this.connectionHandler!=null) {
       Set<DataEntry> tmp = this.connectionHandler.getNucleoDB().getTable(this.getFromTable()).get("id", this.getFromKey());
       if (tmp != null) {

@@ -13,18 +13,24 @@ public class ConnectionDelete extends Modify {
   public String changeUUID = UUID.randomUUID().toString();
 
   public ConnectionDelete() {
+    this.time = Instant.now();
   }
 
-  public ConnectionDelete(Connection connection) throws IOException {
+  public ConnectionDelete(Connection connection) {
     this.uuid = connection.getUuid();
+    this.version = connection.getVersion();
+    this.time = Instant.now();
   }
-  public ConnectionDelete(String changeUUID, Connection connection) throws IOException {
+  public ConnectionDelete(String changeUUID, Connection connection)  {
     this.uuid = connection.getUuid();
     this.changeUUID = changeUUID;
+    this.version = connection.getVersion();
+    this.time = Instant.now();
   }
 
-  public ConnectionDelete(String uuid) throws IOException {
+  public ConnectionDelete(String uuid)  {
     this.uuid = uuid;
+    this.time = Instant.now();
   }
 
   public long getVersion() {

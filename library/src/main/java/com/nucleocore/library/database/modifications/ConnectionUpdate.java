@@ -21,13 +21,16 @@ public class ConnectionUpdate extends Modify{
   public String changeUUID = UUID.randomUUID().toString();
 
   public ConnectionUpdate() throws IOException {
+    this.time = Instant.now();
 
   }
 
-  public ConnectionUpdate(String changes, String changeUUID, String uuid) {
+  public ConnectionUpdate(long version, String changes, String changeUUID, String uuid) {
+    this.version = version;
     this.changes = changes;
     this.changeUUID = changeUUID;
     this.uuid = uuid;
+    this.time = Instant.now();
   }
 
   public ConnectionUpdate(long version, Instant time, String changes, String uuid) {

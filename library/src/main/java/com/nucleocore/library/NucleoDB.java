@@ -63,6 +63,7 @@ public class NucleoDB{
     }
     try {
       latch.await();
+      System.out.println("NucleoDB Started");
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }

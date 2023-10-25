@@ -1,5 +1,6 @@
 package com.nucleocore.library.database.tables;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.fge.jsonpatch.diff.JsonDiff;
@@ -156,11 +157,8 @@ public class DataTable implements Serializable{
     if (config.isSaveChanges()) {
       new Thread(new SaveHandler(this)).start();
     }
-
-    if (!config.isRead()) {
-      if (this.config.getStartupRun() != null) {
-        this.config.getStartupRun().run(this);
-      }
+    if (this.config.getStartupRun() != null) {
+      this.config.getStartupRun().run(this);
     }
   }
 
@@ -323,7 +321,12 @@ public class DataTable implements Serializable{
   }
 
   public boolean insertDataEntrySync(DataEntry obj) throws InterruptedException {
-    return saveInternalConsumerSync(obj, null);
+    CountDownLatch countDownLatch = new CountDownLatch(1);
+    boolean v = saveInternalConsumer(obj, (de)->{
+      countDownLatch.countDown();
+    });
+    countDownLatch.await();
+    return v;
   }
 
   public boolean insert(Object obj) {
@@ -424,7 +427,7 @@ public class DataTable implements Serializable{
         Update updateEntry = new Update(changeUUID, entry, patch);
         CountDownLatch countDownLatch = new CountDownLatch(1);
         producer.push(updateEntry, (meta, e) -> {
-          Serializer.log(meta.offset());
+          //Serializer.log(meta.offset());
           if (e != null) {
             e.printStackTrace();
           }
@@ -489,7 +492,7 @@ public class DataTable implements Serializable{
       while (true) {
         try {
           if (changed > changedSaved) {
-            System.out.println("Saved " + this.dataTable.getConfig().getTable());
+            //System.out.println("Saved " + this.dataTable.getConfig().getTable());
             new ObjectFileWriter().writeObjectToFile(this.dataTable, config.getTableFileName());
             changedSaved = changed;
           }
@@ -507,7 +510,6 @@ public class DataTable implements Serializable{
       ModificationQueueItem mqi;
       while (true) {
         while (!modqueue.isEmpty()) {
-          System.out.println("SOMETHING FOUND");
           Serializer.log(modqueue);
           mqi = modqueue.pop();
           if (mqi != null) {
@@ -689,7 +691,8 @@ public class DataTable implements Serializable{
   }
 
 
-  List<Thread> threads = new ArrayList<>();
+  @JsonIgnore
+  transient List<Thread> threads = new ArrayList<>();
 
 
   public void addListener(Modification m, Consumer<DataEntry> method) {

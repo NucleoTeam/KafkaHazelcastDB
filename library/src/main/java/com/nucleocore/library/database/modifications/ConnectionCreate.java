@@ -15,15 +15,18 @@ public class ConnectionCreate extends Modify {
   public String changeUUID = UUID.randomUUID().toString();
 
   public ConnectionCreate() {
+    this.time = Instant.now();
   }
 
-  public ConnectionCreate(Connection connection) throws IOException {
+  public ConnectionCreate(Connection connection) {
     this.connection = connection;
+    this.time = Instant.now();
   }
 
   public ConnectionCreate(String changeUUID, Connection connection) {
     this.connection = connection;
     this.changeUUID = changeUUID;
+    this.time = Instant.now();
   }
 
   public Connection getConnection() {

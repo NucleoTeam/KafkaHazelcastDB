@@ -27,6 +27,8 @@ public class Connection implements Serializable, Comparable<Connection>{
   private String label;
   private Instant date;
 
+  private Instant modified;
+
   public long version = 0;
 
   @JsonIgnore
@@ -37,6 +39,7 @@ public class Connection implements Serializable, Comparable<Connection>{
   public Connection() {
     this.uuid = UUID.randomUUID().toString();
     this.date = Instant.now();
+    this.modified = Instant.now();
   }
 
   public Connection(DataEntry from, String label, DataEntry to) {
@@ -47,6 +50,7 @@ public class Connection implements Serializable, Comparable<Connection>{
     this.toTable = to.getTableName();
     this.fromTable = from.getTableName();
     this.date = Instant.now();
+    this.modified = Instant.now();
   }
 
   public Connection(DataEntry from, String label, DataEntry to, Map<String, String> metadata) {
@@ -58,6 +62,7 @@ public class Connection implements Serializable, Comparable<Connection>{
     this.toTable = to.getTableName();
     this.fromTable = from.getTableName();
     this.date = Instant.now();
+    this.modified = Instant.now();
   }
 
   public String getFromKey() {
@@ -126,6 +131,7 @@ public class Connection implements Serializable, Comparable<Connection>{
 
   public void versionIncrease(){
     version+=1;
+    this.modified = Instant.now();
   }
 
   public Instant getDate() {
@@ -134,6 +140,14 @@ public class Connection implements Serializable, Comparable<Connection>{
 
   public void setDate(Instant date) {
     this.date = date;
+  }
+
+  public Instant getModified() {
+    return modified;
+  }
+
+  public void setModified(Instant modified) {
+    this.modified = modified;
   }
 
   @Override

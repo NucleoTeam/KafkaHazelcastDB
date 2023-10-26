@@ -48,6 +48,7 @@ public class ConnectionHandler implements Serializable{
   private Map<Integer, Long> partitionOffsets = new TreeMap<>();
 
   private Set<Connection> allConnections = new TreeSetExt<>();
+
   private transient NucleoDB nucleoDB;
 
   private ConnectionConfig config;
@@ -157,9 +158,9 @@ public class ConnectionHandler implements Serializable{
   }
 
   public Set<Connection> getByLabel(DataEntry de, String label){
-    Set<Connection> tmp = connections.get(de.getKey());
+    Set<Connection> tmp = connections.get(de.getKey()+label);
     if(tmp!=null) {
-      return tmp.stream().filter(c->c.getLabel().equals(label)).map(c->c.clone()).collect(Collectors.toSet());
+      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
     }
     return null;
   }
@@ -170,14 +171,36 @@ public class ConnectionHandler implements Serializable{
     }
     return null;
   }
-  private void addConnection(Connection connection){
-    connection.connectionHandler = this;
-    connectionByUUID.put(connection.getUuid(), connection);
-    String key = connection.getFromKey();
+
+  public Set<Connection> getByLabelTo(DataEntry de, String label, DataEntry toDe){
+    Set<Connection> tmp = connections.get(de.getKey()+toDe.getKey()+label);
+    if(tmp!=null) {
+      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
+    }
+    return null;
+  }
+  public Stream<Connection> getByLabelToStream(DataEntry de, String label,DataEntry toDe){
+    Set<Connection> tmp = getByLabelTo(de, label, toDe);
+    if(tmp!=null){
+      return tmp.stream();
+    }
+    return null;
+  }
+
+  private void putConnectionInKey(String key, Connection connection){
     if(!connections.containsKey(key)){
       connections.put(key, new TreeSetExt<>());
     }
     connections.get(key).add(connection);
+  }
+
+  private void addConnection(Connection connection){
+    connection.connectionHandler = this;
+    connectionByUUID.put(connection.getUuid(), connection);
+    String connectionKey = connection.getFromKey();
+    this.putConnectionInKey(connectionKey, connection);
+    this.putConnectionInKey(connection.getFromKey()+connection.getLabel(), connection);
+    this.putConnectionInKey(connection.getFromKey()+connection.getToKey()+connection.getLabel(), connection);
     allConnections.add(connection);
   }
   private void removeConnection(Connection connection){
@@ -293,9 +316,7 @@ public class ConnectionHandler implements Serializable{
     }
     String changeUUID = UUID.randomUUID().toString();
     CountDownLatch countDownLatch = new CountDownLatch(1);
-    consumers.put(changeUUID, (conn) -> {
-      countDownLatch.countDown();
-    });
+    consumers.put(changeUUID, (conn) -> countDownLatch.countDown());
     if (saveInternalSync(connection, changeUUID)) {
       countDownLatch.await();
       return true;

@@ -203,13 +203,20 @@ public class ConnectionHandler implements Serializable{
     this.putConnectionInKey(connection.getFromKey()+connection.getToKey()+connection.getLabel(), connection);
     allConnections.add(connection);
   }
-  private void removeConnection(Connection connection){
-    connectionByUUID.remove(connection.getUuid());
-    String key = connection.getFromKey();
+
+  private void removeByKey(String key, Connection connection){
     if(connections.containsKey(key)){
-      allConnections.remove(connection);
       connections.get(key).remove(connection);
     }
+  }
+
+  private void removeConnection(Connection connection){
+    connectionByUUID.remove(connection.getUuid());
+    String connectionKey = connection.getFromKey();
+    this.removeByKey(connectionKey, connection);
+    this.removeByKey(connection.getFromKey()+connection.getLabel(), connection);
+    this.removeByKey(connection.getFromKey()+connection.getToKey()+connection.getLabel(), connection);
+    allConnections.remove(connection);
   }
   public void consume() {
     if (this.config.getBootstrap() != null) {

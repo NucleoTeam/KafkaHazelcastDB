@@ -28,7 +28,7 @@ public class AnimeTest{
     Optional<DataEntry> anime = nucleoDB.getTable("anime").get("name", "Kizumonogatari: Koyomi Vamp").stream().findFirst();
     Optional<DataEntry> user =  nucleoDB.getTable("user").get("name", "dave").stream().findFirst();
     if(anime.isPresent()) {
-      Serializer.log(nucleoDB.getConnectionHandler().getByLabel(anime.get(), "ADMIN_USER"));
+      Serializer.log(nucleoDB.getConnectionHandler().getByFromAndLabel(anime.get(), "ADMIN_USER"));
     }
     if(user.isPresent()) {
       try {
@@ -40,12 +40,12 @@ public class AnimeTest{
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
-      Serializer.log(nucleoDB.getConnectionHandler().getByLabel(user.get(), "WATCHING").stream().findFirst().get());
-      Optional<Connection> connectionOptional = nucleoDB.getConnectionHandler().getByLabel(user.get(), "WATCHING").stream().findFirst();
+      Serializer.log(nucleoDB.getConnectionHandler().getByFromAndLabel(user.get(), "WATCHING").stream().findFirst().get());
+      Optional<Connection> connectionOptional = nucleoDB.getConnectionHandler().getByFromAndLabel(user.get(), "WATCHING").stream().findFirst();
       if(connectionOptional.isPresent()) {
         nucleoDB.getConnectionHandler().deleteSync(connectionOptional.get());
       }
-      connectionOptional = nucleoDB.getConnectionHandler().getByLabel(user.get(), "WATCHING").stream().findFirst();
+      connectionOptional = nucleoDB.getConnectionHandler().getByFromAndLabel(user.get(), "WATCHING").stream().findFirst();
       if(connectionOptional.isPresent()) {
         Serializer.log("connection failed to delete.");
         Serializer.log(connectionOptional.get());

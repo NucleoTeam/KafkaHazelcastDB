@@ -44,6 +44,7 @@ import java.util.stream.Stream;
 public class ConnectionHandler implements Serializable{
   private static final long serialVersionUID = 1;
   private transient Map<String, Set<Connection>> connections = new TreeMap<>();
+  private transient Map<String, Set<Connection>> connectionsReverse = new TreeMap<>();
   private transient Map<String, Connection> connectionByUUID = new TreeMap<>();
   private Map<Integer, Long> partitionOffsets = new TreeMap<>();
 
@@ -149,25 +150,11 @@ public class ConnectionHandler implements Serializable{
     }
     return null;
   }
-  public Stream<Connection> getStream(DataEntry de){
-    Set<Connection> tmp = get(de);
-    if(tmp!=null){
-      return tmp.stream();
-    }
-    return null;
-  }
 
   public Set<Connection> getByLabel(DataEntry de, String label){
     Set<Connection> tmp = connections.get(de.getKey()+label);
     if(tmp!=null) {
       return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
-    }
-    return null;
-  }
-  public Stream<Connection> getByLabelStream(DataEntry de, String label){
-    Set<Connection> tmp = getByLabel(de, label);
-    if(tmp!=null){
-      return tmp.stream();
     }
     return null;
   }
@@ -179,10 +166,25 @@ public class ConnectionHandler implements Serializable{
     }
     return null;
   }
-  public Stream<Connection> getByLabelToStream(DataEntry de, String label,DataEntry toDe){
-    Set<Connection> tmp = getByLabelTo(de, label, toDe);
-    if(tmp!=null){
-      return tmp.stream();
+  public Set<Connection> getByTo(DataEntry de, DataEntry toDe){
+    Set<Connection> tmp = connections.get(de.getKey()+toDe.getKey());
+    if(tmp!=null) {
+      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
+    }
+    return null;
+  }
+
+  public Set<Connection> getReverseByLabelTo(DataEntry de, String label, DataEntry toDe){
+    Set<Connection> tmp = connectionsReverse.get(de.getKey()+toDe.getKey()+label);
+    if(tmp!=null) {
+      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
+    }
+    return null;
+  }
+  public Set<Connection> getReverseByTo(DataEntry de, DataEntry toDe){
+    Set<Connection> tmp = connectionsReverse.get(de.getKey()+toDe.getKey());
+    if(tmp!=null) {
+      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
     }
     return null;
   }
@@ -194,13 +196,23 @@ public class ConnectionHandler implements Serializable{
     connections.get(key).add(connection);
   }
 
+  private void putReverseConnectionInKey(String key, Connection connection){
+    if(!connectionsReverse.containsKey(key)){
+      connectionsReverse.put(key, new TreeSetExt<>());
+    }
+    connectionsReverse.get(key).add(connection);
+  }
+
   private void addConnection(Connection connection){
     connection.connectionHandler = this;
     connectionByUUID.put(connection.getUuid(), connection);
     String connectionKey = connection.getFromKey();
     this.putConnectionInKey(connectionKey, connection);
     this.putConnectionInKey(connection.getFromKey()+connection.getLabel(), connection);
+    this.putConnectionInKey(connection.getFromKey()+connection.getToKey(), connection);
     this.putConnectionInKey(connection.getFromKey()+connection.getToKey()+connection.getLabel(), connection);
+    this.putReverseConnectionInKey(connection.getToKey()+connection.getFromKey()+connection.getLabel(), connection);
+    this.putReverseConnectionInKey(connection.getToKey()+connection.getFromKey(), connection);
     allConnections.add(connection);
   }
 
@@ -209,13 +221,22 @@ public class ConnectionHandler implements Serializable{
       connections.get(key).remove(connection);
     }
   }
+  private void removeReverseByKey(String key, Connection connection){
+    if(connectionsReverse.containsKey(key)){
+      connectionsReverse.get(key).remove(connection);
+    }
+  }
 
   private void removeConnection(Connection connection){
     connectionByUUID.remove(connection.getUuid());
     String connectionKey = connection.getFromKey();
     this.removeByKey(connectionKey, connection);
     this.removeByKey(connection.getFromKey()+connection.getLabel(), connection);
+    this.removeByKey(connection.getFromKey()+connection.getToKey(), connection);
     this.removeByKey(connection.getFromKey()+connection.getToKey()+connection.getLabel(), connection);
+    this.removeReverseByKey(connection.getToKey()+connection.getFromKey()+connection.getLabel(), connection);
+    this.removeReverseByKey(connection.getToKey()+connection.getFromKey(), connection);
+
     allConnections.remove(connection);
   }
   public void consume() {

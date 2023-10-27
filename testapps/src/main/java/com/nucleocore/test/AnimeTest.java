@@ -40,12 +40,12 @@ public class AnimeTest{
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
-      Serializer.log(nucleoDB.getConnectionHandler().getByLabelStream(user.get(), "WATCHING").findFirst().get());
-      Optional<Connection> connectionOptional = nucleoDB.getConnectionHandler().getByLabelStream(user.get(), "WATCHING").findFirst();
+      Serializer.log(nucleoDB.getConnectionHandler().getByLabel(user.get(), "WATCHING").stream().findFirst().get());
+      Optional<Connection> connectionOptional = nucleoDB.getConnectionHandler().getByLabel(user.get(), "WATCHING").stream().findFirst();
       if(connectionOptional.isPresent()) {
         nucleoDB.getConnectionHandler().deleteSync(connectionOptional.get());
       }
-      connectionOptional = nucleoDB.getConnectionHandler().getByLabelStream(user.get(), "WATCHING").findFirst();
+      connectionOptional = nucleoDB.getConnectionHandler().getByLabel(user.get(), "WATCHING").stream().findFirst();
       if(connectionOptional.isPresent()) {
         Serializer.log("connection failed to delete.");
         Serializer.log(connectionOptional.get());

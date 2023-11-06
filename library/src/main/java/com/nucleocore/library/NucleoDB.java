@@ -48,14 +48,15 @@ public class NucleoDB{
     Map<String, Set<String>> indexes = new TreeMap<>();
 
     for (Class<?> type : types) {
-      String tableName = type.getAnnotation(Table.class).value();
-
-      processTableClass(tableName, indexes, type);
-      tables.add(launchTable(bootstrap, tableName, type, new StartupRun(){
-        public void run(DataTable table) {
-          latch.countDown();
-        }
-      }));
+      new Thread(()->{
+        String tableName = type.getAnnotation(Table.class).value();
+        processTableClass(tableName, indexes, type);
+        tables.add(launchTable(bootstrap, tableName, type, new StartupRun(){
+          public void run(DataTable table) {
+            latch.countDown();
+          }
+        }));
+      }).start();
     }
     for (DataTableBuilder table : tables) {
       table.setIndexes(indexes.get(table.getConfig().getTable()).toArray(new String[0]));

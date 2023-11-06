@@ -47,7 +47,7 @@ public class NucleoDB{
     Set<DataTableBuilder> tables = new TreeSetExt<>();
     Map<String, Set<String>> indexes = new TreeMap<>();
 
-    types.parallelStream().forEach(type->{
+    types.stream().forEach(type->{
       String tableName = type.getAnnotation(Table.class).value();
       processTableClass(tableName, indexes, type);
       tables.add(launchTable(bootstrap, tableName, type, new StartupRun(){
@@ -56,7 +56,7 @@ public class NucleoDB{
         }
       }));
     });
-    tables.parallelStream().forEach(table->{
+    tables.stream().forEach(table->{
       table.setIndexes(indexes.get(table.getConfig().getTable()).toArray(new String[0]));
       table.build();
     });

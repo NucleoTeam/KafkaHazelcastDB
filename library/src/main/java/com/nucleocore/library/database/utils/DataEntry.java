@@ -41,6 +41,7 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
     public DataEntry(DataEntry toCopy) {
         try {
             for (Field field : this.getClass().getDeclaredFields()) {
+                if(field.isAnnotationPresent(SkipCopy.class)) continue;
                 field.set(this, field.get(toCopy));
             }
         }catch (Exception e){

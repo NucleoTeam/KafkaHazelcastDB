@@ -13,6 +13,7 @@ import java.util.Date;
 import java.util.UUID;
 
 public class DataEntry implements Serializable, Comparable<DataEntry> {
+    @SkipCopy
     private static final long serialVersionUID = 1;
     public String key;
     public long version = -1;

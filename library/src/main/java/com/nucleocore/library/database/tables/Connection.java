@@ -3,10 +3,12 @@ package com.nucleocore.library.database.tables;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.utils.DataEntry;
+import com.nucleocore.library.database.utils.SkipCopy;
 import org.jetbrains.annotations.NotNull;
 
 import javax.xml.crypto.Data;
 import java.io.Serializable;
+import java.lang.reflect.Field;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
@@ -51,6 +53,17 @@ public class Connection implements Serializable, Comparable<Connection>{
     this.fromTable = from.getTableName();
     this.date = Instant.now();
     this.modified = Instant.now();
+  }
+
+  public Connection(Connection toCopy) {
+    try {
+      for (Field field : this.getClass().getDeclaredFields()) {
+        if(field.isAnnotationPresent(SkipCopy.class)) continue;
+        field.set(this, field.get(toCopy));
+      }
+    }catch (Exception e){
+      e.printStackTrace();
+    }
   }
 
   public Connection(DataEntry from, String label, DataEntry to, Map<String, String> metadata) {

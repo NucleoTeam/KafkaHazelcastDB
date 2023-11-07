@@ -37,6 +37,17 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
         this.created = new Date();
     }
 
+
+    public DataEntry(DataEntry toCopy) {
+        try {
+            for (Field field : this.getClass().getDeclaredFields()) {
+                field.set(this, field.get(toCopy));
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
     public DataEntry() {
         this.key = UUID.randomUUID().toString();
         this.created = new Date();
@@ -119,5 +130,8 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
     }
     public static Object cast(DataEntry dataEntry, Class<DataEntry> clazz) throws JsonProcessingException {
         return new ObjectMapper().readValue(new ObjectMapper().writeValueAsString(dataEntry), clazz);
+    }
+    public Object cast(Class<DataEntry> clazz) throws JsonProcessingException {
+        return new ObjectMapper().readValue(new ObjectMapper().writeValueAsString(this), clazz);
     }
 }

@@ -128,10 +128,10 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
         }
         return super.equals(obj);
     }
-    public static Object cast(DataEntry dataEntry, Class<DataEntry> clazz) throws JsonProcessingException {
+    public static Object cast(DataEntry dataEntry, Class<?> clazz) throws JsonProcessingException {
         return new ObjectMapper().readValue(new ObjectMapper().writeValueAsString(dataEntry), clazz);
     }
-    public Object cast(Class<DataEntry> clazz) throws JsonProcessingException {
+    public Object cast(Class<?> clazz) throws JsonProcessingException {
         return new ObjectMapper().readValue(new ObjectMapper().writeValueAsString(this), clazz);
     }
 }

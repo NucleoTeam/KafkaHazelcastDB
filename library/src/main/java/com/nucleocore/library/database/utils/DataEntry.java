@@ -3,6 +3,7 @@ package com.nucleocore.library.database.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.library.database.modifications.Create;
 import org.jetbrains.annotations.NotNull;
 
@@ -34,17 +35,6 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
         this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = create.getKey();
         this.created = new Date();
-    }
-
-
-    public DataEntry(DataEntry toCopy) {
-        try {
-            for (Field field : this.getClass().getDeclaredFields()) {
-                field.set(this, field.get(toCopy));
-            }
-        }catch (Exception e){
-            e.printStackTrace();
-        }
     }
 
     public DataEntry() {
@@ -126,5 +116,8 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
             return ((DataEntry) obj).getKey().equals(this.getKey());
         }
         return super.equals(obj);
+    }
+    public static Object cast(DataEntry dataEntry, Class<DataEntry> clazz) throws JsonProcessingException {
+        return new ObjectMapper().readValue(new ObjectMapper().writeValueAsString(dataEntry), clazz);
     }
 }

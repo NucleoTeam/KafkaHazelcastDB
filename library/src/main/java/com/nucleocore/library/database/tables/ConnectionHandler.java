@@ -148,7 +148,7 @@ public class ConnectionHandler implements Serializable{
     if(tmp!=null){
       return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
     }
-    return null;
+    return new TreeSetExt<>();
   }
 
   public Set<Connection> getByFromAndLabel(DataEntry from, String label){
@@ -156,7 +156,7 @@ public class ConnectionHandler implements Serializable{
     if(tmp!=null) {
       return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
     }
-    return null;
+    return new TreeSetExt<>();
   }
 
   public Set<Connection> getByFromAndLabelAndTo(DataEntry from, String label, DataEntry to){
@@ -164,35 +164,35 @@ public class ConnectionHandler implements Serializable{
     if(tmp!=null) {
       return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
     }
-    return null;
+    return new TreeSetExt<>();
   }
   public Set<Connection> getByFromAndTo(DataEntry from, DataEntry to){
     Set<Connection> tmp = connections.get(from.getKey()+to.getKey());
     if(tmp!=null) {
       return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
     }
-    return null;
+    return new TreeSetExt<>();
   }
   public Set<Connection> getReverseByLabelAndTo(String label, DataEntry to){
     Set<Connection> tmp = connectionsReverse.get(to.getKey()+label);
     if(tmp!=null) {
       return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
     }
-    return null;
+    return new TreeSetExt<>();
   }
   public Set<Connection> getReverseByFromAndLabelAndTo(DataEntry de, String label, DataEntry toDe){
     Set<Connection> tmp = connectionsReverse.get(de.getKey()+toDe.getKey()+label);
     if(tmp!=null) {
       return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
     }
-    return null;
+    return new TreeSetExt<>();
   }
   public Set<Connection> getReverseByFromAndTo(DataEntry from, DataEntry to){
     Set<Connection> tmp = connectionsReverse.get(from.getKey()+to.getKey());
     if(tmp!=null) {
       return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
     }
-    return null;
+    return new TreeSetExt<>();
   }
 
   private void putConnectionInKey(String key, Connection connection){

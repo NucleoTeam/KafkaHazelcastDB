@@ -234,7 +234,7 @@ public class DataTable implements Serializable{
     } catch (JsonProcessingException e) {
       e.printStackTrace();
     }
-    return null;
+    return new TreeSetExt<>();
   }
 
   DataEntry createNewObject(DataEntry o) {

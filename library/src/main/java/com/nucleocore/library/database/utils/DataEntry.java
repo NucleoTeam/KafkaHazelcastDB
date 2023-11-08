@@ -43,7 +43,6 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
         try {
             for (Field field : DataEntry.class.getDeclaredFields()) {
                 if(field.isAnnotationPresent(SkipCopy.class)) continue;
-                System.out.println(field.getName());
                 field.set(this, field.get(toCopy));
             }
         }catch (Exception e){

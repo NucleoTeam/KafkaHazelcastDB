@@ -18,6 +18,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 
 public class Connection implements Serializable, Comparable<Connection>{
+  @SkipCopy
   private static final long serialVersionUID = 1;
 
   private String uuid;

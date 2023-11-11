@@ -60,11 +60,11 @@ public class Connection implements Serializable, Comparable<Connection>{
     this.modified = Instant.now();
   }
 
-  public static <T> T copy(Connection toCopy, Class<T> clazz) throws JsonProcessingException {
+  public <T> T copy(Class<T> clazz) throws JsonProcessingException {
     ObjectMapper om = new ObjectMapper()
         .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    return om.readValue(om.writeValueAsString(toCopy), clazz);
+    return om.readValue(om.writeValueAsString(this), clazz);
   }
 
   public Connection(DataEntry from, String label, DataEntry to, Map<String, String> metadata) {

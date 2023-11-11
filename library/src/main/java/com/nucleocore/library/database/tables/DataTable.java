@@ -308,6 +308,15 @@ public class DataTable implements Serializable{
     return size;
   }
 
+  public boolean deleteSync(DataEntry obj) throws InterruptedException {
+    CountDownLatch countDownLatch = new CountDownLatch(1);
+    boolean v = deleteInternalConsumer(obj, (de)->{
+      countDownLatch.countDown();
+    });
+    countDownLatch.await();
+    return v;
+  }
+
   public boolean delete(DataEntry obj, Consumer<DataEntry> consumer) {
     return deleteInternalConsumer(obj, consumer);
   }

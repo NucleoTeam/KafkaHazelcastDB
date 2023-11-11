@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.utils.DataEntry;
+import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.SkipCopy;
 import org.jetbrains.annotations.NotNull;
 
@@ -66,7 +67,11 @@ public class Connection implements Serializable, Comparable<Connection>{
         .findAndRegisterModules()
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     try {
-      return om.readValue(om.writeValueAsString(this), clazz);
+      Serializer.log("Connection Copy");
+      Serializer.log(this);
+      T obj =  om.readValue(om.writeValueAsString(this), clazz);
+      Serializer.log(obj);
+      return obj;
     } catch (JsonProcessingException e) {
       e.printStackTrace();
     }

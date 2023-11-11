@@ -47,7 +47,11 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
             .findAndRegisterModules()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         try {
-            return om.readValue(om.writeValueAsString(this), clazz);
+            Serializer.log("Data Entry Copy");
+            Serializer.log(this);
+            T obj =  om.readValue(om.writeValueAsString(this), clazz);
+            Serializer.log(obj);
+            return obj;
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }

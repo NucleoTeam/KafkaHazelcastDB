@@ -67,10 +67,8 @@ public class Connection implements Serializable, Comparable<Connection>{
         .findAndRegisterModules()
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     try {
-      Serializer.log("Connection Copy");
-      Serializer.log(this);
       T obj =  om.readValue(om.writeValueAsString(this), clazz);
-      Serializer.log(obj);
+      ((Connection)obj).connectionHandler = this.connectionHandler;
       return obj;
     } catch (JsonProcessingException e) {
       e.printStackTrace();

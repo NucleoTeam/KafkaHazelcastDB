@@ -1,6 +1,10 @@
 package com.nucleocore.library.database.tables;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.utils.DataEntry;
 import com.nucleocore.library.database.utils.SkipCopy;
@@ -56,15 +60,11 @@ public class Connection implements Serializable, Comparable<Connection>{
     this.modified = Instant.now();
   }
 
-  public Connection(Connection toCopy) {
-    try {
-      for (Field field : this.getClass().getDeclaredFields()) {
-        if(field.isAnnotationPresent(SkipCopy.class)) continue;
-        field.set(this, field.get(toCopy));
-      }
-    }catch (Exception e){
-      e.printStackTrace();
-    }
+  public Object copy(Connection toCopy) throws JsonProcessingException {
+    ObjectMapper om = new ObjectMapper()
+        .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    return om.readValue(om.writeValueAsString(toCopy), this.getClass());
   }
 
   public Connection(DataEntry from, String label, DataEntry to, Map<String, String> metadata) {

@@ -259,8 +259,9 @@ public class DataTable implements Serializable{
     Set<DataEntry> entries = new TreeSet<>();
     try {
       if (key.equals("id")) {
-        if(this.keyToEntry.containsKey(value))
+        if(this.keyToEntry.containsKey(value)) {
           entries = new TreeSet<>(Arrays.asList(this.keyToEntry.get(value)));
+        }
       } else if (this.indexes.containsKey(key)) {
         Set<DataEntry> tmpEntries = this.indexes.get(key).get(value);
         if (tmpEntries != null) {

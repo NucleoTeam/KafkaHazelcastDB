@@ -2,7 +2,9 @@ package com.nucleocore.library.database.utils;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.library.database.modifications.Create;
 import org.jetbrains.annotations.NotNull;
@@ -39,15 +41,12 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
     }
 
 
-    public DataEntry(DataEntry toCopy) {
-        try {
-            for (Field field : DataEntry.class.getDeclaredFields()) {
-                if(field.isAnnotationPresent(SkipCopy.class)) continue;
-                field.set(this, field.get(toCopy));
-            }
-        }catch (Exception e){
-            e.printStackTrace();
-        }
+    public <T> T copy(Class<T> clazz) throws JsonProcessingException {
+        ObjectMapper om = new ObjectMapper()
+            .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
+            .findAndRegisterModules()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        return om.readValue(om.writeValueAsString(this), clazz);
     }
 
     public DataEntry() {

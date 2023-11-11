@@ -297,15 +297,26 @@ public class ConnectionHandler implements Serializable{
     return v;
   }
 
+  public boolean invalidateConnection(Connection c){
+    boolean keysHaveNull = c.getFromKey()==null || c.getToKey()==null;
+    boolean tablesHaveNull = c.getFromTable()==null || c.getToTable()==null;
+    return keysHaveNull || tablesHaveNull;
+  }
 
   public boolean save(Connection connection) {
+    if(this.invalidateConnection(connection))
+      return false;
     return saveInternalConsumer(connection, null);
   }
   public boolean save(Connection connection, Consumer<Connection> consumer) {
+    if(this.invalidateConnection(connection))
+      return false;
     return saveInternalConsumer(connection, consumer);
   }
 
   public boolean saveSync(Connection connection) throws InterruptedException {
+    if(this.invalidateConnection(connection))
+      return false;
     CountDownLatch countDownLatch = new CountDownLatch(1);
     boolean v = saveInternalConsumer(connection, (c)->{
       countDownLatch.countDown();

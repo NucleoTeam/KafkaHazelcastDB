@@ -416,6 +416,8 @@ public class ConnectionHandler implements Serializable{
       try {
         String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
         changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
+
+        Serializer.log(json);
         if (changes != null && changes.size() > 0) {
           ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());
           producer.push(updateEntry, null);

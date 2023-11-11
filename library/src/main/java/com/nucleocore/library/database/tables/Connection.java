@@ -64,8 +64,7 @@ public class Connection implements Serializable, Comparable<Connection>{
   public <T> T copy(Class<T> clazz)  {
     ObjectMapper om = new ObjectMapper()
         .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
-        .findAndRegisterModules()
-        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        .findAndRegisterModules();
     try {
       T obj =  om.readValue(om.writeValueAsString(this), clazz);
       ((Connection)obj).connectionHandler = this.connectionHandler;
@@ -181,6 +180,10 @@ public class Connection implements Serializable, Comparable<Connection>{
     clonedConnection.fromTable = this.fromTable;
     clonedConnection.toKey = this.toKey;
     clonedConnection.toTable = this.toTable;
+
+    clonedConnection.date = this.date;
+    clonedConnection.modified = this.modified;
+
     clonedConnection.label = this.label;
     clonedConnection.connectionHandler = this.connectionHandler;
     clonedConnection.version = this.version;

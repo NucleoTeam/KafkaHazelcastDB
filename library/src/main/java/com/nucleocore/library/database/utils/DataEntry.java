@@ -11,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
 
@@ -22,14 +23,14 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
     private JsonNode reference;
     public Object data;
     private transient String tableName;
-    private Date created;
-    private Date modified;
+    private Instant created;
+    private Instant modified;
 
     public DataEntry(Object obj) {
         this.data = obj;
         this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = UUID.randomUUID().toString();
-        this.created = new Date();
+        this.created = Instant.now();
     }
 
     public DataEntry(Create create) throws ClassNotFoundException, JsonProcessingException {
@@ -37,15 +38,14 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
         this.version = create.getVersion();
         this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = create.getKey();
-        this.created = new Date();
+        this.created = create.getTime();
     }
 
 
     public <T> T copy(Class<T> clazz) {
         ObjectMapper om = new ObjectMapper()
             .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
-            .findAndRegisterModules()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            .findAndRegisterModules();
         try {
             T obj =  om.readValue(om.writeValueAsString(this), clazz);
             return obj;
@@ -57,12 +57,12 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
 
     public DataEntry() {
         this.key = UUID.randomUUID().toString();
-        this.created = new Date();
+        this.created = Instant.now();
     }
 
     public DataEntry(String key) {
         this.key = key;
-        this.created = new Date();
+        this.created = Instant.now();
     }
 
     public String getKey(){
@@ -79,7 +79,7 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
 
     public void versionIncrease(){
         version+=1;
-        this.modified = new Date();
+        this.modified = Instant.now();
     }
 
     public void setVersion(long version) {
@@ -110,11 +110,11 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
         this.tableName = tableName;
     }
 
-    public Date getCreated() {
+    public Instant getCreated() {
         return created;
     }
 
-    public Date getModified() {
+    public Instant getModified() {
         return modified;
     }
 

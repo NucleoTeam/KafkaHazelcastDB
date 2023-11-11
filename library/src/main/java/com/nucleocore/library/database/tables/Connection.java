@@ -63,6 +63,7 @@ public class Connection implements Serializable, Comparable<Connection>{
   public <T> T copy(Class<T> clazz) throws JsonProcessingException {
     ObjectMapper om = new ObjectMapper()
         .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
+        .findAndRegisterModules()
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     return om.readValue(om.writeValueAsString(this), clazz);
   }

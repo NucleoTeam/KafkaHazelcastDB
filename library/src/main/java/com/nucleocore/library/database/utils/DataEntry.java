@@ -41,12 +41,17 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
     }
 
 
-    public <T> T copy(Class<T> clazz) throws JsonProcessingException {
+    public <T> T copy(Class<T> clazz) {
         ObjectMapper om = new ObjectMapper()
             .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
             .findAndRegisterModules()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        return om.readValue(om.writeValueAsString(this), clazz);
+        try {
+            return om.readValue(om.writeValueAsString(this), clazz);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public DataEntry() {

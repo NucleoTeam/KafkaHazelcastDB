@@ -304,19 +304,28 @@ public class ConnectionHandler implements Serializable{
   }
 
   public boolean save(Connection connection) {
-    if(this.invalidateConnection(connection))
+    if(this.invalidateConnection(connection)) {
+      Serializer.log("ERROR, invalid connection!");
+      Serializer.log(connection);
       return false;
+    }
     return saveInternalConsumer(connection, null);
   }
   public boolean save(Connection connection, Consumer<Connection> consumer) {
-    if(this.invalidateConnection(connection))
+    if(this.invalidateConnection(connection)) {
+      Serializer.log("ERROR, invalid connection!");
+      Serializer.log(connection);
       return false;
+    }
     return saveInternalConsumer(connection, consumer);
   }
 
   public boolean saveSync(Connection connection) throws InterruptedException {
-    if(this.invalidateConnection(connection))
+    if(this.invalidateConnection(connection)) {
+      Serializer.log("ERROR, invalid connection!");
+      Serializer.log(connection);
       return false;
+    }
     CountDownLatch countDownLatch = new CountDownLatch(1);
     boolean v = saveInternalConsumer(connection, (c)->{
       countDownLatch.countDown();
@@ -416,7 +425,6 @@ public class ConnectionHandler implements Serializable{
       try {
         String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
         changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
-
         Serializer.log(json);
         if (changes != null && changes.size() > 0) {
           ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());
@@ -442,6 +450,7 @@ public class ConnectionHandler implements Serializable{
       JsonPatch patch = JsonDiff.asJsonPatch(Serializer.getObjectMapper().getOm().valueToTree(oldConnection), Serializer.getObjectMapper().getOm().valueToTree(connection));
       try {
         String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
+        Serializer.log(json);
         changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
         if (changes != null && changes.size() > 0) {
           ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());

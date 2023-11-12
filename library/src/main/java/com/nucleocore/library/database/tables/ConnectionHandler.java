@@ -224,7 +224,6 @@ public class ConnectionHandler implements Serializable{
     String connectionKey = connection.getFromKey();
     this.putConnectionInKey(connectionKey, connection);
     this.putConnectionInKey(connection.getLabel(), connection);
-    Serializer.log("added label as key: "+connection.getLabel());
     this.putConnectionInKey(connection.getFromKey()+connection.getLabel(), connection);
     this.putConnectionInKey(connection.getFromKey()+connection.getToKey(), connection);
     this.putConnectionInKey(connection.getFromKey()+connection.getToKey()+connection.getLabel(), connection);

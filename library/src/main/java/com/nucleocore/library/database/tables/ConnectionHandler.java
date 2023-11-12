@@ -164,42 +164,42 @@ public class ConnectionHandler implements Serializable{
   public Set<Connection> getByFromAndLabelAndTo(DataEntry from, String label, DataEntry to){
     Set<Connection> tmp = connections.get(from.getKey()+to.getKey()+label);
     if(tmp!=null) {
-      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
+      return tmp.stream().collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
   public Set<Connection> getByLabel(String label){
     Set<Connection> tmp = connections.get(label);
     if(tmp!=null) {
-      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
+      return tmp.stream().collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
   public Set<Connection> getByFromAndTo(DataEntry from, DataEntry to){
     Set<Connection> tmp = connections.get(from.getKey()+to.getKey());
     if(tmp!=null) {
-      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
+      return tmp.stream().collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
   public Set<Connection> getReverseByLabelAndTo(String label, DataEntry to){
     Set<Connection> tmp = connectionsReverse.get(to.getKey()+label);
     if(tmp!=null) {
-      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
+      return tmp.stream().collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
   public Set<Connection> getReverseByFromAndLabelAndTo(DataEntry de, String label, DataEntry toDe){
     Set<Connection> tmp = connectionsReverse.get(de.getKey()+toDe.getKey()+label);
     if(tmp!=null) {
-      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
+      return tmp.stream().collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
   public Set<Connection> getReverseByFromAndTo(DataEntry from, DataEntry to){
     Set<Connection> tmp = connectionsReverse.get(from.getKey()+to.getKey());
     if(tmp!=null) {
-      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
+      return tmp.stream().collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
@@ -236,8 +236,8 @@ public class ConnectionHandler implements Serializable{
   private void removeByKey(String key, Connection connection){
     if(connections.containsKey(key)){
       connections.get(key).remove(connection);
-      if(connectionsReverse.get(key).size()==0){
-        connectionsReverse.remove(key);
+      if(connections.get(key).size()==0){
+        connections.remove(key);
       }
     }
   }

@@ -168,6 +168,13 @@ public class ConnectionHandler implements Serializable{
     }
     return new TreeSetExt<>();
   }
+  public Set<Connection> getByLabel(String label){
+    Set<Connection> tmp = connections.get(label);
+    if(tmp!=null) {
+      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
+    }
+    return new TreeSetExt<>();
+  }
   public Set<Connection> getByFromAndTo(DataEntry from, DataEntry to){
     Set<Connection> tmp = connections.get(from.getKey()+to.getKey());
     if(tmp!=null) {
@@ -216,6 +223,7 @@ public class ConnectionHandler implements Serializable{
     connectionByUUID.put(connection.getUuid(), connection);
     String connectionKey = connection.getFromKey();
     this.putConnectionInKey(connectionKey, connection);
+    this.putConnectionInKey(connection.getLabel(), connection);
     this.putConnectionInKey(connection.getFromKey()+connection.getLabel(), connection);
     this.putConnectionInKey(connection.getFromKey()+connection.getToKey(), connection);
     this.putConnectionInKey(connection.getFromKey()+connection.getToKey()+connection.getLabel(), connection);
@@ -228,18 +236,26 @@ public class ConnectionHandler implements Serializable{
   private void removeByKey(String key, Connection connection){
     if(connections.containsKey(key)){
       connections.get(key).remove(connection);
+      if(connectionsReverse.get(key).size()==0){
+        connectionsReverse.remove(key);
+      }
     }
   }
   private void removeReverseByKey(String key, Connection connection){
     if(connectionsReverse.containsKey(key)){
       connectionsReverse.get(key).remove(connection);
+      if(connectionsReverse.get(key).size()==0){
+        connectionsReverse.remove(key);
+      }
     }
+
   }
 
   private void removeConnection(Connection connection){
     connectionByUUID.remove(connection.getUuid());
     String connectionKey = connection.getFromKey();
     this.removeByKey(connectionKey, connection);
+    this.removeByKey(connection.getLabel(), connection);
     this.removeByKey(connection.getFromKey()+connection.getLabel(), connection);
     this.removeByKey(connection.getFromKey()+connection.getToKey(), connection);
     this.removeByKey(connection.getFromKey()+connection.getToKey()+connection.getLabel(), connection);

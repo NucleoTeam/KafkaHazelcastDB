@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.nucleodb'
-version = '1.9.31'
+version = '1.9.32'
 
 repositories {
     mavenCentral()

@@ -32,7 +32,7 @@ public class NucleoDB{
   private TreeMap<String, DataTable> tables = new TreeMap<>();
   static String latestSave = "";
 
-  private ConnectionHandler connectionHandler = new ConnectionHandler(this);
+  private ConnectionHandler connectionHandler;
 
   public NucleoDB() {
   }
@@ -42,6 +42,7 @@ public class NucleoDB{
   }
 
   public NucleoDB(String bootstrap, String packageToScan) {
+    connectionHandler = new ConnectionHandler(this, bootstrap);
     Set<Class<?>> types = new Reflections(packageToScan).getTypesAnnotatedWith(Table.class);
     CountDownLatch latch = new CountDownLatch(types.size());
     Set<DataTableBuilder> tables = new TreeSetExt<>();

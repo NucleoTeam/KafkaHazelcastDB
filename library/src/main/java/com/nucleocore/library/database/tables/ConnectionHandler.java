@@ -70,9 +70,10 @@ public class ConnectionHandler implements Serializable{
     this.config = config;
   }
 
-  public ConnectionHandler(NucleoDB nucleoDB) {
+  public ConnectionHandler(NucleoDB nucleoDB, String bootstrap) {
     this.nucleoDB = nucleoDB;
     this.config = new ConnectionConfig();
+    this.config.setBootstrap(bootstrap);
     // startup
     if (config.isWrite()) {
       createTopics();

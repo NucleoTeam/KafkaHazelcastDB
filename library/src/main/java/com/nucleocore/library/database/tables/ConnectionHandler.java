@@ -269,10 +269,8 @@ public class ConnectionHandler implements Serializable{
   public void consume() {
     if (this.config.getBootstrap() != null) {
       String consumer = UUID.randomUUID().toString();
-      for (String kafkaBroker : this.config.getBootstrap().split(",")) {
-        System.out.println( consumer + " connecting to: " + kafkaBroker);
-        new ConsumerHandler(kafkaBroker, consumer, this, "connections");
-      }
+      System.out.println( consumer + " connecting to: " + this.config.getBootstrap());
+      new ConsumerHandler(this.config.getBootstrap(), consumer, this, "connections");
     }
   }
   public void removeConnectionFrom(String key){

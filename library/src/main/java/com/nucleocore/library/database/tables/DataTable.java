@@ -165,10 +165,8 @@ public class DataTable implements Serializable{
   public void consume() {
     if (this.config.getBootstrap() != null) {
       String consumer = UUID.randomUUID().toString();
-      for (String kafkaBroker : this.config.getBootstrap().split(",")) {
-        //System.out.println(this.config.getTable() + " with " + consumer + " connecting to: " + kafkaBroker);
-        new ConsumerHandler(kafkaBroker, consumer, this, this.config.getTable());
-      }
+      //System.out.println(this.config.getTable() + " with " + consumer + " connecting to: " + kafkaBroker);
+      new ConsumerHandler(this.config.getBootstrap(), consumer, this, this.config.getTable());
     }
   }
 

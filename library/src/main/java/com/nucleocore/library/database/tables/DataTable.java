@@ -21,6 +21,7 @@ import com.nucleocore.library.database.utils.index.TreeIndex;
 import com.nucleocore.library.kafkaLedger.ConsumerHandler;
 import com.nucleocore.library.kafkaLedger.ProducerHandler;
 import org.apache.kafka.clients.admin.*;
+import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.errors.TopicExistsException;
 import com.github.fge.jsonpatch.JsonPatch;
 
@@ -95,7 +96,9 @@ public class DataTable implements Serializable{
     try {
       if (client.listTopics().names().get().stream().filter(x -> x.equals(config.getTable())).count() == 0) {
         try {
-          final NewTopic newTopic = new NewTopic(config.getTable(), 8, (short) 1);
+          final NewTopic newTopic = new NewTopic(config.getTable(), 4, (short) 3);
+          newTopic.configs().put(TopicConfig.RETENTION_MS_CONFIG, "-1");
+          newTopic.configs().put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
           final CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
           createTopicsResult.values().get(config.getTable()).get();
         } catch (InterruptedException | ExecutionException e) {

@@ -22,6 +22,7 @@ import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.errors.TopicExistsException;
 
 import java.io.File;
@@ -121,7 +122,9 @@ public class ConnectionHandler implements Serializable{
     try {
       if (client.listTopics().names().get().stream().filter(x -> x.equals("connections")).count() == 0) {
         try {
-          final NewTopic newTopic = new NewTopic("connections", 8, (short) 1);
+          final NewTopic newTopic = new NewTopic("connections", 4, (short) 3);
+          newTopic.configs().put(TopicConfig.RETENTION_MS_CONFIG, "-1");
+          newTopic.configs().put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
           final CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
           createTopicsResult.values().get("connections").get();
         } catch (InterruptedException | ExecutionException e) {

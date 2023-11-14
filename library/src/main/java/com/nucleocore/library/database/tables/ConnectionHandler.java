@@ -123,8 +123,11 @@ public class ConnectionHandler implements Serializable{
       if (client.listTopics().names().get().stream().filter(x -> x.equals("connections")).count() == 0) {
         try {
           final NewTopic newTopic = new NewTopic("connections", 4, (short) 3);
-          newTopic.configs().put(TopicConfig.RETENTION_MS_CONFIG, "-1");
-          newTopic.configs().put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
+          newTopic.configs(new TreeMap<>(){{
+            put(TopicConfig.RETENTION_MS_CONFIG, "-1");
+            put(TopicConfig.RETENTION_MS_CONFIG, "-1");
+            put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
+          }});
           final CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
           createTopicsResult.values().get("connections").get();
         } catch (InterruptedException | ExecutionException e) {

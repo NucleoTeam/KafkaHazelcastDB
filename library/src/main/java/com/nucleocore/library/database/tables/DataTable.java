@@ -97,8 +97,11 @@ public class DataTable implements Serializable{
       if (client.listTopics().names().get().stream().filter(x -> x.equals(config.getTable())).count() == 0) {
         try {
           final NewTopic newTopic = new NewTopic(config.getTable(), 4, (short) 3);
-          newTopic.configs().put(TopicConfig.RETENTION_MS_CONFIG, "-1");
-          newTopic.configs().put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
+          newTopic.configs(new TreeMap<>(){{
+            put(TopicConfig.RETENTION_MS_CONFIG, "-1");
+            put(TopicConfig.RETENTION_MS_CONFIG, "-1");
+            put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
+          }});
           final CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
           createTopicsResult.values().get(config.getTable()).get();
         } catch (InterruptedException | ExecutionException e) {

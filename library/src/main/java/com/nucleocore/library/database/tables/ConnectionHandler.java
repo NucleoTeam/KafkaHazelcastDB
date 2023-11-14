@@ -50,6 +50,7 @@ public class ConnectionHandler implements Serializable{
   private transient Map<String, Set<Connection>> connectionsReverse = new TreeMap<>();
   private transient Map<String, Connection> connectionByUUID = new TreeMap<>();
   private Map<Integer, Long> partitionOffsets = new TreeMap<>();
+  private String consumerId = UUID.randomUUID().toString();
 
   private Set<Connection> allConnections = new TreeSetExt<>();
 
@@ -106,6 +107,7 @@ public class ConnectionHandler implements Serializable{
         ConnectionHandler tmpConnections = (ConnectionHandler) new ObjectFileReader().readObjectFromFile("./data/connections.dat");
         tmpConnections.allConnections.forEach(c->this.addConnection(c));
         this.changed = tmpConnections.changed;
+        this.consumerId = tmpConnections.getConsumerId();
         this.partitionOffsets = tmpConnections.partitionOffsets;
       } catch (IOException e) {
         throw new RuntimeException(e);
@@ -274,9 +276,8 @@ public class ConnectionHandler implements Serializable{
   }
   public void consume() {
     if (this.config.getBootstrap() != null) {
-      String consumer = UUID.randomUUID().toString();
-      System.out.println( consumer + " connecting to: " + this.config.getBootstrap());
-      new ConsumerHandler(this.config.getBootstrap(), consumer, this, "connections");
+      System.out.println( this.consumerId + " connecting to: " + this.config.getBootstrap());
+      new ConsumerHandler(this.config.getBootstrap(), this.consumerId, this, "connections");
     }
   }
   public void removeConnectionFrom(String key){
@@ -737,5 +738,13 @@ public class ConnectionHandler implements Serializable{
 
   public void setChanged(long changed) {
     this.changed = changed;
+  }
+
+  public String getConsumerId() {
+    return consumerId;
+  }
+
+  public void setConsumerId(String consumerId) {
+    this.consumerId = consumerId;
   }
 }

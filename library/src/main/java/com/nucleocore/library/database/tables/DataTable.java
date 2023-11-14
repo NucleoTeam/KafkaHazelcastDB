@@ -33,10 +33,12 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class DataTable implements Serializable{
   private static final long serialVersionUID = 1;
+  private transient static Logger logger = Logger.getLogger(DataTable.class.getName());
 
   private List<DataEntry> entries = Lists.newArrayList();
   private DataTableConfig config;
@@ -46,6 +48,7 @@ public class DataTable implements Serializable{
   private Map<String, DataEntry> keyToEntry = new TreeMap<>();
 
   private Map<Integer, Long> partitionOffsets = new TreeMap<>();
+  private String consumerId = UUID.randomUUID().toString();
 
   private long changed = new Date().getTime();
 
@@ -77,6 +80,7 @@ public class DataTable implements Serializable{
           this.config.merge(tmpTable.config);
         this.changed = tmpTable.changed;
         this.entries = tmpTable.entries;
+        this.consumerId = tmpTable.consumerId;
         this.indexes = tmpTable.indexes;
         this.partitionOffsets = tmpTable.partitionOffsets;
         this.keyToEntry = tmpTable.keyToEntry;
@@ -116,7 +120,7 @@ public class DataTable implements Serializable{
     }
     try {
       if (client.listTopics().names().get().stream().filter(x -> x.equals(config.getTable())).count() == 0) {
-        System.out.println("topic not created");
+        logger.info("topic not created");
         System.exit(-1);
       }
     } catch (Exception e) {
@@ -130,7 +134,7 @@ public class DataTable implements Serializable{
     this.config = config;
 
     if (config.isLoadSave()) {
-      System.out.println("reading local " + config.getTableFileName());
+      logger.info("reading local " + config.getTableFileName());
       loadSavedData();
     }
 
@@ -151,12 +155,12 @@ public class DataTable implements Serializable{
 
 
     if (config.isRead()) {
-      System.out.println("Connecting to " + config.getBootstrap());
+      logger.info("Connecting to " + config.getBootstrap());
       new Thread(new ModQueueHandler()).start();
       this.consume();
     }
     if (config.isWrite()) {
-      System.out.println("Producing to " + config.getBootstrap());
+      logger.info("Producing to " + config.getBootstrap());
       producer = new ProducerHandler(config.getBootstrap(), config.getTable());
     }
 
@@ -170,9 +174,8 @@ public class DataTable implements Serializable{
 
   public void consume() {
     if (this.config.getBootstrap() != null) {
-      String consumer = UUID.randomUUID().toString();
-      //System.out.println(this.config.getTable() + " with " + consumer + " connecting to: " + kafkaBroker);
-      new ConsumerHandler(this.config.getBootstrap(), consumer, this, this.config.getTable());
+      logger.info(this.config.getTable() + " with " + this.consumerId + " connecting to: " + this.config.getBootstrap());
+      new ConsumerHandler(this.config.getBootstrap(), this.consumerId, this, this.config.getTable());
     }
   }
 
@@ -881,5 +884,13 @@ public class DataTable implements Serializable{
 
   public void setConfig(DataTableConfig config) {
     this.config = config;
+  }
+
+  public String getConsumerId() {
+    return consumerId;
+  }
+
+  public void setConsumerId(String consumerId) {
+    this.consumerId = consumerId;
   }
 }

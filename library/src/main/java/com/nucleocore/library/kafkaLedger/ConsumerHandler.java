@@ -59,7 +59,7 @@ public class ConsumerHandler implements Runnable{
         //Serializer.log(tmp.getKey() + " offset " + (tmp.getValue().longValue() + 1));
         this.getConsumer().seek(
             new TopicPartition(table, tmp.getKey()),
-            tmp.getValue().longValue() + 1
+            tmp.getValue().longValue()
         );
       }
     }
@@ -106,7 +106,7 @@ public class ConsumerHandler implements Runnable{
         //Serializer.log(tmp.getKey() + " offset " + (tmp.getValue().longValue() + 1));
         this.getConsumer().seek(
             new TopicPartition(table, tmp.getKey()),
-            tmp.getValue().longValue() + 1
+            tmp.getValue().longValue()
         );
       }
     }

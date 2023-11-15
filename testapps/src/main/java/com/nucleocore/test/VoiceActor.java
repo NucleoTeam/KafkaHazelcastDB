@@ -1,4 +1,4 @@
-package com.nucleocore.test.sql;
+package com.nucleocore.test;
 
 import java.io.Serializable;
 import java.util.List;

@@ -1,5 +1,6 @@
-package com.nucleocore.library.database.tables;
+package com.nucleocore.library.database.tables.connection;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.diff.JsonDiff;
@@ -7,12 +8,11 @@ import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.modifications.ConnectionCreate;
 import com.nucleocore.library.database.modifications.ConnectionDelete;
 import com.nucleocore.library.database.modifications.ConnectionUpdate;
-import com.nucleocore.library.database.utils.DataEntry;
+import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.modifications.Modification;
 import com.nucleocore.library.database.utils.InvalidConnectionException;
 import com.nucleocore.library.database.utils.JsonOperations;
 import com.nucleocore.library.database.utils.ObjectFileReader;
-import com.nucleocore.library.database.utils.ObjectFileWriter;
 import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.TreeSetExt;
 import com.nucleocore.library.kafkaLedger.ConsumerHandler;
@@ -40,36 +40,67 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ConnectionHandler implements Serializable{
+  private static Logger logger = Logger.getLogger(ConnectionHandler.class.getName());
   private static final long serialVersionUID = 1;
+  @JsonIgnore
   private transient Map<String, Set<Connection>> connections = new TreeMap<>();
+  @JsonIgnore
   private transient Map<String, Set<Connection>> connectionsReverse = new TreeMap<>();
+  @JsonIgnore
   private transient Map<String, Connection> connectionByUUID = new TreeMap<>();
   private Map<Integer, Long> partitionOffsets = new TreeMap<>();
   private String consumerId = UUID.randomUUID().toString();
 
   private Set<Connection> allConnections = new TreeSetExt<>();
-
+  @JsonIgnore
   private transient NucleoDB nucleoDB;
 
   private ConnectionConfig config;
-
+  @JsonIgnore
   private transient ProducerHandler producer = null;
+  @JsonIgnore
   private transient ConsumerHandler consumer = null;
 
   Stack<ModificationQueueItem> modqueue = new Stack<>();
+  @JsonIgnore
   private transient boolean inStartup = true;
+  @JsonIgnore
 
   private transient Map<String, Consumer<Connection>> consumers = new TreeMap<>();
 
   private long changed = new Date().getTime();
 
-  public ConnectionHandler(ConnectionConfig config) {
+  public ConnectionHandler(NucleoDB nucleoDB, ConnectionConfig config) {
+    this.nucleoDB = nucleoDB;
     this.config = config;
+    if (config.isWrite()) {
+      createTopics();
+    }
+    if(config.isLoadSaved()) {
+      loadSavedData();
+    }
+
+    if (config.isRead()) {
+      System.out.println("Connecting to " + config.getBootstrap());
+      new Thread(new ModQueueHandler(this)).start();
+      this.consume();
+    }
+    if (config.isWrite()) {
+      System.out.println("Producing to " + config.getBootstrap());
+      producer = new ProducerHandler(config.getBootstrap(), "connections", this.consumerId);
+    }
+    if (config.isSaveChanges()) {
+      new Thread(new SaveHandler(this)).start();
+    }
+    if (config.isJsonExport()) {
+      new Thread(new ExportHandler(this)).start();
+    }
   }
 
   public ConnectionHandler(NucleoDB nucleoDB, String bootstrap) {
@@ -77,27 +108,30 @@ public class ConnectionHandler implements Serializable{
     this.config = new ConnectionConfig();
     this.config.setBootstrap(bootstrap);
     // startup
+
     if (config.isWrite()) {
       createTopics();
     }
-    loadSavedData();
+
+    if(config.isLoadSaved()) {
+      loadSavedData();
+    }
 
     if (config.isRead()) {
       System.out.println("Connecting to " + config.getBootstrap());
-      new Thread(new ModQueueHandler()).start();
+      new Thread(new ModQueueHandler(this)).start();
       this.consume();
     }
     if (config.isWrite()) {
       System.out.println("Producing to " + config.getBootstrap());
-      producer = new ProducerHandler(config.getBootstrap(), "connections");
+      producer = new ProducerHandler(config.getBootstrap(), "connections", this.consumerId);
     }
     if (config.isSaveChanges()) {
       new Thread(new SaveHandler(this)).start();
     }
-    if (!config.isRead()) {
-      if (this.config.getStartupRun() != null) {
-        this.config.getStartupRun().run(this);
-      }
+
+    if (config.isJsonExport()) {
+      new Thread(new ExportHandler(this)).start();
     }
   }
 
@@ -124,7 +158,7 @@ public class ConnectionHandler implements Serializable{
     try {
       if (client.listTopics().names().get().stream().filter(x -> x.equals("connections")).count() == 0) {
         try {
-          final NewTopic newTopic = new NewTopic("connections", 4, (short) 3);
+          final NewTopic newTopic = new NewTopic("connections", 36, (short) 3);
           newTopic.configs(new TreeMap<>(){{
             put(TopicConfig.RETENTION_MS_CONFIG, "-1");
             put(TopicConfig.RETENTION_MS_CONFIG, "-1");
@@ -214,14 +248,14 @@ public class ConnectionHandler implements Serializable{
   }
 
   private void putConnectionInKey(String key, Connection connection){
-    if(!connections.containsKey(key)){
+    if (!connections.containsKey(key)) {
       connections.put(key, new TreeSetExt<>());
     }
     connections.get(key).add(connection);
   }
 
   private void putReverseConnectionInKey(String key, Connection connection){
-    if(!connectionsReverse.containsKey(key)){
+    if (!connectionsReverse.containsKey(key)) {
       connectionsReverse.put(key, new TreeSetExt<>());
     }
     connectionsReverse.get(key).add(connection);
@@ -243,21 +277,20 @@ public class ConnectionHandler implements Serializable{
   }
 
   private void removeByKey(String key, Connection connection){
-    if(connections.containsKey(key)){
+    if (connections.containsKey(key)) {
       connections.get(key).remove(connection);
-      if(connections.get(key).size()==0){
+      if (connections.get(key).size() == 0) {
         connections.remove(key);
       }
     }
   }
   private void removeReverseByKey(String key, Connection connection){
-    if(connectionsReverse.containsKey(key)){
+    if (connectionsReverse.containsKey(key)) {
       connectionsReverse.get(key).remove(connection);
-      if(connectionsReverse.get(key).size()==0){
+      if (connectionsReverse.get(key).size() == 0) {
         connectionsReverse.remove(key);
       }
     }
-
   }
 
   private void removeConnection(Connection connection){
@@ -306,22 +339,24 @@ public class ConnectionHandler implements Serializable{
     this.allConnections = allConnections;
   }
 
-  public boolean delete(Connection connection) throws IOException {
+  public boolean deleteAndForget(Connection connection) throws IOException {
     return deleteInternalConsumer(connection,null);
   }
-  public void delete(Connection connection, Consumer<Connection> consumer) throws IOException {
+  public void deleteAsync(Connection connection, Consumer<Connection> consumer) throws IOException {
     deleteInternalConsumer(connection, consumer);
   }
   public boolean deleteSync(Connection connection) throws IOException, InterruptedException {
     CountDownLatch countDownLatch = new CountDownLatch(1);
-    boolean v = deleteInternalConsumerSync(connection,(c)->{
+    AtomicBoolean v = new AtomicBoolean(false);
+   deleteInternalConsumerSync(connection,(c)->{
       countDownLatch.countDown();
+      v.set(c == null);
     });
     countDownLatch.await();
-    return v;
+    return v.get();
   }
 
-  public List<String> invalidateConnection(Connection c){
+  public List<String> invalidConnection(Connection c){
     List<String> invalids = new LinkedList<>();
     if(c.getFromKey()==null) invalids.add("[FromKey]");
     if(c.getToKey()==null) invalids.add("[ToKey]");
@@ -330,15 +365,15 @@ public class ConnectionHandler implements Serializable{
     return invalids;
   }
 
-  public boolean save(Connection connection) throws InvalidConnectionException {
-    List<String> invalids = this.invalidateConnection(connection);
+  public boolean saveAndForget(Connection connection) throws InvalidConnectionException {
+    List<String> invalids = this.invalidConnection(connection);
     if(invalids.size()>0) {
       throw new InvalidConnectionException(invalids.stream().collect(Collectors.joining(", ")));
     }
     return saveInternalConsumer(connection, null);
   }
-  public boolean save(Connection connection, Consumer<Connection> consumer) throws InvalidConnectionException {
-    List<String> invalids = this.invalidateConnection(connection);
+  public boolean saveAsync(Connection connection, Consumer<Connection> consumer) throws InvalidConnectionException {
+    List<String> invalids = this.invalidConnection(connection);
     if(invalids.size()>0) {
       throw new InvalidConnectionException(invalids.stream().collect(Collectors.joining(", ")));
     }
@@ -346,7 +381,7 @@ public class ConnectionHandler implements Serializable{
   }
 
   public boolean saveSync(Connection connection) throws InvalidConnectionException, InterruptedException {
-    List<String> invalids = this.invalidateConnection(connection);
+    List<String> invalids = this.invalidConnection(connection);
     if(invalids.size()>0) {
       throw new InvalidConnectionException(invalids.stream().collect(Collectors.joining(", ")));
     }
@@ -371,20 +406,20 @@ public class ConnectionHandler implements Serializable{
   }
   private boolean deleteInternalConsumerSync(Connection connection, Consumer<Connection> consumer) throws IOException, InterruptedException {
     String changeUUID = UUID.randomUUID().toString();
+    if (consumer != null) {
+      consumers.put(changeUUID, consumer);
+    }
     if (deleteInternalSync(connection, changeUUID)) {
-      if (consumer != null) {
-        consumers.put(changeUUID, consumer);
-      }
       return true;
     }
     return false;
   }
   private boolean saveInternalConsumer(Connection connection, Consumer<Connection> consumer) {
     String changeUUID = UUID.randomUUID().toString();
+    if (consumer != null) {
+      consumers.put(changeUUID, consumer);
+    }
     if (saveInternal(connection, changeUUID)) {
-      if (consumer != null) {
-        consumers.put(changeUUID, consumer);
-      }
       return true;
     }
     return false;
@@ -423,15 +458,7 @@ public class ConnectionHandler implements Serializable{
     if (allConnections.contains(connection)) {
       connection.versionIncrease();
       ConnectionDelete deleteEntry = new ConnectionDelete(changeUUID, connection);
-      CountDownLatch countDownLatch = new CountDownLatch(1);
-      producer.push(deleteEntry, (meta, e) -> {
-        //Serializer.log(meta.offset());
-        if (e != null) {
-          e.printStackTrace();
-        }
-        countDownLatch.countDown();
-      });
-      countDownLatch.await();
+      producer.push(deleteEntry, null);
       return true;
     }
     return false;
@@ -479,13 +506,7 @@ public class ConnectionHandler implements Serializable{
         if (changes != null && changes.size() > 0) {
           ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());
           CountDownLatch countDownLatch = new CountDownLatch(1);
-          producer.push(updateEntry, (meta, e) -> {
-            //Serializer.log(meta.offset());
-            if (e != null) {
-              e.printStackTrace();
-            }
-            countDownLatch.countDown();
-          });
+          producer.push(updateEntry, null);
           countDownLatch.await();
           return true;
         }
@@ -497,76 +518,10 @@ public class ConnectionHandler implements Serializable{
     return false;
   }
 
-  class ModificationQueueItem implements Serializable{
-    private static final long serialVersionUID = 1;
-    private Modification mod;
-    private Object modification;
 
-    public ModificationQueueItem(Modification mod, Object modification) {
-      this.mod = mod;
-      this.modification = modification;
-    }
 
-    public Modification getMod() {
-      return mod;
-    }
 
-    public Object getModification() {
-      return modification;
-    }
-  }
 
-  class SaveHandler implements Runnable{
-    ConnectionHandler connectionHandler;
-
-    public SaveHandler(ConnectionHandler connectionHandler) {
-      this.connectionHandler = connectionHandler;
-    }
-
-    @Override
-    public void run() {
-      long changedSaved = this.connectionHandler.changed;
-
-      while (true) {
-        try {
-          if (changed > changedSaved) {
-            //System.out.println("Saved connections");
-            new ObjectFileWriter().writeObjectToFile(this.connectionHandler, "./data/connections.dat");
-            changedSaved = changed;
-          }
-          Thread.sleep(5000);
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-      }
-    }
-  }
-  class ModQueueHandler implements Runnable{
-    @Override
-    public void run() {
-      ModificationQueueItem mqi;
-      while (true) {
-        while (!modqueue.isEmpty()) {
-          //System.out.println("SOMETHING FOUND");
-          //Serializer.log(modqueue);
-          mqi = modqueue.pop();
-          if (mqi != null) {
-            modify(mqi.getMod(), mqi.getModification());
-          }
-          try {
-            Thread.sleep(10);
-          } catch (Exception e) {
-            e.printStackTrace();
-          }
-        }
-        try {
-          Thread.sleep(10);
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-      }
-    }
-  }
   public void modify(Modification mod, Object modification) {
     switch (mod) {
       case CONNECTIONCREATE:

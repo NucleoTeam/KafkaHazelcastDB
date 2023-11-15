@@ -2,7 +2,7 @@ package com.nucleocore.library.database.utils.index;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Queues;
-import com.nucleocore.library.database.utils.DataEntry;
+import com.nucleocore.library.database.tables.table.DataEntry;
 
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;

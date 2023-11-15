@@ -1,5 +1,6 @@
-package com.nucleocore.library.database.tables;
+package com.nucleocore.library.database.tables.connection;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nucleocore.library.database.utils.StartupRun;
 
 import java.io.Serializable;
@@ -10,9 +11,12 @@ public class ConnectionConfig implements Serializable{
   Instant readToTime = null;
   boolean write = true;
   boolean read = true;
+  boolean loadSaved = true;
+  boolean jsonExport = false;
   boolean saveChanges = true;
-  String bootstrap = "127.0.0.1:29092";
-  transient StartupRun startupRun = null;
+  String bootstrap = "127.0.0.1:19092";
+  @JsonIgnore
+  private transient StartupRun startupRun = null;
 
   public ConnectionConfig() {
   }
@@ -63,5 +67,21 @@ public class ConnectionConfig implements Serializable{
 
   public void setSaveChanges(boolean saveChanges) {
     this.saveChanges = saveChanges;
+  }
+
+  public boolean isLoadSaved() {
+    return loadSaved;
+  }
+
+  public void setLoadSaved(boolean loadSaved) {
+    this.loadSaved = loadSaved;
+  }
+
+  public boolean isJsonExport() {
+    return jsonExport;
+  }
+
+  public void setJsonExport(boolean jsonExport) {
+    this.jsonExport = jsonExport;
   }
 }

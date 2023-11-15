@@ -2,18 +2,18 @@ package com.nucleocore.library;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Queues;
-import com.nucleocore.library.database.tables.ConnectionHandler;
+import com.nucleocore.library.database.tables.connection.ConnectionConfig;
+import com.nucleocore.library.database.tables.connection.ConnectionHandler;
 import com.nucleocore.library.database.tables.annotation.Index;
 import com.nucleocore.library.database.tables.annotation.Relationship;
 import com.nucleocore.library.database.tables.annotation.Relationships;
 import com.nucleocore.library.database.tables.annotation.Table;
-import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.TreeSetExt;
 import com.nucleocore.library.database.utils.index.TreeIndex;
 import com.nucleocore.library.database.utils.sql.SQLHandler;
-import com.nucleocore.library.database.tables.DataTable;
-import com.nucleocore.library.database.tables.DataTableBuilder;
-import com.nucleocore.library.database.utils.DataEntry;
+import com.nucleocore.library.database.tables.table.DataTable;
+import com.nucleocore.library.database.tables.table.DataTableBuilder;
+import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.StartupRun;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
@@ -27,8 +27,10 @@ import org.reflections.Reflections;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.logging.Logger;
 
 public class NucleoDB{
+  private static Logger logger = Logger.getLogger(DataTable.class.getName());
   private TreeMap<String, DataTable> tables = new TreeMap<>();
   static String latestSave = "";
 
@@ -37,33 +39,68 @@ public class NucleoDB{
   public NucleoDB() {
   }
 
-  public class TableData{
 
+  public enum DBType{
+    NO_LOCAL,
+    EXPORT,
+    ALL;
   }
 
   public NucleoDB(String bootstrap, String packageToScan) {
-    connectionHandler = new ConnectionHandler(this, bootstrap);
+    this(bootstrap, packageToScan, DBType.ALL);
+  }
+
+  public NucleoDB(String bootstrap, String packageToScan, DBType dbType) {
     Set<Class<?>> types = new Reflections(packageToScan).getTypesAnnotatedWith(Table.class);
-    CountDownLatch latch = new CountDownLatch(types.size());
+    CountDownLatch latch = new CountDownLatch(types.size()+1);
+    ConnectionConfig config = new ConnectionConfig();
+    config.setBootstrap(bootstrap);
+    config.setStartupRun(new StartupRun(){
+      public void run(ConnectionHandler connectionHandler) {
+        latch.countDown();
+      }
+    });
+    switch (dbType) {
+      case NO_LOCAL -> {
+        config.setSaveChanges(false);
+        config.setLoadSaved(false);
+      }
+      case EXPORT -> config.setJsonExport(true);
+    }
+    connectionHandler = new ConnectionHandler(this, config);
+
     Set<DataTableBuilder> tables = new TreeSetExt<>();
     Map<String, Set<String>> indexes = new TreeMap<>();
 
-    types.stream().forEach(type->{
+    types.stream().forEach(type -> {
       String tableName = type.getAnnotation(Table.class).value();
       processTableClass(tableName, indexes, type);
-      tables.add(launchTable(bootstrap, tableName, type, new StartupRun(){
-        public void run(DataTable table) {
-          latch.countDown();
-        }
-      }));
+      switch (dbType) {
+        case ALL -> tables.add(launchTable(bootstrap, tableName, type, new StartupRun(){
+          public void run(DataTable table) {
+            latch.countDown();
+          }
+        }));
+        case NO_LOCAL -> tables.add(launchLocalOnlyTable(bootstrap, tableName, type, new StartupRun(){
+          public void run(DataTable table) {
+            latch.countDown();
+          }
+        }));
+        case EXPORT -> tables.add(launchExportOnlyTable(bootstrap, tableName, type, new StartupRun(){
+          public void run(DataTable table) {
+            latch.countDown();
+          }
+        }));
+      }
     });
-    tables.stream().forEach(table->{
+    tables.stream().forEach(table -> {
       table.setIndexes(indexes.get(table.getConfig().getTable()).toArray(new String[0]));
       table.build();
     });
     try {
+      logger.info("NucleoDB Starting");
       latch.await();
-      System.out.println("NucleoDB Started");
+      logger.info("NucleoDB Started");
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
@@ -91,7 +128,7 @@ public class NucleoDB{
         if (relationship.clazz() == clazz) {
           getRelatedByRelationship(dataEntry, set, localTableName, relationship);
         } else {
-          //Serializer.log("Relation ignored");
+          //logger.info("Relation ignored");
         }
       }
     }
@@ -107,7 +144,7 @@ public class NucleoDB{
         if (relationship.clazz() == clazz && index.equals(relationship.remoteKey())) {
           getRelatedByRelationship(dataEntry, set, localTableName, relationship);
         } else {
-          //Serializer.log("Relation ignored");
+          //logger.info("Relation ignored");
         }
       }
     }
@@ -123,7 +160,7 @@ public class NucleoDB{
         if (relationship.clazz() == clazz && index.equals(relationship.localKey())) {
           getRelatedByRelationship(dataEntry, set, localTableName, relationship);
         } else {
-          //Serializer.log("Relation ignored");
+          //logger.info("Relation ignored");
         }
       }
     }
@@ -134,9 +171,9 @@ public class NucleoDB{
     if (relationship.clazz().isAnnotationPresent(Table.class)) {
       Table remoteTable = (Table) relationship.clazz().getAnnotation(Table.class);
       String remoteTableName = remoteTable.value();
-      //Serializer.log("getting for relationship from " + localTableName + " to " + remoteTableName);
+      //logger.info("getting for relationship from " + localTableName + " to " + remoteTableName);
       try {
-        //Serializer.log(relationship.localKey());
+        //logger.info(relationship.localKey());
         List<Object> values = new TreeIndex().getValues(Queues.newLinkedBlockingDeque(Arrays.asList(relationship.localKey().split("\\."))), dataEntry.getData());
         if (values.size() > 0) {
           for (Object value : values) {
@@ -147,7 +184,7 @@ public class NucleoDB{
         e.printStackTrace();
       }
     } else {
-      Serializer.log("Target class not a NucleoDB Table.");
+      logger.info("Target class not a NucleoDB Table.");
     }
 
   }
@@ -295,11 +332,18 @@ public class NucleoDB{
   }
 
   public DataTableBuilder launchLocalOnlyTable(String bootstrap, String table, Class clazz) {
-    return DataTableBuilder.create(bootstrap, table, clazz).setRead(false).setWrite(false).setDb(this);
+    return DataTableBuilder.create(bootstrap, table, clazz).setLoadSave(false).setSaveChanges(false).setDb(this);
   }
 
   public DataTableBuilder launchLocalOnlyTable(String bootstrap, String table, Class clazz, StartupRun startupRun) {
-    return DataTableBuilder.create(bootstrap, table, clazz).setRead(false).setWrite(false).setDb(this).setStartupRun(startupRun);
+    return DataTableBuilder.create(bootstrap, table, clazz).setLoadSave(false).setSaveChanges(false).setDb(this).setStartupRun(startupRun);
+  }
+
+  public DataTableBuilder launchExportOnlyTable(String bootstrap, String table, Class clazz) {
+    return DataTableBuilder.create(bootstrap, table, clazz).setJSONExport(true).setDb(this);
+  }
+  public DataTableBuilder launchExportOnlyTable(String bootstrap, String table, Class clazz, StartupRun startupRun) {
+    return DataTableBuilder.create(bootstrap, table, clazz).setJSONExport(true).setDb(this).setStartupRun(startupRun);
   }
 
   public DataTableBuilder launchWriteOnlyTable(String bootstrap, String table, Class clazz) {

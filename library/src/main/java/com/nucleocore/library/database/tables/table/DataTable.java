@@ -1,19 +1,20 @@
-package com.nucleocore.library.database.tables;
+package com.nucleocore.library.database.tables.table;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.fge.jsonpatch.diff.JsonDiff;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
 import com.nucleocore.library.database.modifications.Create;
 import com.nucleocore.library.database.modifications.Delete;
 import com.nucleocore.library.database.modifications.Update;
-import com.nucleocore.library.database.utils.DataEntry;
 import com.nucleocore.library.database.utils.JsonOperations;
 import com.nucleocore.library.database.modifications.Modification;
 import com.nucleocore.library.database.utils.ObjectFileReader;
-import com.nucleocore.library.database.utils.ObjectFileWriter;
 import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.TreeSetExt;
 import com.nucleocore.library.database.utils.index.Index;
@@ -32,12 +33,14 @@ import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class DataTable implements Serializable{
   private static final long serialVersionUID = 1;
+  @JsonIgnore
   private transient static Logger logger = Logger.getLogger(DataTable.class.getName());
 
   private List<DataEntry> entries = Lists.newArrayList();
@@ -51,21 +54,38 @@ public class DataTable implements Serializable{
   private String consumerId = UUID.randomUUID().toString();
 
   private long changed = new Date().getTime();
-
+  @JsonIgnore
   private transient Queue<Object[]> indexQueue = Queues.newArrayDeque();
-
+  @JsonIgnore
   private transient ProducerHandler producer = null;
+  @JsonIgnore
   private transient ConsumerHandler consumer = null;
-  private transient Map<String, Consumer<DataEntry>> consumers = new TreeMap<>();
+  private transient Cache<String, Consumer<DataEntry>> consumers = CacheBuilder.newBuilder()
+      .maximumSize(10000)
+      .softValues()
+      .expireAfterWrite(5, TimeUnit.SECONDS)
+      .removalListener(e->{
+        if(e.getCause().name().equals("EXPIRED")){
+          logger.info("EXPIRED");
+          new Thread(() -> ((Consumer<DataEntry>)e.getValue()).accept(null)).start();;
+        }
+      })
+      .build();
+  @JsonIgnore
   private static Map<Modification, Set<Consumer<DataEntry>>> listeners = new TreeMap<>();
+  @JsonIgnore
   private transient boolean unsavedIndexModifications = false;
+  @JsonIgnore
   private transient int size = 0;
+  @JsonIgnore
   private transient boolean buildIndex = true;
+  @JsonIgnore
   private transient List<Field> fields;
+  @JsonIgnore
   private transient boolean inStartup = true;
 
 
-  public synchronized Object[] getIndex() {
+  public Object[] getIndex() {
     if (indexQueue.isEmpty())
       return null;
     return indexQueue.poll();
@@ -73,6 +93,7 @@ public class DataTable implements Serializable{
 
   public void loadSavedData() {
     if (new File(config.getTableFileName()).exists()) {
+      logger.info("reading " + config.getTableFileName());
       try {
         DataTable tmpTable = (DataTable) new ObjectFileReader().readObjectFromFile(config.getTableFileName());
         this.dataEntries = tmpTable.dataEntries;
@@ -100,7 +121,7 @@ public class DataTable implements Serializable{
     try {
       if (client.listTopics().names().get().stream().filter(x -> x.equals(config.getTable())).count() == 0) {
         try {
-          final NewTopic newTopic = new NewTopic(config.getTable(), 4, (short) 3);
+          final NewTopic newTopic = new NewTopic(config.getTable(), 36, (short) 3);
           newTopic.configs(new TreeMap<>(){{
             put(TopicConfig.RETENTION_MS_CONFIG, "-1");
             put(TopicConfig.RETENTION_MS_CONFIG, "-1");
@@ -122,6 +143,8 @@ public class DataTable implements Serializable{
       if (client.listTopics().names().get().stream().filter(x -> x.equals(config.getTable())).count() == 0) {
         logger.info("topic not created");
         System.exit(-1);
+      }else{
+        logger.info("topic created/exists");
       }
     } catch (Exception e) {
       e.printStackTrace();
@@ -134,7 +157,6 @@ public class DataTable implements Serializable{
     this.config = config;
 
     if (config.isLoadSave()) {
-      logger.info("reading local " + config.getTableFileName());
       loadSavedData();
     }
 
@@ -148,7 +170,7 @@ public class DataTable implements Serializable{
       }
     });
 
-    this.fields = new ArrayList<Field>(){{
+    this.fields = new ArrayList<>(){{
       addAll(Arrays.asList(config.getClazz().getDeclaredFields()));
       addAll(Arrays.asList(config.getClazz().getSuperclass().getFields()));
     }};
@@ -156,19 +178,21 @@ public class DataTable implements Serializable{
 
     if (config.isRead()) {
       logger.info("Connecting to " + config.getBootstrap());
-      new Thread(new ModQueueHandler()).start();
+      new Thread(new ModQueueHandler(this)).start();
       this.consume();
+      logger.info("Connected to  "+config.getBootstrap());
     }
+
     if (config.isWrite()) {
       logger.info("Producing to " + config.getBootstrap());
-      producer = new ProducerHandler(config.getBootstrap(), config.getTable());
+      producer = new ProducerHandler(config.getBootstrap(), config.getTable(), this.consumerId);
     }
 
     if (config.isSaveChanges()) {
       new Thread(new SaveHandler(this)).start();
     }
-    if (this.config.getStartupRun() != null) {
-      this.config.getStartupRun().run(this);
+    if (config.isJsonExport()) {
+      new Thread(new ExportHandler(this)).start();
     }
   }
 
@@ -183,7 +207,7 @@ public class DataTable implements Serializable{
     for (DataEntry de : this.entries) {
       //Serializer.log("INSERTING " + de.getKey());
       try {
-        tb.insertDataEntrySync(de);
+        tb.saveSync(de);
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
@@ -192,13 +216,11 @@ public class DataTable implements Serializable{
 
   public void flush() {
     try {
-      synchronized (entries) {
-        entries.clear();
-      }
+      entries.clear();
     } catch (Exception e) {
       //e.printStackTrace();
     }
-    consumers = new HashMap<>();
+    consumers.cleanUp();
     listeners = new HashMap<>();
     System.gc();
   }
@@ -324,137 +346,12 @@ public class DataTable implements Serializable{
     return v;
   }
 
-  public boolean delete(DataEntry obj, Consumer<DataEntry> consumer) {
+  public boolean deleteAsync(DataEntry obj, Consumer<DataEntry> consumer) {
     return deleteInternalConsumer(obj, consumer);
   }
 
   public boolean delete(DataEntry entry) {
     return deleteInternalConsumer(entry, null);
-  }
-
-  public boolean insertDataEntry(DataEntry obj) {
-    return saveInternalConsumer(obj, null);
-  }
-
-  public boolean insertDataEntrySync(DataEntry obj) throws InterruptedException {
-    CountDownLatch countDownLatch = new CountDownLatch(1);
-    boolean v = saveInternalConsumer(obj, (de)->{
-      countDownLatch.countDown();
-    });
-    countDownLatch.await();
-    return v;
-  }
-
-  public boolean insert(Object obj) {
-    return saveInternalConsumer(new DataEntry(obj), null);
-  }
-
-  public boolean insert(Object obj, Consumer<DataEntry> consumer) {
-    return saveInternalConsumer(new DataEntry(obj), consumer);
-  }
-
-  public boolean save(DataEntry entry) {
-    return saveInternalConsumer(entry, null);
-  }
-
-  public boolean save(DataEntry entry, Consumer<DataEntry> consumer) {
-    return saveInternalConsumer(entry, consumer);
-  }
-
-  private boolean saveInternalConsumer(DataEntry entry, Consumer<DataEntry> consumer) {
-    if (!this.config.isWrite()) {
-      if (consumer != null) consumer.accept(null);
-      return false;
-    }
-    String changeUUID = UUID.randomUUID().toString();
-    if (saveInternal(entry, changeUUID)) {
-      if (consumer != null) {
-        consumers.put(changeUUID, consumer);
-      }
-      return true;
-    }
-    return false;
-  }
-
-  private boolean saveInternalConsumerSync(DataEntry entry, Consumer<DataEntry> consumer) throws InterruptedException {
-    if (!this.config.isWrite()) {
-      if (consumer != null) consumer.accept(null);
-      return false;
-    }
-    String changeUUID = UUID.randomUUID().toString();
-    if (saveInternalSync(entry, changeUUID)) {
-      if (consumer != null) {
-        consumers.put(changeUUID, consumer);
-      }
-      return true;
-    }
-    return false;
-  }
-
-  private synchronized boolean saveInternal(DataEntry entry, String changeUUID) {
-    if (!dataEntries.contains(entry)) {
-      try {
-        Create createEntry = new Create(changeUUID, entry);
-        producer.push(createEntry, null);
-        return true;
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    } else {
-      entry.versionIncrease();
-      List<JsonOperations> changes = null;
-      JsonPatch patch = JsonDiff.asJsonPatch(entry.getReference(), Serializer.getObjectMapper().getOm().valueToTree(entry.getData()));
-      try {
-        String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
-        changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
-      } catch (JsonProcessingException e) {
-        throw new RuntimeException(e);
-      }
-      if (changes != null && changes.size() > 0) {
-        Update updateEntry = new Update(changeUUID, entry, patch);
-        producer.push(updateEntry, null);
-        return true;
-      }
-
-    }
-    return false;
-  }
-
-  private synchronized boolean saveInternalSync(DataEntry entry, String changeUUID) throws InterruptedException {
-    if (!dataEntries.contains(entry)) {
-      try {
-        Create createEntry = new Create(changeUUID, entry);
-        producer.push(createEntry, null);
-        return true;
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    } else {
-      entry.versionIncrease();
-      List<JsonOperations> changes = null;
-      JsonPatch patch = JsonDiff.asJsonPatch(entry.getReference(), Serializer.getObjectMapper().getOm().valueToTree(entry.getData()));
-      try {
-        String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
-        changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
-      } catch (JsonProcessingException e) {
-        throw new RuntimeException(e);
-      }
-      if (changes != null && changes.size() > 0) {
-        Update updateEntry = new Update(changeUUID, entry, patch);
-        CountDownLatch countDownLatch = new CountDownLatch(1);
-        producer.push(updateEntry, (meta, e) -> {
-          //Serializer.log(meta.offset());
-          if (e != null) {
-            e.printStackTrace();
-          }
-          countDownLatch.countDown();
-        });
-        countDownLatch.await();
-        return true;
-      }
-
-    }
-    return false;
   }
 
   private boolean deleteInternalConsumer(DataEntry entry, Consumer<DataEntry> consumer) {
@@ -466,85 +363,107 @@ public class DataTable implements Serializable{
     String changeUUID = UUID.randomUUID().toString();
     entryDelete.versionIncrease();
     Delete delete = new Delete(changeUUID, entryDelete);
-    producer.push(delete, null);
     if (consumer != null) {
       consumers.put(changeUUID, consumer);
     }
+    producer.push(delete, null);
     return true;
   }
 
-
-  class ModificationQueueItem implements Serializable{
-    private static final long serialVersionUID = 1;
-    private Modification mod;
-    private Object modification;
-
-    public ModificationQueueItem(Modification mod, Object modification) {
-      this.mod = mod;
-      this.modification = modification;
-    }
-
-    public Modification getMod() {
-      return mod;
-    }
-
-    public Object getModification() {
-      return modification;
-    }
+  public boolean saveSync(DataEntry obj) throws InterruptedException {
+    CountDownLatch countDownLatch = new CountDownLatch(1);
+    boolean v = saveInternalConsumer(obj, (de) -> {
+      countDownLatch.countDown();
+    });
+    countDownLatch.await();
+    return v;
   }
+
+  public boolean saveAndForget(DataEntry entry) {
+    return saveInternalConsumer(entry, null);
+  }
+
+  public boolean saveAsync(DataEntry entry, Consumer<DataEntry> consumer) {
+    return saveInternalConsumer(entry, consumer);
+  }
+
+  private boolean saveInternalConsumer(DataEntry entry, Consumer<DataEntry> consumer) {
+    if (!this.config.isWrite()) {
+      if (consumer != null) consumer.accept(null);
+      return false;
+    }
+    String changeUUID = UUID.randomUUID().toString();
+    if (consumer != null) {
+      consumers.put(changeUUID, consumer);
+    }
+    if (saveInternal(entry, changeUUID)) {
+      return true;
+    }
+    return false;
+  }
+
+  private boolean saveInternal(DataEntry entry, String changeUUID) {
+    if (!dataEntries.contains(entry)) {
+      try {
+        Create createEntry = new Create(changeUUID, entry);
+        producer.push(createEntry, null);
+        return true;
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    } else {
+      entry.versionIncrease();
+      List<JsonOperations> changes = null;
+      JsonPatch patch = JsonDiff.asJsonPatch(entry.getReference(), Serializer.getObjectMapper().getOm().valueToTree(entry.getData()));
+      try {
+        String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
+        changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
+      } catch (JsonProcessingException e) {
+        e.printStackTrace();
+      }
+      if (changes != null && changes.size() > 0) {
+        Update updateEntry = new Update(changeUUID, entry, patch);
+        producer.push(updateEntry, null);
+        return true;
+      }
+
+    }
+    return false;
+  }
+
+  private boolean saveInternalSync(DataEntry entry, String changeUUID) throws InterruptedException {
+    if (!dataEntries.contains(entry)) {
+      try {
+        Create createEntry = new Create(changeUUID, entry);
+        producer.push(createEntry, null);
+        return true;
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    } else {
+      entry.versionIncrease();
+      List<JsonOperations> changes = null;
+      JsonPatch patch = JsonDiff.asJsonPatch(entry.getReference(), Serializer.getObjectMapper().getOm().valueToTree(entry.getData()));
+      try {
+        String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
+        changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
+      } catch (JsonProcessingException e) {
+        e.printStackTrace();
+      }
+      if (changes != null && changes.size() > 0) {
+        Update updateEntry = new Update(changeUUID, entry, patch);
+        producer.push(updateEntry, null);
+        return true;
+      }
+
+    }
+    return false;
+  }
+
+
+
 
   Stack<ModificationQueueItem> modqueue = new Stack<>();
-
-  class SaveHandler implements Runnable{
-    DataTable dataTable;
-
-    public SaveHandler(DataTable dataTable) {
-      this.dataTable = dataTable;
-    }
-
-    @Override
-    public void run() {
-      long changedSaved = this.dataTable.changed;
-      while (true) {
-        try {
-          if (changed > changedSaved) {
-            //System.out.println("Saved " + this.dataTable.getConfig().getTable());
-            new ObjectFileWriter().writeObjectToFile(this.dataTable, config.getTableFileName());
-            changedSaved = changed;
-          }
-          Thread.sleep(5000);
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-      }
-    }
-  }
-
-  class ModQueueHandler implements Runnable{
-    @Override
-    public void run() {
-      ModificationQueueItem mqi;
-      while (true) {
-        while (!modqueue.isEmpty()) {
-          //Serializer.log(modqueue);
-          mqi = modqueue.pop();
-          if (mqi != null) {
-            modify(mqi.getMod(), mqi.getModification());
-          }
-          try {
-            Thread.sleep(10);
-          } catch (Exception e) {
-            e.printStackTrace();
-          }
-        }
-        try {
-          Thread.sleep(10);
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-      }
-    }
-  }
 
   public void modify(Modification mod, Object modification) {
     switch (mod) {
@@ -565,15 +484,9 @@ public class DataTable implements Serializable{
 
             dataEntry.setTableName(this.config.getTable());
 
-            synchronized (entries) {
-              entries.add(dataEntry);
-            }
-            synchronized (dataEntries) {
-              dataEntries.add(dataEntry);
-            }
-            synchronized (keyToEntry) {
-              keyToEntry.put(dataEntry.getKey(), dataEntry);
-            }
+            entries.add(dataEntry);
+            dataEntries.add(dataEntry);
+            keyToEntry.put(dataEntry.getKey(), dataEntry);
 
             for (Index i : this.indexes.values()) {
               try {
@@ -583,10 +496,7 @@ public class DataTable implements Serializable{
               }
             }
             size++;
-            if (consumers.containsKey(c.getChangeUUID())) {
-              new Thread(() -> consumers.remove(c.getChangeUUID()).accept(dataEntry)).start();
-            }
-            this.changed = new Date().getTime();
+            consumerResponse(dataEntry, c.getChangeUUID());
             fireListeners(Modification.CREATE, dataEntry);
           } catch (Exception e) {
             e.printStackTrace();
@@ -601,29 +511,31 @@ public class DataTable implements Serializable{
             //System.out.println("Delete after target db date");
             return;
           }
-          DataEntry de = keyToEntry.get(d.getKey());
-          if (de != null) {
-            if (de.getVersion() >= d.getVersion()) {
-              //System.out.println("Ignore already saved change.");
-              return; // ignore change
-            }
-            if (de.getVersion() + 1 != d.getVersion()) {
-              //Serializer.log("Version not ready!");
-              modqueue.add(new ModificationQueueItem(mod, modification));
-            } else {
-              entries.remove(de);
-              keyToEntry.remove(de.getKey());
-              dataEntries.remove(de);
-              this.indexes.values().forEach(i -> i.delete(de));
-              size--;
-              if (consumers.containsKey(d.getChangeUUID())) {
-                new Thread(() -> consumers.remove(d.getChangeUUID()).accept(de)).start();
+          try {
+            DataEntry de = keyToEntry.get(d.getKey());
+            if (de != null) {
+              if (de.getVersion() >= d.getVersion()) {
+                //System.out.println("Ignore already saved change.");
+                return; // ignore change
               }
-              this.changed = new Date().getTime();
-              fireListeners(Modification.DELETE, de);
+              if (de.getVersion() + 1 != d.getVersion()) {
+                //Serializer.log("Version not ready!");
+                modqueue.add(new ModificationQueueItem(mod, modification));
+                Serializer.log("ADDED TO MOD QUEUE");
+              } else {
+                entries.remove(de);
+                keyToEntry.remove(de.getKey());
+                dataEntries.remove(de);
+                this.indexes.values().forEach(i -> i.delete(de));
+                size--;
+                consumerResponse(de, d.getChangeUUID());
+                fireListeners(Modification.DELETE, de);
+              }
+            } else {
+              modqueue.add(new ModificationQueueItem(mod, modification));
             }
-          } else {
-            modqueue.add(new ModificationQueueItem(mod, modification));
+          }catch (Exception e){
+            e.printStackTrace();
           }
         }
         break;
@@ -674,20 +586,29 @@ public class DataTable implements Serializable{
                   }
                 });
                 this.changed = new Date().getTime();
-                if (consumers.containsKey(u.getChangeUUID())) {
-                  new Thread(() -> consumers.remove(u.getChangeUUID()).accept(de)).start();
-                }
+                consumerResponse(de, u.getChangeUUID());
                 fireListeners(Modification.UPDATE, de);
               }
             } else {
               modqueue.add(new ModificationQueueItem(mod, modification));
             }
           } catch (Exception e) {
-
+            e.printStackTrace();
           }
         }
         break;
     }
+  }
+
+  private void consumerResponse(DataEntry dataEntry, String changeUUID) throws ExecutionException {
+    try {
+      Consumer<DataEntry> dataEntryConsumer = consumers.getIfPresent(changeUUID);
+      if (dataEntryConsumer != null) {
+        new Thread(() -> dataEntryConsumer.accept(dataEntry)).start();
+        consumers.invalidate(changeUUID);
+      }
+    }catch (CacheLoader.InvalidCacheLoadException e){}
+    this.changed = new Date().getTime();
   }
 
   public void fireListeners(Modification m, DataEntry data) {
@@ -702,8 +623,8 @@ public class DataTable implements Serializable{
     }
   }
 
-  public void multiImport(Object newEntry) {
-    this.insert(newEntry);
+  public void multiImport(DataEntry newEntry) throws InterruptedException {
+    this.saveSync(newEntry);
   }
 
 
@@ -806,11 +727,11 @@ public class DataTable implements Serializable{
     this.consumer = consumer;
   }
 
-  public Map<String, Consumer<DataEntry>> getConsumers() {
+  public Cache<String, Consumer<DataEntry>> getConsumers() {
     return consumers;
   }
 
-  public void setConsumers(Map<String, Consumer<DataEntry>> consumers) {
+  public void setConsumers(Cache<String, Consumer<DataEntry>> consumers) {
     this.consumers = consumers;
   }
 

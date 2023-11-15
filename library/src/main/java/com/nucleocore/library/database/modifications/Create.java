@@ -2,7 +2,7 @@ package com.nucleocore.library.database.modifications;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nucleocore.library.database.utils.DataEntry;
+import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.Serializer;
 
 import java.io.IOException;

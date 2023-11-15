@@ -1,12 +1,11 @@
 package com.nucleocore.memcache;
 
 import com.nucleocore.library.NucleoDB;
-import com.nucleocore.library.database.tables.DataTable;
+import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.utils.StartupRun;
 
 import java.io.*;
 import java.net.*;
-import java.util.*;
 
 public class NDBMemcache{
   private final int port;

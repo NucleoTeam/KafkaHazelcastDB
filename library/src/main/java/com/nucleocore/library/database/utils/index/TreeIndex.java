@@ -1,8 +1,7 @@
 package com.nucleocore.library.database.utils.index;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.nucleocore.library.database.utils.DataEntry;
-import com.nucleocore.library.database.utils.Serializer;
+import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.TreeSetExt;
 
 import java.io.Serializable;

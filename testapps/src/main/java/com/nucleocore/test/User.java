@@ -1,25 +1,22 @@
 package com.nucleocore.test;
 
 
+import com.nucleocore.library.database.tables.annotation.Index;
 import com.nucleocore.library.database.tables.annotation.Relationship;
 import com.nucleocore.library.database.tables.annotation.Relationships;
 import com.nucleocore.library.database.tables.annotation.Table;
-import com.nucleocore.test.sql.Anime;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 
-@Relationships({
-    @Relationship(clazz = Anime.class, localKey = "name", remoteKey = "actors.name"),
-    @Relationship(clazz = Anime.class, localKey = "name", remoteKey = "owner")
-})
 @Table("user")
 public class User implements Serializable{
     private static final long serialVersionUID = 1;
 
 
+    @Index("name")
     private String name;
 
     private List<UserNested> testingNested = new ArrayList<>();

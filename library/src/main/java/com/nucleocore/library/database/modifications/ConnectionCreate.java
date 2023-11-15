@@ -1,9 +1,7 @@
 package com.nucleocore.library.database.modifications;
 
-import com.nucleocore.library.database.tables.Connection;
-import com.nucleocore.library.database.utils.DataEntry;
+import com.nucleocore.library.database.tables.connection.Connection;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.UUID;
 

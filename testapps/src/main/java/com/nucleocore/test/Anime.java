@@ -1,4 +1,4 @@
-package com.nucleocore.test.sql;
+package com.nucleocore.test;
 
 import com.nucleocore.library.database.tables.annotation.Index;
 import com.nucleocore.library.database.tables.annotation.Table;

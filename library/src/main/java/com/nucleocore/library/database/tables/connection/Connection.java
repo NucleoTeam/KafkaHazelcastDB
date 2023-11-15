@@ -1,21 +1,15 @@
-package com.nucleocore.library.database.tables;
+package com.nucleocore.library.database.tables.connection;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nucleocore.library.NucleoDB;
-import com.nucleocore.library.database.utils.DataEntry;
-import com.nucleocore.library.database.utils.Serializer;
+import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.SkipCopy;
 import org.jetbrains.annotations.NotNull;
 
-import javax.xml.crypto.Data;
 import java.io.Serializable;
-import java.lang.reflect.Field;
 import java.time.Instant;
-import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;

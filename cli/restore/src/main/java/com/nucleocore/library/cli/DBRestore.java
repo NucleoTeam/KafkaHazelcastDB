@@ -1,7 +1,7 @@
 package com.nucleocore.library.cli;
 
 import com.nucleocore.library.NucleoDB;
-import com.nucleocore.library.database.tables.DataTable;
+import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.StartupRun;
 

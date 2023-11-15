@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.fge.jsonpatch.JsonPatch;
-import com.nucleocore.library.database.utils.DataEntry;
+import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.JsonOperations;
 import com.nucleocore.library.database.utils.Serializer;
 

@@ -1,6 +1,7 @@
 package com.nucleocore.library.database.utils;
 
-import com.nucleocore.library.database.tables.DataTable;
+import com.nucleocore.library.database.tables.table.DataEntry;
+import com.nucleocore.library.database.tables.table.DataTable;
 import org.supercsv.cellprocessor.ift.CellProcessor;
 import org.supercsv.exception.SuperCsvCellProcessorException;
 import org.supercsv.io.CsvMapReader;
@@ -77,7 +78,11 @@ public class Importer {
                 }
                 customerMap.clear();
                 if(table!=null){
-                    table.insert(obj);
+                    try {
+                        table.saveSync((DataEntry) obj);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
                 try {
                     customerMap = mapReader.read(header, this.processors);

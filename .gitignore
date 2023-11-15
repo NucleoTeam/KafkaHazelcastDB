@@ -3,4 +3,5 @@ out
 build
 .idea
 NucleoCore.iml
-data
+data/*.dat
+export/*.json

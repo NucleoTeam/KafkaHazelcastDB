@@ -3,8 +3,8 @@ package com.nucleocore.library.database.utils.sql;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Queues;
 import com.nucleocore.library.NucleoDB;
-import com.nucleocore.library.database.tables.DataTable;
-import com.nucleocore.library.database.utils.DataEntry;
+import com.nucleocore.library.database.tables.table.DataTable;
+import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.TreeSetExt;
 import net.sf.jsqlparser.expression.BinaryExpression;
@@ -353,10 +353,10 @@ public class SQLHandler{
       }
       CountDownLatch countDownLatch = new CountDownLatch(1);
       AtomicReference<DataEntry> dataEntry = new AtomicReference<>();
-      table.insert(obj, dataEntryNew -> {
-        dataEntry.set(dataEntryNew);
-        countDownLatch.countDown();
-      });
+//      table.savInsert(obj, dataEntryNew -> {
+//        dataEntry.set(dataEntryNew);
+//        countDownLatch.countDown();
+//      });
       countDownLatch.await();
       return dataEntry.get();
     } catch (Exception e) {
@@ -544,7 +544,7 @@ public class SQLHandler{
       for (DataEntry dataEntryUnsaved : dataEntries) {
         CountDownLatch countDownLatch = new CountDownLatch(1);
         dataEntryUnsaved.versionIncrease();
-        table.save(dataEntryUnsaved, dataEntryNew -> {
+        table.saveAsync(dataEntryUnsaved, dataEntryNew -> {
           dataEntriesList.get().add(dataEntryNew);
           countDownLatch.countDown();
         });
@@ -687,7 +687,7 @@ public class SQLHandler{
         dataEntries.forEach(x -> {
           new Thread(() -> {
             if (table.getDataEntries().contains(x)) {
-              table.delete(x, (d) -> {
+              table.deleteAsync(x, (d) -> {
                 //Serializer.log("DELETED ");
                 //Serializer.log(d);
                 countDownLatch.countDown();

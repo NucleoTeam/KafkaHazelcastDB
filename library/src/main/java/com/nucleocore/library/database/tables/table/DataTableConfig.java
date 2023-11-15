@@ -1,5 +1,6 @@
-package com.nucleocore.library.database.tables;
+package com.nucleocore.library.database.tables.table;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nucleocore.library.database.utils.StartupRun;
 
 import java.io.Serializable;
@@ -8,16 +9,19 @@ import java.time.Instant;
 public class DataTableConfig implements Serializable{
   private static final long serialVersionUID = 4416983891804575837L;
 
-  String bootstrap = "127.0.0.1:29092";
+  String bootstrap = "127.0.0.1:19092";
   String table;
+  @JsonIgnore
   transient Class clazz;
   boolean saveChanges = true;
   boolean loadSave = true;
+  boolean jsonExport = false;
   Instant readToTime = null;
   boolean read = true;
   boolean write = true;
   String[] indexes = new String[0];
-  transient StartupRun startupRun = null;
+  @JsonIgnore
+  private transient StartupRun startupRun = null;
 
 
   String tableFileName;
@@ -115,5 +119,13 @@ public class DataTableConfig implements Serializable{
   }
   public String getTableFileName() {
     return tableFileName;
+  }
+
+  public boolean isJsonExport() {
+    return jsonExport;
+  }
+
+  public void setJsonExport(boolean jsonExport) {
+    this.jsonExport = jsonExport;
   }
 }

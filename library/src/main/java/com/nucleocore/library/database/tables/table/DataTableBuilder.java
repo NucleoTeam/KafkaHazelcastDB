@@ -1,12 +1,10 @@
-package com.nucleocore.library.database.tables;
+package com.nucleocore.library.database.tables.table;
 
 import com.nucleocore.library.NucleoDB;
-import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.StartupRun;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Instant;
-import java.util.Arrays;
 
 public class DataTableBuilder implements Comparable{
   private static final long serialVersionUID = 1;
@@ -48,6 +46,11 @@ public class DataTableBuilder implements Comparable{
 
   public DataTableBuilder setTable(String table) {
     this.config.setTable(table);
+    return this;
+  }
+
+  public DataTableBuilder setJSONExport(boolean jsonExport){
+    this.config.setJsonExport(jsonExport);
     return this;
   }
 

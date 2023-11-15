@@ -1,12 +1,10 @@
 package com.nucleocore.memcache;
 
-import com.nucleocore.library.NucleoDB;
-import com.nucleocore.library.database.tables.DataTable;
-import com.nucleocore.library.database.utils.DataEntry;
+import com.nucleocore.library.database.tables.table.DataTable;
+import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.index.TreeIndex;
 
-import javax.xml.crypto.Data;
 import java.io.*;
 import java.net.*;
 import java.util.LinkedList;
@@ -59,7 +57,7 @@ public class ClientHandler implements Runnable{
             CountDownLatch countDownLatch = new CountDownLatch(countdown);
             List<DataEntry> entryList = new LinkedList<>(this.table.getEntries());
             for (int i = 0; i < entryList.size(); i++) {
-              this.table.delete(entryList.get(i), (de)->countDownLatch.countDown());
+              this.table.deleteAsync(entryList.get(i), (de)->countDownLatch.countDown());
             }
             countDownLatch.await();
             out.print("OK\r\n");
@@ -68,7 +66,7 @@ public class ClientHandler implements Runnable{
             entrySet = this.table.get("name", parts[1]);
             if (entrySet != null && entrySet.size() >= 1) {
               countDownLatch = new CountDownLatch(1);
-              this.table.delete(entrySet.stream().findFirst().get(), (de)->{
+              this.table.deleteAsync(entrySet.stream().findFirst().get(), (de)->{
                 countDownLatch.countDown();
               });
               countDownLatch.await();
@@ -150,7 +148,7 @@ public class ClientHandler implements Runnable{
       DataEntry entry = table.createNewObject(entrySet).stream().findFirst().get();
       ((KeyVal) entry.getData()).setValue(value);
       CountDownLatch countDownLatch = new CountDownLatch(1);
-      table.save(entry, (de)->{
+      table.saveAsync(entry, (de)->{
         System.out.println("saved update");
         countDownLatch.countDown();
       });
@@ -158,7 +156,7 @@ public class ClientHandler implements Runnable{
       out.print(STORED_RESPONSE);
     } else {
       CountDownLatch countDownLatch = new CountDownLatch(1);
-      this.table.insert(new KeyVal(parts[1], value), (de)->{
+      this.table.saveAsync(new DataEntry(new KeyVal(parts[1], value)), (de)->{
         System.out.println("saved new");
         countDownLatch.countDown();
       });

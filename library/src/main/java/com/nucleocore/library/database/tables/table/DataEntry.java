@@ -1,18 +1,17 @@
-package com.nucleocore.library.database.utils;
+package com.nucleocore.library.database.tables.table;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.library.database.modifications.Create;
+import com.nucleocore.library.database.utils.Serializer;
+import com.nucleocore.library.database.utils.SkipCopy;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
-import java.lang.reflect.Field;
 import java.time.Instant;
-import java.util.Date;
 import java.util.UUID;
 
 public class DataEntry implements Serializable, Comparable<DataEntry> {

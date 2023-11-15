@@ -1,6 +1,6 @@
 package com.nucleocore.library.database.modifications;
 
-import com.nucleocore.library.database.utils.DataEntry;
+import com.nucleocore.library.database.tables.table.DataEntry;
 
 import java.time.Instant;
 

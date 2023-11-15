@@ -1,9 +1,17 @@
 package com.nucleocore.library.database.tables.connection;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nucleocore.library.database.modifications.ConnectionCreate;
+import com.nucleocore.library.database.modifications.Create;
 import com.nucleocore.library.database.tables.table.DataTable;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
 
 public class ExportHandler implements Runnable{
   static ObjectMapper om = new ObjectMapper().findAndRegisterModules();
@@ -21,7 +29,17 @@ public class ExportHandler implements Runnable{
       try {
         if (this.connectionHandler.getChanged() > changedSaved) {
           //System.out.println("Saved connections");
-          om.writeValue(new File("./export/connections.json"), this.connectionHandler.getAllConnections());
+          OutputStream os = new FileOutputStream("./export/connections.txt", false);
+          this.connectionHandler.getAllConnections().stream().collect(Collectors.toSet()).stream().forEach(de->{
+            try {
+              os.write((ConnectionCreate.class.getSimpleName() + om.writeValueAsString(new ConnectionCreate(de))+"\n").getBytes(StandardCharsets.UTF_8));
+            } catch (JsonProcessingException e) {
+              e.printStackTrace();
+            } catch (IOException e) {
+              e.printStackTrace();
+            }
+          });
+          os.close();
           changedSaved = this.connectionHandler.getChanged();
         }
         Thread.sleep(5000);

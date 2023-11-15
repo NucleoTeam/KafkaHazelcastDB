@@ -18,7 +18,13 @@ public class Create extends Modify{
 
     public Create() {
     }
-
+    public Create(DataEntry entry) throws IOException{
+        this.key = entry.getKey();
+        this.masterClass = entry.getData().getClass().getName();
+        this.data = Serializer.getObjectMapper().getOm().writeValueAsString(entry.getData());
+        this.version = entry.getVersion();
+        this.time = entry.getCreated();
+    }
     public Create(String changeUUID, DataEntry entry) throws IOException{
         this.changeUUID = changeUUID;
         this.key = entry.getKey();

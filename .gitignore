@@ -4,4 +4,4 @@ build
 .idea
 NucleoCore.iml
 data/*.dat
-export/*.json
+export/*.txt

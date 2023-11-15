@@ -18,7 +18,7 @@ public class ConnectionCreate extends Modify {
 
   public ConnectionCreate(Connection connection) {
     this.connection = connection;
-    this.time = Instant.now();
+    this.time = connection.getDate();
   }
 
   public ConnectionCreate(String changeUUID, Connection connection) {

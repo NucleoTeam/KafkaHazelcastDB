@@ -1,8 +1,15 @@
 package com.nucleocore.library.database.tables.table;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nucleocore.library.database.modifications.Create;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
 
 public class ExportHandler implements Runnable{
     DataTable dataTable;
@@ -19,7 +26,17 @@ public class ExportHandler implements Runnable{
         try {
           if (this.dataTable.getChanged() > changedSaved) {
             //System.out.println("Saved " + this.dataTable.getConfig().getTable());
-            om.writeValue(new File("./export/"+this.dataTable.getConfig().getTable()+".json"), this.dataTable.getEntries());
+            OutputStream os = new FileOutputStream("./export/"+this.dataTable.getConfig().getTable()+".txt", false);
+            this.dataTable.getEntries().stream().collect(Collectors.toSet()).stream().forEach(de->{
+              try {
+                os.write((Create.class.getSimpleName() + om.writeValueAsString(new Create(de))+"\n").getBytes(StandardCharsets.UTF_8));
+              } catch (JsonProcessingException e) {
+                e.printStackTrace();
+              } catch (IOException e) {
+                e.printStackTrace();
+              }
+            });
+            os.close();
             changedSaved = this.dataTable.getChanged();
           }
           Thread.sleep(5000);

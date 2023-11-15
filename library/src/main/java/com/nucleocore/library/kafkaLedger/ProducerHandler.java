@@ -31,9 +31,9 @@ public class ProducerHandler  {
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         props.put(ProducerConfig.RETRIES_CONFIG, 25);
-        props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 1500);
-        props.put(ProducerConfig.LINGER_MS_CONFIG, 500);
-        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 500);
+//        props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 1500);
+//        props.put(ProducerConfig.LINGER_MS_CONFIG, 200);
+//        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 200);
         return new KafkaProducer(props);
     }
     public KafkaProducer getProducer() {
@@ -49,7 +49,7 @@ public class ProducerHandler  {
             );
             Future<RecordMetadata> data = getProducer().send(record);
             while(!data.isDone() && !data.isCancelled()){
-                Thread.sleep(30);
+                Thread.sleep(1L);
             }
             //logger.info("produced");
         } catch (Exception e) {

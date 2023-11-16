@@ -129,10 +129,10 @@ public class ConsumerHandler implements Runnable{
   private Map<TopicPartition, Long> startupMap = null;
 
   private boolean initialLoad() {
-    if (startupMap == null) {
-      Set<TopicPartition> partitions = getConsumer().assignment();
+    Set<TopicPartition> partitions = getConsumer().assignment();
+    if (startupMap == null || partitions.size()>startupMap.size()) {
       if (partitions == null) return false;
-      if (partitions.size() != 36) return false;
+      //if (partitions.size() != 36) return false;
       Map<TopicPartition, Long> tmp = getConsumer().endOffsets(partitions);
       startupMap = tmp;
     }

@@ -14,6 +14,7 @@ import org.apache.kafka.common.serialization.*;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
@@ -22,9 +23,7 @@ public class ConsumerHandler implements Runnable{
   private KafkaConsumer consumer = null;
   private DataTable database = null;
   private ConnectionHandler connectionHandler = null;
-  private Map<TopicPartition, Long> endMap = null;
   private String table;
-
   int startupItems = -1;
 
   public ConsumerHandler(String bootstrap, String groupName, DataTable database, String table) {
@@ -35,10 +34,9 @@ public class ConsumerHandler implements Runnable{
 
     this.subscribe(new String[]{table});
 
-    new Thread(this).start();
-
     new Thread(new QueueHandler()).start();
 
+    new Thread(this).start();
   }
 
   public ConsumerHandler(String bootstrap, String groupName, ConnectionHandler connectionHandler, String table) {
@@ -51,13 +49,14 @@ public class ConsumerHandler implements Runnable{
     this.subscribe(new String[]{table});
     //logger.info(table);
 
-    new Thread(this).start();
-
     new Thread(new QueueHandler()).start();
+
+    new Thread(this).start();
 
   }
 
   Queue<String> queue = Queues.newArrayDeque();
+
 
   class QueueHandler implements Runnable{
     @Override
@@ -67,39 +66,38 @@ public class ConsumerHandler implements Runnable{
       int startupReadItems = 0;
       boolean startupPhase = true;
       while (true) {
-        boolean dataAvailable = !queue.isEmpty();
-        if (dataAvailable) {
-          String entry = null;
-          while ((entry = queue.poll()) != null) {
-            if(startupPhase) startupReadItems++;
-            try {
-              if (databaseType) {
-                String type = entry.substring(0, 6);
-                String data = entry.substring(6);
-                Modification mod = Modification.get(type);
-                if (mod != null) {
-                  database.modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));
-                }
-              } else if (connectionType) {
-                String type = entry.substring(0, 16);
-                String data = entry.substring(16);
-                Modification mod = Modification.get(type);
-                if (mod != null) {
-                  try {
-                    Modify modifiedEntry = (Modify) Serializer.getObjectMapper().getOm().readValue(data, mod.getModification());
-                    connectionHandler.modify(mod, modifiedEntry);
-                  } catch (Exception e) {
-                    e.printStackTrace();
-                  }
+        String entry = null;
+        while (!queue.isEmpty() && (entry = queue.poll()) != null) {
+          if (startupPhase) {
+            startupReadItems++;
+          }
+          leftToRead.decrementAndGet();
+          try {
+            if (databaseType) {
+              String type = entry.substring(0, 6);
+              String data = entry.substring(6);
+              Modification mod = Modification.get(type);
+              if (mod != null) {
+                database.modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));
+              }
+            } else if (connectionType) {
+              String type = entry.substring(0, 16);
+              String data = entry.substring(16);
+              Modification mod = Modification.get(type);
+              if (mod != null) {
+                try {
+                  Modify modifiedEntry = (Modify) Serializer.getObjectMapper().getOm().readValue(data, mod.getModification());
+                  connectionHandler.modify(mod, modifiedEntry);
+                } catch (Exception e) {
+                  e.printStackTrace();
                 }
               }
-            } catch (Exception e) {
-              e.printStackTrace();
             }
-
+          } catch (Exception e) {
+            e.printStackTrace();
           }
         }
-        if(startupPhase && startupItems!=-1 && startupReadItems>=startupItems){
+        if (startupPhase && startupItems != -1 && startupReadItems >= startupItems) {
           startupPhase = false;
           if (databaseType) {
             logger.info("Initialize loaded " + getDatabase().getConfig().getTable());
@@ -109,27 +107,38 @@ public class ConsumerHandler implements Runnable{
             logger.info("Initialize loaded connections");
             new Thread(() -> connectionHandler.startup()).start();
           }
-        }
-        try {
-          Thread.sleep(100);
-        } catch (Exception e) {
-          e.printStackTrace();
+        } else if (!startupPhase && queue.isEmpty()) {
+          try {
+            synchronized (queue) {
+              if(leftToRead.get()==0) queue.wait();
+            }
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
+        } else {
+          try {
+            Thread.sleep(100);
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
         }
       }
     }
   }
 
-  static ObjectMapper om = new ObjectMapper();
+  private Map<TopicPartition, Long> startupMap = null;
 
   private boolean initialLoad() {
-
-    Set<TopicPartition> partitions = getConsumer().assignment();
-    Map<TopicPartition, Long> tmp = getConsumer().endOffsets(partitions);
-    if (partitions.size() == 0) {
-      return false;
+    if (startupMap == null) {
+      Set<TopicPartition> partitions = getConsumer().assignment();
+      if (partitions == null) return false;
+      if (partitions.size() != 36) return false;
+      Map<TopicPartition, Long> tmp = getConsumer().endOffsets(partitions);
+      startupMap = tmp;
     }
-    return tmp.size() == tmp.entrySet().stream().filter(s -> getConsumer().position(s.getKey()) == s.getValue()).count();
+    return startupMap.size() == startupMap.entrySet().stream().filter(s -> getConsumer().position(s.getKey()) >= s.getValue()).count();
   }
+  private transient AtomicInteger leftToRead = new AtomicInteger(0);
 
   @Override
   public void run() {
@@ -141,7 +150,7 @@ public class ConsumerHandler implements Runnable{
       boolean startupPhase = true;
       AtomicInteger initialLoadCount = new AtomicInteger(0);
       do {
-        ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofMillis(200));
+        ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofMillis(1000));
         if (rs.count() > 0) {
           boolean finalStartupPhase = startupPhase;
           rs.iterator().forEachRemaining(action -> {
@@ -149,6 +158,10 @@ public class ConsumerHandler implements Runnable{
             String pop = action.value();
             //System.out.println("Change added to queue.");
             queue.add(pop);
+            leftToRead.incrementAndGet();
+            synchronized (queue) {
+              queue.notify();
+            }
             if (saveConnection)
               this.getConnectionHandler().getPartitionOffsets().put(action.partition(), action.offset());
             if (saveDatabase)
@@ -165,7 +178,7 @@ public class ConsumerHandler implements Runnable{
         }
         if (startupPhase && initialLoad()) {
           startupItems = initialLoadCount.intValue();
-          if(startupItems==-1) startupItems = 0;
+          if (startupItems == -1) startupItems = 0;
           startupPhase = false;
         }
       } while (!Thread.interrupted());

@@ -18,12 +18,15 @@ public class ModQueueHandler implements Runnable{
     while (true) {
       while (!modqueue.isEmpty() && (mqi = modqueue.pop())!=null) {
         connectionHandler.modify(mqi.getMod(), mqi.getModification());
+        connectionHandler.getLeftInModQueue().decrementAndGet();
       }
       try {
-        Thread.sleep(50);
-      } catch (Exception e) {
-        e.printStackTrace();
+        synchronized (modqueue) {
+          if(connectionHandler.getLeftInModQueue().get()==0) modqueue.wait();
+        }
+      } catch (InterruptedException e) {
       }
     }
   }
+
 }

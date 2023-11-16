@@ -34,6 +34,7 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -54,6 +55,8 @@ public class DataTable implements Serializable{
   private String consumerId = UUID.randomUUID().toString();
 
   private long changed = new Date().getTime();
+
+  private transient AtomicInteger leftInModQueue = new AtomicInteger(0);
   @JsonIgnore
   private transient Queue<Object[]> indexQueue = Queues.newArrayDeque();
   @JsonIgnore
@@ -83,7 +86,6 @@ public class DataTable implements Serializable{
   private transient List<Field> fields;
   @JsonIgnore
   private transient boolean inStartup = true;
-
 
   public Object[] getIndex() {
     if (indexQueue.isEmpty())
@@ -521,6 +523,10 @@ public class DataTable implements Serializable{
               if (de.getVersion() + 1 != d.getVersion()) {
                 //Serializer.log("Version not ready!");
                 modqueue.add(new ModificationQueueItem(mod, modification));
+                leftInModQueue.incrementAndGet();
+                synchronized (modqueue) {
+                  modqueue.notify();
+                }
                 Serializer.log("ADDED TO MOD QUEUE");
               } else {
                 entries.remove(de);
@@ -533,6 +539,10 @@ public class DataTable implements Serializable{
               }
             } else {
               modqueue.add(new ModificationQueueItem(mod, modification));
+              leftInModQueue.incrementAndGet();
+              synchronized (modqueue) {
+                modqueue.notify();
+              }
             }
           }catch (Exception e){
             e.printStackTrace();
@@ -558,6 +568,10 @@ public class DataTable implements Serializable{
               if (de.getVersion() + 1 != u.getVersion()) {
                 //Serializer.log("Version not ready!");
                 modqueue.add(new ModificationQueueItem(mod, modification));
+                leftInModQueue.incrementAndGet();
+                synchronized (modqueue) {
+                  modqueue.notify();
+                }
               } else {
                 de.setReference(u.getChangesPatch().apply(de.getReference()));
                 de.setVersion(u.getVersion());
@@ -591,6 +605,10 @@ public class DataTable implements Serializable{
               }
             } else {
               modqueue.add(new ModificationQueueItem(mod, modification));
+              leftInModQueue.incrementAndGet();
+              synchronized (modqueue) {
+                modqueue.notify();
+              }
             }
           } catch (Exception e) {
             e.printStackTrace();
@@ -813,5 +831,13 @@ public class DataTable implements Serializable{
 
   public void setConsumerId(String consumerId) {
     this.consumerId = consumerId;
+  }
+
+  public AtomicInteger getLeftInModQueue() {
+    return leftInModQueue;
+  }
+
+  public void setLeftInModQueue(AtomicInteger leftInModQueue) {
+    this.leftInModQueue = leftInModQueue;
   }
 }

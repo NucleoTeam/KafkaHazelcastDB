@@ -11,6 +11,7 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.StringSerializer;
 
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.logging.Logger;
 
@@ -47,10 +48,7 @@ public class ProducerHandler  {
                 UUID.randomUUID().toString(),
                 modify.getClass().getSimpleName() + Serializer.getObjectMapper().getOm().writeValueAsString(modify)
             );
-            Future<RecordMetadata> data = getProducer().send(record);
-            while(!data.isDone() && !data.isCancelled()){
-                Thread.sleep(1L);
-            }
+            getProducer().send(record);
             //logger.info("produced");
         } catch (Exception e) {
             e.printStackTrace();

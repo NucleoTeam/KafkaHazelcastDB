@@ -19,7 +19,7 @@ public class AnimeTest{
   static ObjectMapper om = new ObjectMapper().findAndRegisterModules();
   public static void main(String[] args) throws IOException, InterruptedException {
 
-    NucleoDB nucleoDB = new NucleoDB("127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092", "com.nucleocore.test", NucleoDB.DBType.EXPORT);
+    NucleoDB nucleoDB = new NucleoDB("127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092", "com.nucleocore.test", NucleoDB.DBType.NO_LOCAL);
     logger.info(nucleoDB.getTables().keySet().stream().collect(Collectors.joining(", ")));
     logger.info("animes: "+nucleoDB.getTable("anime").getEntries().size());
     logger.info("users: "+nucleoDB.getTable("user").getEntries().size());
@@ -92,6 +92,7 @@ public class AnimeTest{
         logger.info("ERROR");
         System.exit(1);
       }
+      Thread.sleep(2);
     }
 
 //    Set<DataEntry> entries = nucleoDB.getTable("anime").get("name", "Zoku Owarimonogatari");

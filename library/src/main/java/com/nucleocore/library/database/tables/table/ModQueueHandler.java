@@ -12,15 +12,18 @@ class ModQueueHandler implements Runnable{
   @Override
   public void run() {
     ModificationQueueItem mqi;
-    Stack<ModificationQueueItem> modqueue = this.dataTable.getModqueue();
+    Stack<ModificationQueueItem> modqueue = dataTable.getModqueue();
     while (true) {
       while (!modqueue.isEmpty() && (mqi = modqueue.pop())!=null) {
         this.dataTable.modify(mqi.getMod(), mqi.getModification());
+        dataTable.getLeftInModQueue().decrementAndGet();
       }
       try {
-        Thread.sleep(50);
-      } catch (Exception e) {
-        e.printStackTrace();
+        synchronized (modqueue) {
+          if(dataTable.getLeftInModQueue().get()==0) modqueue.wait();
+        }
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
       }
     }
   }

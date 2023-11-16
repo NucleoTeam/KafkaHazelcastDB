@@ -41,6 +41,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -75,6 +76,8 @@ public class ConnectionHandler implements Serializable{
   private transient Map<String, Consumer<Connection>> consumers = new TreeMap<>();
 
   private long changed = new Date().getTime();
+
+  private transient AtomicInteger leftInModQueue = new AtomicInteger(0);
 
   public ConnectionHandler(NucleoDB nucleoDB, ConnectionConfig config) {
     this.nucleoDB = nucleoDB;
@@ -134,6 +137,7 @@ public class ConnectionHandler implements Serializable{
       new Thread(new ExportHandler(this)).start();
     }
   }
+
 
   public void loadSavedData() {
     if (new File("./data/connections.dat").exists()) {
@@ -248,32 +252,34 @@ public class ConnectionHandler implements Serializable{
   }
 
   private void putConnectionInKey(String key, Connection connection){
-    if (!connections.containsKey(key)) {
-      connections.put(key, new TreeSetExt<>());
-    }
-    connections.get(key).add(connection);
+      if (!connections.containsKey(key)) {
+        connections.put(key, new TreeSetExt<>());
+      }
+      connections.get(key).add(connection);
   }
 
   private void putReverseConnectionInKey(String key, Connection connection){
-    if (!connectionsReverse.containsKey(key)) {
-      connectionsReverse.put(key, new TreeSetExt<>());
-    }
-    connectionsReverse.get(key).add(connection);
+      if (!connectionsReverse.containsKey(key)) {
+        connectionsReverse.put(key, new TreeSetExt<>());
+      }
+      connectionsReverse.get(key).add(connection);
   }
 
   private void addConnection(Connection connection){
-    connection.connectionHandler = this;
-    connectionByUUID.put(connection.getUuid(), connection);
-    String connectionKey = connection.getFromKey();
-    this.putConnectionInKey(connectionKey, connection);
-    this.putConnectionInKey(connection.getLabel(), connection);
-    this.putConnectionInKey(connection.getFromKey()+connection.getLabel(), connection);
-    this.putConnectionInKey(connection.getFromKey()+connection.getToKey(), connection);
-    this.putConnectionInKey(connection.getFromKey()+connection.getToKey()+connection.getLabel(), connection);
-    this.putReverseConnectionInKey(connection.getToKey()+connection.getLabel(), connection);
-    this.putReverseConnectionInKey(connection.getToKey()+connection.getFromKey()+connection.getLabel(), connection);
-    this.putReverseConnectionInKey(connection.getToKey()+connection.getFromKey(), connection);
-    allConnections.add(connection);
+    synchronized (connections) {
+      connection.connectionHandler = this;
+      connectionByUUID.put(connection.getUuid(), connection);
+      String connectionKey = connection.getFromKey();
+      this.putConnectionInKey(connectionKey, connection);
+      this.putConnectionInKey(connection.getLabel(), connection);
+      this.putConnectionInKey(connection.getFromKey() + connection.getLabel(), connection);
+      this.putConnectionInKey(connection.getFromKey() + connection.getToKey(), connection);
+      this.putConnectionInKey(connection.getFromKey() + connection.getToKey() + connection.getLabel(), connection);
+      this.putReverseConnectionInKey(connection.getToKey() + connection.getLabel(), connection);
+      this.putReverseConnectionInKey(connection.getToKey() + connection.getFromKey() + connection.getLabel(), connection);
+      this.putReverseConnectionInKey(connection.getToKey() + connection.getFromKey(), connection);
+      allConnections.add(connection);
+    }
   }
 
   private void removeByKey(String key, Connection connection){
@@ -294,18 +300,19 @@ public class ConnectionHandler implements Serializable{
   }
 
   private void removeConnection(Connection connection){
-    connectionByUUID.remove(connection.getUuid());
-    String connectionKey = connection.getFromKey();
-    this.removeByKey(connectionKey, connection);
-    this.removeByKey(connection.getLabel(), connection);
-    this.removeByKey(connection.getFromKey()+connection.getLabel(), connection);
-    this.removeByKey(connection.getFromKey()+connection.getToKey(), connection);
-    this.removeByKey(connection.getFromKey()+connection.getToKey()+connection.getLabel(), connection);
-    this.removeReverseByKey(connection.getToKey()+connection.getLabel(), connection);
-    this.removeReverseByKey(connection.getToKey()+connection.getFromKey()+connection.getLabel(), connection);
-    this.removeReverseByKey(connection.getToKey()+connection.getFromKey(), connection);
-
-    allConnections.remove(connection);
+    synchronized (connections) {
+      connectionByUUID.remove(connection.getUuid());
+      String connectionKey = connection.getFromKey();
+      this.removeByKey(connectionKey, connection);
+      this.removeByKey(connection.getLabel(), connection);
+      this.removeByKey(connection.getFromKey() + connection.getLabel(), connection);
+      this.removeByKey(connection.getFromKey() + connection.getToKey(), connection);
+      this.removeByKey(connection.getFromKey() + connection.getToKey() + connection.getLabel(), connection);
+      this.removeReverseByKey(connection.getToKey() + connection.getLabel(), connection);
+      this.removeReverseByKey(connection.getToKey() + connection.getFromKey() + connection.getLabel(), connection);
+      this.removeReverseByKey(connection.getToKey() + connection.getFromKey(), connection);
+      allConnections.remove(connection);
+    }
   }
   public void consume() {
     if (this.config.getBootstrap() != null) {
@@ -566,6 +573,10 @@ public class ConnectionHandler implements Serializable{
             if (conn.getVersion() + 1 != d.getVersion()) {
               //Serializer.log("Version not ready!");
               modqueue.add(new ModificationQueueItem(mod, modification));
+              leftInModQueue.incrementAndGet();
+              synchronized (modqueue) {
+                modqueue.notify();
+              }
             } else {
               this.removeConnection(conn);
               this.changed = new Date().getTime();
@@ -575,6 +586,10 @@ public class ConnectionHandler implements Serializable{
             }
           } else {
             modqueue.add(new ModificationQueueItem(mod, modification));
+            leftInModQueue.incrementAndGet();
+            synchronized (modqueue) {
+              modqueue.notify();
+            }
           }
         }
         break;
@@ -597,6 +612,10 @@ public class ConnectionHandler implements Serializable{
               if (conn.getVersion() + 1 != u.getVersion()) {
                 //Serializer.log("Version not ready!");
                 modqueue.add(new ModificationQueueItem(mod, modification));
+                leftInModQueue.incrementAndGet();
+                synchronized (modqueue) {
+                  modqueue.notify();
+                }
               } else {
                 Connection connectionTmp = Serializer.getObjectMapper().getOm().readValue(
                   u.getChangesPatch().apply(Serializer.getObjectMapper().getOm().valueToTree(conn)).toString(),
@@ -614,6 +633,10 @@ public class ConnectionHandler implements Serializable{
               }
             } else {
               modqueue.add(new ModificationQueueItem(mod, modification));
+              leftInModQueue.incrementAndGet();
+              synchronized (modqueue) {
+                modqueue.notify();
+              }
             }
           } catch (Exception e) {
 
@@ -701,5 +724,13 @@ public class ConnectionHandler implements Serializable{
 
   public void setConsumerId(String consumerId) {
     this.consumerId = consumerId;
+  }
+
+  public AtomicInteger getLeftInModQueue() {
+    return leftInModQueue;
+  }
+
+  public void setLeftInModQueue(AtomicInteger leftInModQueue) {
+    this.leftInModQueue = leftInModQueue;
   }
 }

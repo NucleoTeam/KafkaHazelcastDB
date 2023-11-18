@@ -1,10 +1,17 @@
 package com.nucleocore.library.database.tables.connection;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.library.database.tables.table.DataTable;
+import com.nucleocore.library.database.utils.Serializer;
 
+import java.io.Serial;
+import java.util.Queue;
 import java.util.Stack;
+import java.util.logging.Logger;
 
 public class ModQueueHandler implements Runnable{
+  private static Logger logger = Logger.getLogger(ModQueueHandler.class.getName());
   ConnectionHandler connectionHandler;
 
   public ModQueueHandler(ConnectionHandler connectionHandler) {
@@ -13,18 +20,37 @@ public class ModQueueHandler implements Runnable{
 
   @Override
   public void run() {
-    Stack<ModificationQueueItem> modqueue = connectionHandler.getModqueue();
+    Queue<ModificationQueueItem> modqueue = connectionHandler.getModqueue();
+    ObjectMapper om = new ObjectMapper().findAndRegisterModules();
     ModificationQueueItem mqi;
+    int left = 0;
+    boolean overkillCheck = false;
     while (true) {
-      while (!modqueue.isEmpty() && (mqi = modqueue.pop())!=null) {
-        connectionHandler.modify(mqi.getMod(), mqi.getModification());
-        connectionHandler.getLeftInModQueue().decrementAndGet();
+      try{
+        while (!modqueue.isEmpty() && (mqi = modqueue.poll())!=null) {
+          connectionHandler.modify(mqi.getMod(), mqi.getModification());
+          int leftTmp = connectionHandler.getLeftInModQueue().decrementAndGet();
+          if(left == leftTmp){
+            overkillCheck = true;
+            break;
+          }else{
+            overkillCheck = false;
+          }
+          left = leftTmp;
+        }
+      } catch (Exception e) {
+        e.printStackTrace();
       }
       try {
-        synchronized (modqueue) {
-          if(connectionHandler.getLeftInModQueue().get()==0) modqueue.wait();
+        if(overkillCheck) {
+          Thread.sleep(10);
+        } else {
+          synchronized (modqueue) {
+            if (connectionHandler.getLeftInModQueue().get() == 0) modqueue.wait();
+          }
         }
       } catch (InterruptedException e) {
+        e.printStackTrace();
       }
     }
   }

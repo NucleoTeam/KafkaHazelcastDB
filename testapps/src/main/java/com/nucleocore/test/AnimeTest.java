@@ -92,7 +92,7 @@ public class AnimeTest{
         logger.info("ERROR");
         System.exit(1);
       }
-      Thread.sleep(2);
+      Thread.sleep(200);
     }
 
 //    Set<DataEntry> entries = nucleoDB.getTable("anime").get("name", "Zoku Owarimonogatari");

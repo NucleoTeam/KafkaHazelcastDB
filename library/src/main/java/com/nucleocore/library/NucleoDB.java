@@ -24,6 +24,7 @@ import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.update.Update;
 import org.reflections.Reflections;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -313,6 +314,14 @@ public class NucleoDB{
 
   public DataTable getTable(String table) {
     return tables.get(table);
+  }
+
+  public DataTable getTable(Class clazz) {
+    Annotation annotation = clazz.getAnnotation(Table.class);
+    if(annotation!=null) {
+      return tables.get(((Table)annotation).value());
+    }
+    return null;
   }
 
   public DataTableBuilder launchTable(String bootstrap, String table, Class clazz) {

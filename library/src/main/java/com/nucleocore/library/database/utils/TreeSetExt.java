@@ -31,13 +31,13 @@ public class TreeSetExt<V> extends TreeSet<V> implements Comparable<TreeSetExt>,
 
     @Override
     public int compareTo(@NotNull TreeSetExt o) {
-      return this.uuid.compareTo(o.uuid);
+      return this.uuid.hashCode()-o.uuid.hashCode();
     }
 
     @Override
     public boolean equals(Object o) {
       if(o instanceof TreeSetExt){
-        return ((TreeSetExt<?>) o).uuid.equals(this.uuid);
+        return ((TreeSetExt<?>) o).uuid.hashCode() == this.uuid.hashCode();
       }
       return this.equals(o);
     }

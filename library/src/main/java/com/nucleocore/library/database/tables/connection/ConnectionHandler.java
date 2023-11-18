@@ -4,6 +4,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.diff.JsonDiff;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Queues;
+import com.google.common.collect.Sets;
 import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.modifications.ConnectionCreate;
 import com.nucleocore.library.database.modifications.ConnectionDelete;
@@ -34,12 +38,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Queue;
 import java.util.Set;
-import java.util.Stack;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -57,27 +62,34 @@ public class ConnectionHandler implements Serializable{
   private transient Map<String, Connection> connectionByUUID = new TreeMap<>();
   private Map<Integer, Long> partitionOffsets = new TreeMap<>();
   private String consumerId = UUID.randomUUID().toString();
-
   private Set<Connection> allConnections = new TreeSetExt<>();
   @JsonIgnore
   private transient NucleoDB nucleoDB;
-
   private ConnectionConfig config;
   @JsonIgnore
   private transient ProducerHandler producer = null;
   @JsonIgnore
   private transient ConsumerHandler consumer = null;
-
-  Stack<ModificationQueueItem> modqueue = new Stack<>();
+  private transient Queue<ModificationQueueItem> modqueue = Queues.newLinkedBlockingQueue();
   @JsonIgnore
   private transient boolean inStartup = true;
   @JsonIgnore
-
-  private transient Map<String, Consumer<Connection>> consumers = new TreeMap<>();
-
+  private transient Cache<String, Consumer<Connection>> consumers = CacheBuilder.newBuilder()
+      .maximumSize(10000)
+      .softValues()
+      .expireAfterWrite(5, TimeUnit.SECONDS)
+      .removalListener(e->{
+        if(e.getCause().name().equals("EXPIRED")){
+          logger.info("EXPIRED");
+          new Thread(() -> ((Consumer<Connection>)e.getValue()).accept(null)).start();;
+        }
+      })
+      .build();
+  private Set<Integer> deletedEntries = Sets.newTreeSet();
   private long changed = new Date().getTime();
-
   private transient AtomicInteger leftInModQueue = new AtomicInteger(0);
+  private transient AtomicInteger startupLoadCount = new AtomicInteger(0);
+  private transient AtomicBoolean startupPhase = new AtomicBoolean(true);
 
   public ConnectionHandler(NucleoDB nucleoDB, ConnectionConfig config) {
     this.nucleoDB = nucleoDB;
@@ -317,7 +329,7 @@ public class ConnectionHandler implements Serializable{
   public void consume() {
     if (this.config.getBootstrap() != null) {
       System.out.println( this.consumerId + " connecting to: " + this.config.getBootstrap());
-      new ConsumerHandler(this.config.getBootstrap(), this.consumerId, this, "connections");
+      this.consumer = new ConsumerHandler(this.config.getBootstrap(), this.consumerId, this, "connections");
     }
   }
   public void removeConnectionFrom(String key){
@@ -525,16 +537,26 @@ public class ConnectionHandler implements Serializable{
     return false;
   }
 
-
-
-
-
+  private void itemProcessed(){
+    if(this.startupPhase.get()){
+      int left = this.startupLoadCount.decrementAndGet();
+      if(left%5000==0) logger.info("Startup connection items waiting to process: "+left);
+      if(!this.getConsumer().getStartupPhaseConsume().get() && left <= 0) {
+        this.startupPhase.set(false);
+        new Thread(()->this.startup()).start();
+      }
+    }
+  }
+  private void itemRequeue(){
+    if(this.startupPhase.get()) this.startupLoadCount.incrementAndGet();
+  }
   public void modify(Modification mod, Object modification) {
     switch (mod) {
       case CONNECTIONCREATE:
         ConnectionCreate c = (ConnectionCreate) modification;
         //System.out.println("Create statement called");
         if (c != null) {
+          itemProcessed();
           if (this.config.getReadToTime() != null && c.getTime().isAfter(this.config.getReadToTime())) {
             //System.out.println("Create after target db date");
             return;
@@ -547,8 +569,12 @@ public class ConnectionHandler implements Serializable{
 
             this.addConnection(c.getConnection());
             this.changed = new Date().getTime();
-            if (consumers.containsKey(c.getChangeUUID())) {
-              new Thread(() -> consumers.remove(c.getChangeUUID()).accept(c.getConnection())).start();
+            Consumer<Connection> consumer = consumers.getIfPresent(c.getChangeUUID());
+            if (consumer!=null) {
+              new Thread(() -> {
+                consumers.invalidate(c.getChangeUUID());
+                consumer.accept(c.getConnection());
+              }).start();
             }
 
           } catch (Exception e) {
@@ -557,47 +583,63 @@ public class ConnectionHandler implements Serializable{
         }
         break;
       case CONNECTIONDELETE:
-        ConnectionDelete d = (ConnectionDelete) modification;
-        //System.out.println("Delete statement called");
-        if (d != null) {
-          if (this.config.getReadToTime() != null && d.getTime().isAfter(this.config.getReadToTime())) {
-            //System.out.println("Delete after target db date");
-            return;
-          }
-          Connection conn = connectionByUUID.get(d.getUuid());
-          if (conn != null) {
-            if (conn.getVersion() >= d.getVersion()) {
-              //System.out.println("Ignore already saved change.");
-              return; // ignore change
+        try{
+          ConnectionDelete d = (ConnectionDelete) modification;
+          //System.out.println("Delete statement called");
+          if (d != null) {
+            itemProcessed();
+            if (this.config.getReadToTime() != null && d.getTime().isAfter(this.config.getReadToTime())) {
+              //System.out.println("Delete after target db date");
+              return;
             }
-            if (conn.getVersion() + 1 != d.getVersion()) {
-              //Serializer.log("Version not ready!");
-              modqueue.add(new ModificationQueueItem(mod, modification));
-              leftInModQueue.incrementAndGet();
-              synchronized (modqueue) {
-                modqueue.notify();
+            if(deletedEntries.contains(d.getUuid().hashCode())){
+              //System.exit(1);
+              return;
+            }
+            Connection conn = connectionByUUID.get(d.getUuid());
+            if (conn != null) {
+              if (conn.getVersion() >= d.getVersion()) {
+                //System.out.println("Ignore already saved change.");
+                return; // ignore change
+              }
+              if (conn.getVersion() + 1 != d.getVersion()) {
+                itemRequeue();
+                //Serializer.log("Version not ready!");
+                leftInModQueue.incrementAndGet();
+                modqueue.add(new ModificationQueueItem(mod, modification));
+                synchronized (modqueue) {
+                  modqueue.notifyAll();
+                }
+              } else {
+                this.removeConnection(conn);
+                deletedEntries.add(conn.getUuid().hashCode());
+                this.changed = new Date().getTime();
+                Consumer<Connection> consumer = consumers.getIfPresent(d.getChangeUUID());
+                if (consumer!=null) {
+                  new Thread(() -> {
+                    consumers.invalidate(d.getChangeUUID());
+                    consumer.accept(conn);
+                  }).start();
+                }
               }
             } else {
-              this.removeConnection(conn);
-              this.changed = new Date().getTime();
-              if (consumers.containsKey(d.getChangeUUID())) {
-                new Thread(() -> consumers.remove(d.getChangeUUID()).accept(conn)).start();
+              itemRequeue();
+              leftInModQueue.incrementAndGet();
+              modqueue.add(new ModificationQueueItem(mod, modification));
+              synchronized (modqueue) {
+                modqueue.notifyAll();
               }
             }
-          } else {
-            modqueue.add(new ModificationQueueItem(mod, modification));
-            leftInModQueue.incrementAndGet();
-            synchronized (modqueue) {
-              modqueue.notify();
-            }
           }
+        } catch (Exception e) {
+          e.printStackTrace();
         }
         break;
       case CONNECTIONUPDATE:
         ConnectionUpdate u = (ConnectionUpdate) modification;
-
         //System.out.println("Update statement called");
         if (u != null) {
+          itemProcessed();
           if (this.config.getReadToTime() != null && u.getTime().isAfter(this.config.getReadToTime())) {
             //System.out.println("Update after target db date");
             return;
@@ -611,10 +653,11 @@ public class ConnectionHandler implements Serializable{
               }
               if (conn.getVersion() + 1 != u.getVersion()) {
                 //Serializer.log("Version not ready!");
-                modqueue.add(new ModificationQueueItem(mod, modification));
+                itemRequeue();
                 leftInModQueue.incrementAndGet();
+                modqueue.add(new ModificationQueueItem(mod, modification));
                 synchronized (modqueue) {
-                  modqueue.notify();
+                  modqueue.notifyAll();
                 }
               } else {
                 Connection connectionTmp = Serializer.getObjectMapper().getOm().readValue(
@@ -627,19 +670,24 @@ public class ConnectionHandler implements Serializable{
                 conn.setToKey(connectionTmp.getToKey());
                 conn.setToTable(connectionTmp.getToTable());
                 this.changed = new Date().getTime();
-                if (consumers.containsKey(u.getChangeUUID())) {
-                  new Thread(() -> consumers.remove(u.getChangeUUID()).accept(conn)).start();
+                Consumer<Connection> consumer = consumers.getIfPresent(u.getChangeUUID());
+                if (consumer!=null) {
+                  new Thread(() -> {
+                    consumers.invalidate(u.getChangeUUID());
+                    consumer.accept(conn);
+                  }).start();
                 }
               }
             } else {
-              modqueue.add(new ModificationQueueItem(mod, modification));
+              itemRequeue();
               leftInModQueue.incrementAndGet();
+              modqueue.add(new ModificationQueueItem(mod, modification));
               synchronized (modqueue) {
-                modqueue.notify();
+                modqueue.notifyAll();
               }
             }
           } catch (Exception e) {
-
+            e.printStackTrace();
           }
         }
         break;
@@ -694,19 +742,19 @@ public class ConnectionHandler implements Serializable{
     this.consumer = consumer;
   }
 
-  public Stack<ModificationQueueItem> getModqueue() {
+  public Queue<ModificationQueueItem> getModqueue() {
     return modqueue;
   }
 
-  public void setModqueue(Stack<ModificationQueueItem> modqueue) {
+  public void setModqueue(Queue<ModificationQueueItem> modqueue) {
     this.modqueue = modqueue;
   }
 
-  public Map<String, Consumer<Connection>> getConsumers() {
+  public Cache<String, Consumer<Connection>> getConsumers() {
     return consumers;
   }
 
-  public void setConsumers(Map<String, Consumer<Connection>> consumers) {
+  public void setConsumers(Cache<String, Consumer<Connection>> consumers) {
     this.consumers = consumers;
   }
 
@@ -730,7 +778,23 @@ public class ConnectionHandler implements Serializable{
     return leftInModQueue;
   }
 
+  public AtomicInteger getStartupLoadCount() {
+    return startupLoadCount;
+  }
+
+  public void setStartupLoadCount(AtomicInteger startupLoadCount) {
+    this.startupLoadCount = startupLoadCount;
+  }
+
   public void setLeftInModQueue(AtomicInteger leftInModQueue) {
     this.leftInModQueue = leftInModQueue;
+  }
+
+  public AtomicBoolean getStartupPhase() {
+    return startupPhase;
+  }
+
+  public void setStartupPhase(AtomicBoolean startupPhase) {
+    this.startupPhase = startupPhase;
   }
 }

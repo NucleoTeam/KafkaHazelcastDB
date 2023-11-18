@@ -1,7 +1,5 @@
 package com.nucleocore.library.kafkaLedger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Queues;
 import com.nucleocore.library.database.modifications.Modify;
 import com.nucleocore.library.database.tables.connection.ConnectionHandler;
@@ -14,7 +12,7 @@ import org.apache.kafka.common.serialization.*;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
@@ -25,6 +23,10 @@ public class ConsumerHandler implements Runnable{
   private ConnectionHandler connectionHandler = null;
   private String table;
   int startupItems = -1;
+  private Queue<String> queue = Queues.newPriorityBlockingQueue();
+  private transient AtomicInteger leftToRead = new AtomicInteger(0);
+  private AtomicInteger startupLoadCount;
+  private AtomicBoolean startupPhaseConsume = new AtomicBoolean(true);
 
   public ConsumerHandler(String bootstrap, String groupName, DataTable database, String table) {
     this.database = database;
@@ -34,7 +36,8 @@ public class ConsumerHandler implements Runnable{
 
     this.subscribe(new String[]{table});
 
-    new Thread(new QueueHandler()).start();
+    for (int x = 0; x < 36; x++)
+      new Thread(new QueueHandler()).start();
 
     new Thread(this).start();
   }
@@ -49,13 +52,13 @@ public class ConsumerHandler implements Runnable{
     this.subscribe(new String[]{table});
     //logger.info(table);
 
-    new Thread(new QueueHandler()).start();
+    for (int x = 0; x < 36; x++)
+      new Thread(new QueueHandler()).start();
 
     new Thread(this).start();
 
   }
 
-  Queue<String> queue = Queues.newArrayDeque();
 
 
   class QueueHandler implements Runnable{
@@ -63,14 +66,9 @@ public class ConsumerHandler implements Runnable{
     public void run() {
       boolean connectionType = getConnectionHandler() != null;
       boolean databaseType = getDatabase() != null;
-      int startupReadItems = 0;
-      boolean startupPhase = true;
       while (true) {
         String entry = null;
         while (!queue.isEmpty() && (entry = queue.poll()) != null) {
-          if (startupPhase) {
-            startupReadItems++;
-          }
           leftToRead.decrementAndGet();
           try {
             if (databaseType) {
@@ -97,27 +95,17 @@ public class ConsumerHandler implements Runnable{
             e.printStackTrace();
           }
         }
-        if (startupPhase && startupItems != -1 && startupReadItems >= startupItems) {
-          startupPhase = false;
-          if (databaseType) {
-            logger.info("Initialize loaded " + getDatabase().getConfig().getTable());
-            new Thread(() -> database.startup()).start();
-          }
-          if (connectionType) {
-            logger.info("Initialize loaded connections");
-            new Thread(() -> connectionHandler.startup()).start();
-          }
-        } else if (!startupPhase && queue.isEmpty()) {
+        if (queue.isEmpty()) {
           try {
             synchronized (queue) {
-              if(leftToRead.get()==0) queue.wait();
+              if (leftToRead.get() == 0) queue.wait();
             }
           } catch (Exception e) {
             e.printStackTrace();
           }
         } else {
           try {
-            Thread.sleep(100);
+            Thread.sleep(10);
           } catch (InterruptedException e) {
             throw new RuntimeException(e);
           }
@@ -130,7 +118,7 @@ public class ConsumerHandler implements Runnable{
 
   private boolean initialLoad() {
     Set<TopicPartition> partitions = getConsumer().assignment();
-    if (startupMap == null || partitions.size()>startupMap.size()) {
+    if (startupMap == null || partitions.size() > startupMap.size()) {
       if (partitions == null) return false;
       //if (partitions.size() != 36) return false;
       Map<TopicPartition, Long> tmp = getConsumer().endOffsets(partitions);
@@ -138,7 +126,6 @@ public class ConsumerHandler implements Runnable{
     }
     return startupMap.size() == startupMap.entrySet().stream().filter(s -> getConsumer().position(s.getKey()) >= s.getValue()).count();
   }
-  private transient AtomicInteger leftToRead = new AtomicInteger(0);
 
   @Override
   public void run() {
@@ -146,21 +133,24 @@ public class ConsumerHandler implements Runnable{
     boolean databaseType = this.getDatabase() != null;
     boolean saveConnection = connectionType && this.getConnectionHandler().getConfig().isSaveChanges();
     boolean saveDatabase = databaseType && this.getDatabase().getConfig().isSaveChanges();
+    if (databaseType) {
+      startupLoadCount = getDatabase().getStartupLoadCount();
+    }
+    if (connectionType) {
+      startupLoadCount = getConnectionHandler().getStartupLoadCount();
+    }
     try {
-      boolean startupPhase = true;
-      AtomicInteger initialLoadCount = new AtomicInteger(0);
       do {
         ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofMillis(1000));
         if (rs.count() > 0) {
-          boolean finalStartupPhase = startupPhase;
           rs.iterator().forEachRemaining(action -> {
-            if (finalStartupPhase) initialLoadCount.getAndIncrement();
+            if(startupPhaseConsume.get()) startupLoadCount.incrementAndGet();
             String pop = action.value();
             //System.out.println("Change added to queue.");
             queue.add(pop);
             leftToRead.incrementAndGet();
             synchronized (queue) {
-              queue.notify();
+              queue.notifyAll();
             }
             if (saveConnection)
               this.getConnectionHandler().getPartitionOffsets().put(action.partition(), action.offset());
@@ -169,17 +159,12 @@ public class ConsumerHandler implements Runnable{
           });
           consumer.commitAsync();
         }
-        if (startupPhase) {
-          if (databaseType) {
-            logger.info("Initialize loading " + this.getDatabase().getConfig().getTable());
-          } else {
-            logger.info("Initialize loading connections");
-          }
+        while(startupPhaseConsume.get() && leftToRead.get()>50000){
+          Thread.sleep(1000);
         }
-        if (startupPhase && initialLoad()) {
-          startupItems = initialLoadCount.intValue();
-          if (startupItems == -1) startupItems = 0;
-          startupPhase = false;
+        //logger.info("consumed: "+leftToRead.get());
+        if (startupPhaseConsume.get() && initialLoad()) {
+          startupPhaseConsume.set(false);
         }
       } while (!Thread.interrupted());
       logger.info("Consumer interrupted " + (databaseType ? this.getDatabase().getConfig().getTable() : "connections"));
@@ -231,5 +216,13 @@ public class ConsumerHandler implements Runnable{
 
   public void setConnectionHandler(ConnectionHandler connectionHandler) {
     this.connectionHandler = connectionHandler;
+  }
+
+  public AtomicBoolean getStartupPhaseConsume() {
+    return startupPhaseConsume;
+  }
+
+  public void setStartupPhaseConsume(AtomicBoolean startupPhaseConsume) {
+    this.startupPhaseConsume = startupPhaseConsume;
   }
 }

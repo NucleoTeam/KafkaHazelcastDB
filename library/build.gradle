@@ -1,13 +1,12 @@
 plugins {
-
     id 'java'
     id 'java-library'
-    id 'nucleodb.library'
     id 'maven-publish'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
-group = 'com.nucleocore'
+group = 'com.nucleodb'
+version = '1.10.4'
 
 repositories {
     mavenCentral()
@@ -28,44 +27,39 @@ java {
 compileJava {
     options.release = 19
 }
-shadowJar {
-    archiveBaseName.set(group)
-    archiveVersion.set(version)
-    archiveClassifier.set('')
-}
 
 dependencies {
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.2.3'
+    implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.1.0'
+    implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.17.2'
+    implementation group: 'net.sf.supercsv', name: 'super-csv-java8', version: '2.4.0'
+    implementation 'com.github.f4b6a3:uuid-creator:4.5.0'
+    implementation 'com.google.guava:guava:28.1-jre'
+    implementation 'org.reflections:reflections:0.10.2'
+    implementation 'com.github.java-json-tools:json-patch:1.13'
+    implementation 'org.glassfish:javax.json:1.1.4'
+    implementation group: 'org.apache.commons', name: 'commons-collections4', version: '4.4'
+    implementation 'org.dizitart:nitrite:3.4.3'
+    implementation group: 'com.fasterxml.jackson.datatype', name:'jackson-datatype-jsr310', version:'2.15.2'
+    implementation 'com.github.jsqlparser:jsqlparser:4.6'
+}
+
+task sourceJar(type: Jar) {
+    from sourceSets.main.allSource
+    archiveClassifier.set('sources')
+}
+task javadocJar(type: Jar) {
+    from javadoc.destinationDir
+    archiveClassifier.set('javadoc')
 }
 
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            artifact shadowJar
+            from components.java
 
-            // Additional configuration, e.g., add artifacts, set up pom details, etc.
-            pom {
-                name = 'NucleoDB Memcache Server'
-                description = 'Memcache compatible nucleodb server'
-                url = 'https://github.com/NucleoTeam/NucleoDB'
-                licenses {
-                    license {
-                        name = 'The Apache License, Version 2.0'
-                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                    }
-                }
-                developers {
-                    developer {
-                        id = 'firestar'
-                        name = 'Nathaniel Davidson'
-                        email = 'nathaniel.davidson@gmail.com'
-                    }
-                }
-                scm {
-                    connection = 'scm:git:git://github.com/NucleoTeam/NucleoDB.git'
-                    developerConnection = 'scm:git:ssh://github.com/NucleoTeam/NucleoDB.git'
-                    url = 'https://github.com/NucleoTeam/NucleoDB/tree/master'
-                }
-            }
+            artifact sourceJar
+            artifact javadocJar
         }
     }
     repositories {

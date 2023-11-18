@@ -188,7 +188,7 @@ public class Connection implements Serializable, Comparable<Connection>{
 
   @Override
   public int compareTo(@NotNull Connection o) {
-    return this.getUuid().compareTo(o.getUuid());
+    return this.getUuid().hashCode()-o.getUuid().hashCode();
   }
 
   @JsonIgnore

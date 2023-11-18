@@ -124,7 +124,8 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
 
     @Override
     public int compareTo(@NotNull DataEntry o) {
-        return o.key.compareTo(this.key);
+
+        return o.key.hashCode()-this.key.hashCode();
     }
 
     @Override

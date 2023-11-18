@@ -48,7 +48,21 @@ public class ProducerHandler  {
                 UUID.randomUUID().toString(),
                 modify.getClass().getSimpleName() + Serializer.getObjectMapper().getOm().writeValueAsString(modify)
             );
-            getProducer().send(record);
+
+            new Thread(()->getProducer().send(record, (e, ex)->{
+                //logger.info("Published");
+                if(ex!=null) {
+                    ex.printStackTrace();
+                    System.exit(1);
+                }
+                synchronized (record){
+                    record.notifyAll();
+                }
+                if(callback!=null) callback.onCompletion(e, ex);
+            })).start();
+            synchronized (record){
+                record.wait();
+            }
             //logger.info("produced");
         } catch (Exception e) {
             e.printStackTrace();

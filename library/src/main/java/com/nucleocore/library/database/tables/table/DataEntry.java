@@ -19,7 +19,6 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
     @SkipCopy
     private static final long serialVersionUID = 1;
     public String key;
-    public long keyInt;
     public long version = -1;
     private JsonNode reference;
     public Object data;
@@ -31,7 +30,6 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
         this.data = obj;
         this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = UUID.randomUUID().toString();
-        this.keyInt = Utils.longRepresentation(this.key);
         this.created = Instant.now();
     }
 
@@ -40,7 +38,6 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
         this.version = create.getVersion();
         this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = create.getKey();
-        this.keyInt = Utils.longRepresentation(this.key);
         this.created = create.getTime();
     }
 
@@ -71,15 +68,9 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
     public String getKey(){
         return key;
     }
-    public int getHash(){
-       int hashCode = 0;
-
-       return hashCode;
-    }
 
     public void setKey(String key){
         this.key = key;
-        this.keyInt = Utils.longRepresentation(this.key);
     }
 
 
@@ -150,13 +141,5 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
     }
     public Object cast(Class<?> clazz) throws JsonProcessingException {
         return new ObjectMapper().readValue(new ObjectMapper().writeValueAsString(this), clazz);
-    }
-
-    public long getKeyInt() {
-        return keyInt;
-    }
-
-    public void setKeyInt(long keyInt) {
-        this.keyInt = keyInt;
     }
 }

@@ -81,11 +81,12 @@ public class ConnectionHandler implements Serializable{
       .maximumSize(10000)
       .softValues()
       .expireAfterWrite(5, TimeUnit.SECONDS)
-      .removalListener(e->{
-        if(e.getCause().name().equals("EXPIRED")){
-          logger.info("EXPIRED "+e.getKey());
+      .removalListener(e -> {
+        if (e.getCause().name().equals("EXPIRED")) {
+          logger.info("EXPIRED " + e.getKey());
           System.exit(1);
-          new Thread(() -> ((Consumer<Connection>)e.getValue()).accept(null)).start();;
+          new Thread(() -> ((Consumer<Connection>) e.getValue()).accept(null)).start();
+          ;
         }
       })
       .build();
@@ -102,7 +103,7 @@ public class ConnectionHandler implements Serializable{
     if (config.isWrite()) {
       createTopics();
     }
-    if(config.isLoadSaved()) {
+    if (config.isLoadSaved()) {
       loadSavedData();
     }
 
@@ -133,7 +134,7 @@ public class ConnectionHandler implements Serializable{
       createTopics();
     }
 
-    if(config.isLoadSaved()) {
+    if (config.isLoadSaved()) {
       loadSavedData();
     }
 
@@ -160,7 +161,7 @@ public class ConnectionHandler implements Serializable{
     if (new File("./data/connections.dat").exists()) {
       try {
         ConnectionHandler tmpConnections = (ConnectionHandler) new ObjectFileReader().readObjectFromFile("./data/connections.dat");
-        tmpConnections.allConnections.forEach(c->this.addConnection(c));
+        tmpConnections.allConnections.forEach(c -> this.addConnection(c));
         this.changed = tmpConnections.changed;
         this.consumerId = tmpConnections.getConsumerId();
         this.partitionOffsets = tmpConnections.partitionOffsets;
@@ -209,80 +210,85 @@ public class ConnectionHandler implements Serializable{
     client.close();
   }
 
-  public Set<Connection> getByFrom(DataEntry de){
+  public Set<Connection> getByFrom(DataEntry de) {
     Set<Connection> tmp = connections.get(de.getKey());
-    if(tmp!=null){
-      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
+    if (tmp != null) {
+      return tmp.stream().map(c -> c.clone()).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
 
-  public Set<Connection> getByFromAndLabel(DataEntry from, String label){
-    Set<Connection> tmp = connections.get(from.getKey()+label);
-    if(tmp!=null) {
-      return tmp.stream().map(c->c.clone()).collect(Collectors.toSet());
+  public Set<Connection> getByFromAndLabel(DataEntry from, String label) {
+    Set<Connection> tmp = connections.get(from.getKey() + label);
+    if (tmp != null) {
+      return tmp.stream().map(c -> c.clone()).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
 
-  public Set<Connection> getByFromAndLabelAndTo(DataEntry from, String label, DataEntry to){
-    Set<Connection> tmp = connections.get(from.getKey()+to.getKey()+label);
-    if(tmp!=null) {
+  public Set<Connection> getByFromAndLabelAndTo(DataEntry from, String label, DataEntry to) {
+    Set<Connection> tmp = connections.get(from.getKey() + to.getKey() + label);
+    if (tmp != null) {
       return tmp.stream().collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
-  public Set<Connection> getByLabel(String label){
+
+  public Set<Connection> getByLabel(String label) {
     Set<Connection> tmp = connections.get(label);
-    if(tmp!=null) {
-      return tmp.stream().collect(Collectors.toSet());
-    }
-    return new TreeSetExt<>();
-  }
-  public Set<Connection> getByFromAndTo(DataEntry from, DataEntry to){
-    Set<Connection> tmp = connections.get(from.getKey()+to.getKey());
-    if(tmp!=null) {
-      return tmp.stream().collect(Collectors.toSet());
-    }
-    return new TreeSetExt<>();
-  }
-  public Set<Connection> getReverseByLabelAndTo(String label, DataEntry to){
-    Set<Connection> tmp = connectionsReverse.get(to.getKey()+label);
-    if(tmp!=null) {
-      return tmp.stream().collect(Collectors.toSet());
-    }
-    return new TreeSetExt<>();
-  }
-  public Set<Connection> getReverseByFromAndLabelAndTo(DataEntry de, String label, DataEntry toDe){
-    Set<Connection> tmp = connectionsReverse.get(de.getKey()+toDe.getKey()+label);
-    if(tmp!=null) {
-      return tmp.stream().collect(Collectors.toSet());
-    }
-    return new TreeSetExt<>();
-  }
-  public Set<Connection> getReverseByFromAndTo(DataEntry from, DataEntry to){
-    Set<Connection> tmp = connectionsReverse.get(from.getKey()+to.getKey());
-    if(tmp!=null) {
+    if (tmp != null) {
       return tmp.stream().collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
 
-  private void putConnectionInKey(String key, Connection connection){
-      if (!connections.containsKey(key)) {
-        connections.put(key, new TreeSetExt<>());
-      }
-      connections.get(key).add(connection);
+  public Set<Connection> getByFromAndTo(DataEntry from, DataEntry to) {
+    Set<Connection> tmp = connections.get(from.getKey() + to.getKey());
+    if (tmp != null) {
+      return tmp.stream().collect(Collectors.toSet());
+    }
+    return new TreeSetExt<>();
   }
 
-  private void putReverseConnectionInKey(String key, Connection connection){
-      if (!connectionsReverse.containsKey(key)) {
-        connectionsReverse.put(key, new TreeSetExt<>());
-      }
-      connectionsReverse.get(key).add(connection);
+  public Set<Connection> getReverseByLabelAndTo(String label, DataEntry to) {
+    Set<Connection> tmp = connectionsReverse.get(to.getKey() + label);
+    if (tmp != null) {
+      return tmp.stream().collect(Collectors.toSet());
+    }
+    return new TreeSetExt<>();
   }
 
-  private void addConnection(Connection connection){
+  public Set<Connection> getReverseByFromAndLabelAndTo(DataEntry de, String label, DataEntry toDe) {
+    Set<Connection> tmp = connectionsReverse.get(de.getKey() + toDe.getKey() + label);
+    if (tmp != null) {
+      return tmp.stream().collect(Collectors.toSet());
+    }
+    return new TreeSetExt<>();
+  }
+
+  public Set<Connection> getReverseByFromAndTo(DataEntry from, DataEntry to) {
+    Set<Connection> tmp = connectionsReverse.get(from.getKey() + to.getKey());
+    if (tmp != null) {
+      return tmp.stream().collect(Collectors.toSet());
+    }
+    return new TreeSetExt<>();
+  }
+
+  private void putConnectionInKey(String key, Connection connection) {
+    if (!connections.containsKey(key)) {
+      connections.put(key, new TreeSetExt<>());
+    }
+    connections.get(key).add(connection);
+  }
+
+  private void putReverseConnectionInKey(String key, Connection connection) {
+    if (!connectionsReverse.containsKey(key)) {
+      connectionsReverse.put(key, new TreeSetExt<>());
+    }
+    connectionsReverse.get(key).add(connection);
+  }
+
+  private void addConnection(Connection connection) {
     synchronized (connections) {
       connection.connectionHandler = this;
       connectionByUUID.put(connection.getUuid(), connection);
@@ -299,7 +305,7 @@ public class ConnectionHandler implements Serializable{
     }
   }
 
-  private void removeByKey(String key, Connection connection){
+  private void removeByKey(String key, Connection connection) {
     if (connections.containsKey(key)) {
       connections.get(key).remove(connection);
       if (connections.get(key).size() == 0) {
@@ -307,7 +313,8 @@ public class ConnectionHandler implements Serializable{
       }
     }
   }
-  private void removeReverseByKey(String key, Connection connection){
+
+  private void removeReverseByKey(String key, Connection connection) {
     if (connectionsReverse.containsKey(key)) {
       connectionsReverse.get(key).remove(connection);
       if (connectionsReverse.get(key).size() == 0) {
@@ -316,7 +323,7 @@ public class ConnectionHandler implements Serializable{
     }
   }
 
-  private void removeConnection(Connection connection){
+  private void removeConnection(Connection connection) {
     synchronized (connections) {
       connectionByUUID.remove(connection.getUuid());
       String connectionKey = connection.getFromKey();
@@ -331,20 +338,23 @@ public class ConnectionHandler implements Serializable{
       allConnections.remove(connection);
     }
   }
+
   public void consume() {
     if (this.config.getBootstrap() != null) {
-      System.out.println( this.consumerId + " connecting to: " + this.config.getBootstrap());
+      System.out.println(this.consumerId + " connecting to: " + this.config.getBootstrap());
       this.consumer = new ConsumerHandler(this.config.getBootstrap(), this.consumerId, this, "connections");
     }
   }
-  public void removeConnectionFrom(String key){
-    if(connections.containsKey(key)){
+
+  public void removeConnectionFrom(String key) {
+    if (connections.containsKey(key)) {
       allConnections.removeAll(connections.get(key));
       connections.remove(key);
     }
   }
-  public void removeConnectionTo(DataEntry dataEntry){
-    allConnections.stream().filter(conn->conn.getToKey().equals(dataEntry.getKey())).collect(Collectors.toSet()).forEach((c)->removeConnection(c));
+
+  public void removeConnectionTo(DataEntry dataEntry) {
+    allConnections.stream().filter(conn -> conn.getToKey().equals(dataEntry.getKey())).collect(Collectors.toSet()).forEach((c) -> removeConnection(c));
   }
 
   public Map<String, Set<Connection>> getConnections() {
@@ -364,41 +374,42 @@ public class ConnectionHandler implements Serializable{
   }
 
   public boolean deleteAndForget(Connection connection) throws IOException {
-    return deleteInternalConsumer(connection,null);
+    return deleteInternalConsumer(connection, null);
   }
+
   public void deleteAsync(Connection connection, Consumer<Connection> consumer) throws IOException {
     deleteInternalConsumer(connection, consumer);
   }
+
   public boolean deleteSync(Connection connection) throws IOException, InterruptedException {
     CountDownLatch countDownLatch = new CountDownLatch(1);
-    AtomicBoolean v = new AtomicBoolean(false);
-   deleteInternalConsumerSync(connection,(c)->{
+    deleteInternalConsumer(connection, (c) -> {
       countDownLatch.countDown();
-      v.set(c == null);
     });
     countDownLatch.await();
-    return v.get();
+    return true;
   }
 
-  public List<String> invalidConnection(Connection c){
+  public List<String> invalidConnection(Connection c) {
     List<String> invalids = new LinkedList<>();
-    if(c.getFromKey()==null) invalids.add("[FromKey]");
-    if(c.getToKey()==null) invalids.add("[ToKey]");
-    if(c.getFromTable()==null) invalids.add("[FromTable]");
-    if(c.getToTable()==null) invalids.add("[ToTable]");
+    if (c.getFromKey() == null) invalids.add("[FromKey]");
+    if (c.getToKey() == null) invalids.add("[ToKey]");
+    if (c.getFromTable() == null) invalids.add("[FromTable]");
+    if (c.getToTable() == null) invalids.add("[ToTable]");
     return invalids;
   }
 
   public boolean saveAndForget(Connection connection) throws InvalidConnectionException {
     List<String> invalids = this.invalidConnection(connection);
-    if(invalids.size()>0) {
+    if (invalids.size() > 0) {
       throw new InvalidConnectionException(invalids.stream().collect(Collectors.joining(", ")));
     }
     return saveInternalConsumer(connection, null);
   }
+
   public boolean saveAsync(Connection connection, Consumer<Connection> consumer) throws InvalidConnectionException {
     List<String> invalids = this.invalidConnection(connection);
-    if(invalids.size()>0) {
+    if (invalids.size() > 0) {
       throw new InvalidConnectionException(invalids.stream().collect(Collectors.joining(", ")));
     }
     return saveInternalConsumer(connection, consumer);
@@ -406,11 +417,11 @@ public class ConnectionHandler implements Serializable{
 
   public boolean saveSync(Connection connection) throws InvalidConnectionException, InterruptedException {
     List<String> invalids = this.invalidConnection(connection);
-    if(invalids.size()>0) {
+    if (invalids.size() > 0) {
       throw new InvalidConnectionException(invalids.stream().collect(Collectors.joining(", ")));
     }
     CountDownLatch countDownLatch = new CountDownLatch(1);
-    boolean v = saveInternalConsumer(connection, (c)->{
+    boolean v = saveInternalConsumer(connection, (c) -> {
       countDownLatch.countDown();
     });
     countDownLatch.await();
@@ -420,24 +431,15 @@ public class ConnectionHandler implements Serializable{
 
   private boolean deleteInternalConsumer(Connection connection, Consumer<Connection> consumer) throws IOException {
     String changeUUID = UUID.randomUUID().toString();
-    if (deleteInternal(connection, changeUUID)) {
-      if (consumer != null) {
-        consumers.put(changeUUID, consumer);
-      }
-      return true;
-    }
-    return false;
-  }
-  private boolean deleteInternalConsumerSync(Connection connection, Consumer<Connection> consumer) throws IOException, InterruptedException {
-    String changeUUID = UUID.randomUUID().toString();
     if (consumer != null) {
       consumers.put(changeUUID, consumer);
     }
-    if (deleteInternalSync(connection, changeUUID)) {
+    if (deleteInternal(connection, changeUUID)) {
       return true;
     }
     return false;
   }
+
   private boolean saveInternalConsumer(Connection connection, Consumer<Connection> consumer) {
     String changeUUID = UUID.randomUUID().toString();
     if (consumer != null) {
@@ -462,6 +464,7 @@ public class ConnectionHandler implements Serializable{
     }
     return false;
   }
+
   public void startup() {
     inStartup = false;
     if (this.config.getStartupRun() != null) {
@@ -471,38 +474,32 @@ public class ConnectionHandler implements Serializable{
 
   private boolean deleteInternal(Connection connection, String changeUUID) throws IOException {
     if (allConnections.contains(connection)) {
-      connection.versionIncrease();
-      ConnectionDelete deleteEntry = new ConnectionDelete(changeUUID, connection);
+      Connection conn = connection.copy(Connection.class);
+      conn.versionIncrease();
+      ConnectionDelete deleteEntry = new ConnectionDelete(changeUUID, conn);
       producer.push(deleteEntry.getUuid(), deleteEntry.getVersion(), deleteEntry, null);
       return true;
     }
     return false;
   }
-  private boolean deleteInternalSync(Connection connection, String changeUUID) throws IOException, InterruptedException {
-    if (allConnections.contains(connection)) {
-      connection.versionIncrease();
-      ConnectionDelete deleteEntry = new ConnectionDelete(changeUUID, connection);
-      producer.push(deleteEntry.getUuid(), deleteEntry.getVersion(), deleteEntry, null);
-      return true;
-    }
-    return false;
-  }
+
   private boolean saveInternal(Connection connection, String changeUUID) {
     if (!allConnections.contains(connection)) {
       ConnectionCreate createEntry = new ConnectionCreate(changeUUID, connection);
       producer.push(createEntry.getConnection().getUuid(), createEntry.getConnection().getVersion(), createEntry, null);
       return true;
     } else {
-      connection.versionIncrease();
+      Connection conn = connection.copy(Connection.class);
+      conn.versionIncrease();
       List<JsonOperations> changes = null;
-      Connection oldConnection = connectionByUUID.get(connection.getUuid());
-      JsonPatch patch = JsonDiff.asJsonPatch(Serializer.getObjectMapper().getOm().valueToTree(oldConnection), Serializer.getObjectMapper().getOm().valueToTree(connection));
+      Connection oldConnection = connectionByUUID.get(conn.getUuid());
+      JsonPatch patch = JsonDiff.asJsonPatch(Serializer.getObjectMapper().getOm().valueToTree(oldConnection), Serializer.getObjectMapper().getOm().valueToTree(conn));
       try {
         String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
         changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
         //Serializer.log(json);
         if (changes != null && changes.size() > 0) {
-          ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());
+          ConnectionUpdate updateEntry = new ConnectionUpdate(conn.getVersion(), json, changeUUID, conn.getUuid());
           producer.push(updateEntry.getUuid(), updateEntry.getVersion(), updateEntry, null);
           return true;
         }
@@ -542,20 +539,22 @@ public class ConnectionHandler implements Serializable{
     return false;
   }
 
-  private void itemProcessed(){
-    if(this.startupPhase.get()){
+  private void itemProcessed() {
+    if (this.startupPhase.get()) {
       int left = this.startupLoadCount.decrementAndGet();
-      if(left!=0 && left%10000==0) logger.info("Startup connection items waiting to process: "+left);
-      if(!this.getConsumer().getStartupPhaseConsume().get() && left <= 0) {
+      if (left != 0 && left % 10000 == 0) logger.info("Startup connection items waiting to process: " + left);
+      if (!this.getConsumer().getStartupPhaseConsume().get() && left <= 0) {
         this.startupPhase.set(false);
         System.gc();
-        new Thread(()->this.startup()).start();
+        new Thread(() -> this.startup()).start();
       }
     }
   }
-  private void itemRequeue(){
-    if(this.startupPhase.get()) this.startupLoadCount.incrementAndGet();
+
+  private void itemRequeue() {
+    if (this.startupPhase.get()) this.startupLoadCount.incrementAndGet();
   }
+
   public void modify(Modification mod, Object modification) {
     switch (mod) {
       case CONNECTIONCREATE:
@@ -575,7 +574,7 @@ public class ConnectionHandler implements Serializable{
 
             this.addConnection(c.getConnection());
             this.changed = new Date().getTime();
-            if(c.getChangeUUID()!=null) {
+            if (c.getChangeUUID() != null) {
               Consumer<Connection> consumer = consumers.getIfPresent(c.getChangeUUID());
               if (consumer != null) {
                 new Thread(() -> {
@@ -591,7 +590,7 @@ public class ConnectionHandler implements Serializable{
         }
         break;
       case CONNECTIONDELETE:
-        try{
+        try {
           ConnectionDelete d = (ConnectionDelete) modification;
           //if(!startupPhase.get()) logger.info("Delete statement called");
           if (d != null) {
@@ -620,7 +619,7 @@ public class ConnectionHandler implements Serializable{
                 this.removeConnection(conn);
                 deletedEntries.add(d.getUuid());
                 this.changed = new Date().getTime();
-                if(d.getChangeUUID()!=null) {
+                if (d.getChangeUUID() != null) {
                   Consumer<Connection> consumer = consumers.getIfPresent(d.getChangeUUID());
                   if (consumer != null) {
                     new Thread(() -> {
@@ -630,17 +629,17 @@ public class ConnectionHandler implements Serializable{
                   }
                 }
                 long items = itemsToBeCleaned.incrementAndGet();
-                if (!startupPhase.get() && items>100){
+                if (!startupPhase.get() && items > 100) {
                   itemsToBeCleaned.set(0L);
                   System.gc();
                 }
               }
             } else {
-              if(deletedEntries.contains(d.getUuid())){
+              if (deletedEntries.contains(d.getUuid())) {
                 //logger.info("already deleted conn "+d.getUuid());
                 //System.exit(1);
                 return;
-              }else {
+              } else {
                 itemRequeue();
                 modqueue.add(new ModificationQueueItem(mod, modification));
                 leftInModQueue.incrementAndGet();
@@ -681,8 +680,8 @@ public class ConnectionHandler implements Serializable{
               } else {
 
                 Connection connectionTmp = Serializer.getObjectMapper().getOm().readValue(
-                  u.getChangesPatch().apply(Serializer.getObjectMapper().getOm().valueToTree(conn)).toString(),
-                  Connection.class
+                    u.getChangesPatch().apply(Serializer.getObjectMapper().getOm().valueToTree(conn)).toString(),
+                    Connection.class
                 );
                 conn.setVersion(u.getVersion());
                 conn.setMetadata(connectionTmp.getMetadata());
@@ -690,7 +689,7 @@ public class ConnectionHandler implements Serializable{
                 conn.setToKey(connectionTmp.getToKey());
                 conn.setToTable(connectionTmp.getToTable());
                 this.changed = new Date().getTime();
-                if(u.getChangeUUID()!=null) {
+                if (u.getChangeUUID() != null) {
                   Consumer<Connection> consumer = consumers.getIfPresent(u.getChangeUUID());
                   if (consumer != null) {
                     new Thread(() -> {
@@ -700,7 +699,7 @@ public class ConnectionHandler implements Serializable{
                   }
                 }
                 long items = itemsToBeCleaned.incrementAndGet();
-                if (!startupPhase.get() && items>100){
+                if (!startupPhase.get() && items > 100) {
                   itemsToBeCleaned.set(0L);
                   System.gc();
                 }

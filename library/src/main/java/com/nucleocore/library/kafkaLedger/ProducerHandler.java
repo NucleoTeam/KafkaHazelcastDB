@@ -1,6 +1,7 @@
 package com.nucleocore.library.kafkaLedger;
 
 import com.nucleocore.library.database.modifications.Modify;
+import com.nucleocore.library.database.modifications.Update;
 import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.utils.Serializer;
 import org.apache.kafka.clients.producer.Callback;
@@ -8,6 +9,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.serialization.StringSerializer;
 
 import java.util.*;
@@ -41,31 +43,29 @@ public class ProducerHandler  {
         return producer;
     }
 
-    public void push(Modify modify, Callback callback){
-        try {
-            ProducerRecord record = new ProducerRecord(
-                table,
-                UUID.randomUUID().toString(),
-                modify.getClass().getSimpleName() + Serializer.getObjectMapper().getOm().writeValueAsString(modify)
-            );
+    public void push(String key, long version, Modify modify, Callback callback){
+        new Thread(()-> {
+            try {
+                ProducerRecord record = new ProducerRecord(
+                    table,
+                    key,
+                    modify.getClass().getSimpleName() + Serializer.getObjectMapper().getOm().writeValueAsString(modify)
+                );
+                record.headers().add("version", Long.valueOf(version).toString().getBytes());
 
-            new Thread(()->getProducer().send(record, (e, ex)->{
-                //logger.info("Published");
-                if(ex!=null) {
-                    ex.printStackTrace();
-                    System.exit(1);
-                }
-                synchronized (record){
-                    record.notifyAll();
-                }
-                if(callback!=null) callback.onCompletion(e, ex);
-            })).start();
-            synchronized (record){
-                record.wait();
+                getProducer().send(record, (e, ex) -> {
+                    //logger.info("Published");
+                    if (ex != null) {
+                        ex.printStackTrace();
+                        System.exit(1);
+                    }
+                    if (callback != null) callback.onCompletion(e, ex);
+                });
+                Thread.currentThread().interrupt();
+                //logger.info("produced");
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-            //logger.info("produced");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        }).start();
     }
 }

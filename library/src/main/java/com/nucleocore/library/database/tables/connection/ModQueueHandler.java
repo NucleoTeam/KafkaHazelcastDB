@@ -44,9 +44,11 @@ public class ModQueueHandler implements Runnable{
       try {
         if(overkillCheck) {
           Thread.sleep(10);
+          overkillCheck = false;
         } else {
           synchronized (modqueue) {
             if (connectionHandler.getLeftInModQueue().get() == 0) modqueue.wait();
+            logger.info(connectionHandler.getLeftInModQueue().get()+"");
           }
         }
       } catch (InterruptedException e) {

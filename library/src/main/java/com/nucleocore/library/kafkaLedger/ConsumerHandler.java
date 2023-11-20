@@ -23,7 +23,7 @@ public class ConsumerHandler implements Runnable{
   private ConnectionHandler connectionHandler = null;
   private String table;
   int startupItems = -1;
-  private Queue<String> queue = Queues.newPriorityBlockingQueue();
+  private Queue<String> queue = Queues.newLinkedBlockingQueue();
   private transient AtomicInteger leftToRead = new AtomicInteger(0);
   private AtomicInteger startupLoadCount;
   private AtomicBoolean startupPhaseConsume = new AtomicBoolean(true);
@@ -127,18 +127,33 @@ public class ConsumerHandler implements Runnable{
     return startupMap.size() == startupMap.entrySet().stream().filter(s -> getConsumer().position(s.getKey()) >= s.getValue()).count();
   }
 
+  public Map<TopicPartition, OffsetAndMetadata> createCommitMap(String tableName, Map<Integer, OffsetAndMetadata> offsetMap){
+    Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap = new HashMap<>();
+    offsetMap.entrySet().forEach(e->{
+      offsetAndMetadataMap.put(new TopicPartition(tableName, e.getKey()), e.getValue());
+    });
+    return offsetAndMetadataMap;
+  }
+
   @Override
   public void run() {
     boolean connectionType = this.getConnectionHandler() != null;
     boolean databaseType = this.getDatabase() != null;
     boolean saveConnection = connectionType && this.getConnectionHandler().getConfig().isSaveChanges();
     boolean saveDatabase = databaseType && this.getDatabase().getConfig().isSaveChanges();
+    String tableName = "";
     if (databaseType) {
       startupLoadCount = getDatabase().getStartupLoadCount();
+      tableName = getDatabase().getConfig().getTable();
     }
     if (connectionType) {
       startupLoadCount = getConnectionHandler().getStartupLoadCount();
+      tableName = "connections";
     }
+    if(startupPhaseConsume.get()){
+      consumer.commitAsync();
+    }
+    Map<Integer, OffsetAndMetadata> offsetMetaMap = new HashMap<>();
     try {
       do {
         ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofMillis(1000));
@@ -156,8 +171,9 @@ public class ConsumerHandler implements Runnable{
               this.getConnectionHandler().getPartitionOffsets().put(action.partition(), action.offset());
             if (saveDatabase)
               this.getDatabase().getPartitionOffsets().put(action.partition(), action.offset());
+            offsetMetaMap.put(action.partition(), new OffsetAndMetadata(action.offset()));
           });
-          consumer.commitAsync();
+          consumer.commitSync(createCommitMap(tableName, offsetMetaMap));
         }
         while(startupPhaseConsume.get() && leftToRead.get()>50000){
           Thread.sleep(1000);
@@ -165,6 +181,16 @@ public class ConsumerHandler implements Runnable{
         //logger.info("consumed: "+leftToRead.get());
         if (startupPhaseConsume.get() && initialLoad()) {
           startupPhaseConsume.set(false);
+          if(startupLoadCount.get()==0){
+            if(connectionType){
+              getConnectionHandler().getStartupPhase().set(false);
+              new Thread(() -> getConnectionHandler().startup()).start();
+            }
+            if(databaseType){
+              getDatabase().getStartupPhase().set(false);
+              new Thread(() -> getDatabase().startup()).start();
+            }
+          }
         }
       } while (!Thread.interrupted());
       logger.info("Consumer interrupted " + (databaseType ? this.getDatabase().getConfig().getTable() : "connections"));

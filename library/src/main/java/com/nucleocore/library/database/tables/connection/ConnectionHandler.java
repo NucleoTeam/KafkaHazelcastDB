@@ -2,6 +2,7 @@ package com.nucleocore.library.database.tables.connection;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.diff.JsonDiff;
 import com.google.common.cache.Cache;
@@ -19,6 +20,7 @@ import com.nucleocore.library.database.utils.JsonOperations;
 import com.nucleocore.library.database.utils.ObjectFileReader;
 import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.TreeSetExt;
+import com.nucleocore.library.database.utils.Utils;
 import com.nucleocore.library.kafkaLedger.ConsumerHandler;
 import com.nucleocore.library.kafkaLedger.ProducerHandler;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -47,6 +49,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -80,16 +83,18 @@ public class ConnectionHandler implements Serializable{
       .expireAfterWrite(5, TimeUnit.SECONDS)
       .removalListener(e->{
         if(e.getCause().name().equals("EXPIRED")){
-          logger.info("EXPIRED");
+          logger.info("EXPIRED "+e.getKey());
+          System.exit(1);
           new Thread(() -> ((Consumer<Connection>)e.getValue()).accept(null)).start();;
         }
       })
       .build();
-  private Set<Integer> deletedEntries = Sets.newTreeSet();
+  private Set<String> deletedEntries = Sets.newTreeSet();
   private long changed = new Date().getTime();
   private transient AtomicInteger leftInModQueue = new AtomicInteger(0);
   private transient AtomicInteger startupLoadCount = new AtomicInteger(0);
   private transient AtomicBoolean startupPhase = new AtomicBoolean(true);
+  private AtomicLong itemsToBeCleaned = new AtomicLong(0L);
 
   public ConnectionHandler(NucleoDB nucleoDB, ConnectionConfig config) {
     this.nucleoDB = nucleoDB;
@@ -468,7 +473,7 @@ public class ConnectionHandler implements Serializable{
     if (allConnections.contains(connection)) {
       connection.versionIncrease();
       ConnectionDelete deleteEntry = new ConnectionDelete(changeUUID, connection);
-      producer.push(deleteEntry, null);
+      producer.push(deleteEntry.getUuid(), deleteEntry.getVersion(), deleteEntry, null);
       return true;
     }
     return false;
@@ -477,7 +482,7 @@ public class ConnectionHandler implements Serializable{
     if (allConnections.contains(connection)) {
       connection.versionIncrease();
       ConnectionDelete deleteEntry = new ConnectionDelete(changeUUID, connection);
-      producer.push(deleteEntry, null);
+      producer.push(deleteEntry.getUuid(), deleteEntry.getVersion(), deleteEntry, null);
       return true;
     }
     return false;
@@ -485,7 +490,7 @@ public class ConnectionHandler implements Serializable{
   private boolean saveInternal(Connection connection, String changeUUID) {
     if (!allConnections.contains(connection)) {
       ConnectionCreate createEntry = new ConnectionCreate(changeUUID, connection);
-      producer.push(createEntry, null);
+      producer.push(createEntry.getConnection().getUuid(), createEntry.getConnection().getVersion(), createEntry, null);
       return true;
     } else {
       connection.versionIncrease();
@@ -498,7 +503,7 @@ public class ConnectionHandler implements Serializable{
         //Serializer.log(json);
         if (changes != null && changes.size() > 0) {
           ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());
-          producer.push(updateEntry, null);
+          producer.push(updateEntry.getUuid(), updateEntry.getVersion(), updateEntry, null);
           return true;
         }
       } catch (JsonProcessingException e) {
@@ -511,7 +516,7 @@ public class ConnectionHandler implements Serializable{
   private boolean saveInternalSync(Connection connection, String changeUUID) throws InterruptedException {
     if (!allConnections.contains(connection)) {
       ConnectionCreate createEntry = new ConnectionCreate(changeUUID, connection);
-      producer.push(createEntry, null);
+      producer.push(createEntry.getConnection().getUuid(), createEntry.getConnection().getVersion(), createEntry, null);
       return true;
     } else {
       connection.versionIncrease();
@@ -525,7 +530,7 @@ public class ConnectionHandler implements Serializable{
         if (changes != null && changes.size() > 0) {
           ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());
           CountDownLatch countDownLatch = new CountDownLatch(1);
-          producer.push(updateEntry, null);
+          producer.push(updateEntry.getUuid(), updateEntry.getVersion(), updateEntry, null);
           countDownLatch.await();
           return true;
         }
@@ -540,9 +545,10 @@ public class ConnectionHandler implements Serializable{
   private void itemProcessed(){
     if(this.startupPhase.get()){
       int left = this.startupLoadCount.decrementAndGet();
-      if(left%5000==0) logger.info("Startup connection items waiting to process: "+left);
+      if(left!=0 && left%10000==0) logger.info("Startup connection items waiting to process: "+left);
       if(!this.getConsumer().getStartupPhaseConsume().get() && left <= 0) {
         this.startupPhase.set(false);
+        System.gc();
         new Thread(()->this.startup()).start();
       }
     }
@@ -554,16 +560,16 @@ public class ConnectionHandler implements Serializable{
     switch (mod) {
       case CONNECTIONCREATE:
         ConnectionCreate c = (ConnectionCreate) modification;
-        //System.out.println("Create statement called");
+        //if(!startupPhase.get()) logger.info("Create statement called");
         if (c != null) {
           itemProcessed();
           if (this.config.getReadToTime() != null && c.getTime().isAfter(this.config.getReadToTime())) {
-            //System.out.println("Create after target db date");
+            //logger.info("Create after target db date");
             return;
           }
           try {
             if (connectionByUUID.containsKey(c.getConnection().getUuid())) {
-              //System.out.println("Ignore already saved change.");
+              //logger.info("Ignore already saved change.");
               return; // ignore this create
             }
 
@@ -585,34 +591,32 @@ public class ConnectionHandler implements Serializable{
       case CONNECTIONDELETE:
         try{
           ConnectionDelete d = (ConnectionDelete) modification;
-          //System.out.println("Delete statement called");
+          //if(!startupPhase.get()) logger.info("Delete statement called");
           if (d != null) {
             itemProcessed();
             if (this.config.getReadToTime() != null && d.getTime().isAfter(this.config.getReadToTime())) {
-              //System.out.println("Delete after target db date");
-              return;
-            }
-            if(deletedEntries.contains(d.getUuid().hashCode())){
+              //logger.info("Delete after target db date");
               //System.exit(1);
               return;
             }
             Connection conn = connectionByUUID.get(d.getUuid());
             if (conn != null) {
               if (conn.getVersion() >= d.getVersion()) {
-                //System.out.println("Ignore already saved change.");
+                logger.info("Ignore already saved change.");
+                System.exit(1);
                 return; // ignore change
               }
               if (conn.getVersion() + 1 != d.getVersion()) {
                 itemRequeue();
                 //Serializer.log("Version not ready!");
-                leftInModQueue.incrementAndGet();
                 modqueue.add(new ModificationQueueItem(mod, modification));
+                leftInModQueue.incrementAndGet();
                 synchronized (modqueue) {
                   modqueue.notifyAll();
                 }
               } else {
                 this.removeConnection(conn);
-                deletedEntries.add(conn.getUuid().hashCode());
+                deletedEntries.add(d.getUuid());
                 this.changed = new Date().getTime();
                 Consumer<Connection> consumer = consumers.getIfPresent(d.getChangeUUID());
                 if (consumer!=null) {
@@ -621,13 +625,24 @@ public class ConnectionHandler implements Serializable{
                     consumer.accept(conn);
                   }).start();
                 }
+                long items = itemsToBeCleaned.incrementAndGet();
+                if (!startupPhase.get() && items>100){
+                  itemsToBeCleaned.set(0L);
+                  System.gc();
+                }
               }
             } else {
-              itemRequeue();
-              leftInModQueue.incrementAndGet();
-              modqueue.add(new ModificationQueueItem(mod, modification));
-              synchronized (modqueue) {
-                modqueue.notifyAll();
+              if(deletedEntries.contains(d.getUuid())){
+                logger.info("already deleted conn "+d.getUuid());
+                System.exit(1);
+                return;
+              }else {
+                itemRequeue();
+                modqueue.add(new ModificationQueueItem(mod, modification));
+                leftInModQueue.incrementAndGet();
+                synchronized (modqueue) {
+                  modqueue.notifyAll();
+                }
               }
             }
           }
@@ -637,7 +652,7 @@ public class ConnectionHandler implements Serializable{
         break;
       case CONNECTIONUPDATE:
         ConnectionUpdate u = (ConnectionUpdate) modification;
-        //System.out.println("Update statement called");
+        //if(!startupPhase.get()) logger.info("Update statement called");
         if (u != null) {
           itemProcessed();
           if (this.config.getReadToTime() != null && u.getTime().isAfter(this.config.getReadToTime())) {
@@ -648,18 +663,19 @@ public class ConnectionHandler implements Serializable{
             Connection conn = connectionByUUID.get(u.getUuid());
             if (conn != null) {
               if (conn.getVersion() >= u.getVersion()) {
-                //System.out.println("Ignore already saved change.");
+                //logger.info("Ignore already saved change.");
                 return; // ignore change
               }
               if (conn.getVersion() + 1 != u.getVersion()) {
                 //Serializer.log("Version not ready!");
                 itemRequeue();
-                leftInModQueue.incrementAndGet();
                 modqueue.add(new ModificationQueueItem(mod, modification));
+                leftInModQueue.incrementAndGet();
                 synchronized (modqueue) {
                   modqueue.notifyAll();
                 }
               } else {
+
                 Connection connectionTmp = Serializer.getObjectMapper().getOm().readValue(
                   u.getChangesPatch().apply(Serializer.getObjectMapper().getOm().valueToTree(conn)).toString(),
                   Connection.class
@@ -677,11 +693,16 @@ public class ConnectionHandler implements Serializable{
                     consumer.accept(conn);
                   }).start();
                 }
+                long items = itemsToBeCleaned.incrementAndGet();
+                if (!startupPhase.get() && items>100){
+                  itemsToBeCleaned.set(0L);
+                  System.gc();
+                }
               }
             } else {
               itemRequeue();
-              leftInModQueue.incrementAndGet();
               modqueue.add(new ModificationQueueItem(mod, modification));
+              leftInModQueue.incrementAndGet();
               synchronized (modqueue) {
                 modqueue.notifyAll();
               }

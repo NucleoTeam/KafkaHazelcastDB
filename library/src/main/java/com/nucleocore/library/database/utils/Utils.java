@@ -4,6 +4,14 @@ import java.lang.reflect.Field;
 import java.util.Comparator;
 
 public class Utils {
+    public static long longRepresentation(String key){
+        long x = 0;
+        for (int i = 0; i < key.length(); i++) {
+            long position = 100L*i;
+            x += ((long)(key.charAt(i)-48))*((position>0)?position:1L);
+        }
+        return x;
+    }
     public static int compare(Object a, Object b) {
         try {
             if (a == null && b == null)

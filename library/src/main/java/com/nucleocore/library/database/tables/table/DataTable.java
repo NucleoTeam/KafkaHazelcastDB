@@ -484,8 +484,8 @@ public class DataTable implements Serializable{
             }
 
             if (keyToEntry.containsKey(c.getKey())) {
-              logger.info("Ignore already saved change.");
-              System.exit(1);
+              //logger.info("Ignore already saved change.");
+              //System.exit(1);
               return; // ignore this create
             }
             DataEntry dataEntry = new DataEntry(c);
@@ -559,8 +559,8 @@ public class DataTable implements Serializable{
               }
             } else {
               if (deletedEntries.contains(d.getKey())) {
-                logger.info("ERROR already deleted: "+d.getKey()+" table: "+this.config.getTable());
-                System.exit(1);
+                //logger.info("ERROR already deleted: "+d.getKey()+" table: "+this.config.getTable());
+                //System.exit(1);
                 return;
               } else {
                 itemRequeue();

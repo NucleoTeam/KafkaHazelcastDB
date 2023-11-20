@@ -602,8 +602,8 @@ public class ConnectionHandler implements Serializable{
             Connection conn = connectionByUUID.get(d.getUuid());
             if (conn != null) {
               if (conn.getVersion() >= d.getVersion()) {
-                logger.info("Ignore already saved change.");
-                System.exit(1);
+                //logger.info("Ignore already saved change.");
+                //System.exit(1);
                 return; // ignore change
               }
               if (conn.getVersion() + 1 != d.getVersion()) {
@@ -633,8 +633,8 @@ public class ConnectionHandler implements Serializable{
               }
             } else {
               if(deletedEntries.contains(d.getUuid())){
-                logger.info("already deleted conn "+d.getUuid());
-                System.exit(1);
+                //logger.info("already deleted conn "+d.getUuid());
+                //System.exit(1);
                 return;
               }else {
                 itemRequeue();

@@ -575,12 +575,14 @@ public class ConnectionHandler implements Serializable{
 
             this.addConnection(c.getConnection());
             this.changed = new Date().getTime();
-            Consumer<Connection> consumer = consumers.getIfPresent(c.getChangeUUID());
-            if (consumer!=null) {
-              new Thread(() -> {
-                consumers.invalidate(c.getChangeUUID());
-                consumer.accept(c.getConnection());
-              }).start();
+            if(c.getChangeUUID()!=null) {
+              Consumer<Connection> consumer = consumers.getIfPresent(c.getChangeUUID());
+              if (consumer != null) {
+                new Thread(() -> {
+                  consumers.invalidate(c.getChangeUUID());
+                  consumer.accept(c.getConnection());
+                }).start();
+              }
             }
 
           } catch (Exception e) {
@@ -618,12 +620,14 @@ public class ConnectionHandler implements Serializable{
                 this.removeConnection(conn);
                 deletedEntries.add(d.getUuid());
                 this.changed = new Date().getTime();
-                Consumer<Connection> consumer = consumers.getIfPresent(d.getChangeUUID());
-                if (consumer!=null) {
-                  new Thread(() -> {
-                    consumers.invalidate(d.getChangeUUID());
-                    consumer.accept(conn);
-                  }).start();
+                if(d.getChangeUUID()!=null) {
+                  Consumer<Connection> consumer = consumers.getIfPresent(d.getChangeUUID());
+                  if (consumer != null) {
+                    new Thread(() -> {
+                      consumers.invalidate(d.getChangeUUID());
+                      consumer.accept(conn);
+                    }).start();
+                  }
                 }
                 long items = itemsToBeCleaned.incrementAndGet();
                 if (!startupPhase.get() && items>100){
@@ -686,12 +690,14 @@ public class ConnectionHandler implements Serializable{
                 conn.setToKey(connectionTmp.getToKey());
                 conn.setToTable(connectionTmp.getToTable());
                 this.changed = new Date().getTime();
-                Consumer<Connection> consumer = consumers.getIfPresent(u.getChangeUUID());
-                if (consumer!=null) {
-                  new Thread(() -> {
-                    consumers.invalidate(u.getChangeUUID());
-                    consumer.accept(conn);
-                  }).start();
+                if(u.getChangeUUID()!=null) {
+                  Consumer<Connection> consumer = consumers.getIfPresent(u.getChangeUUID());
+                  if (consumer != null) {
+                    new Thread(() -> {
+                      consumers.invalidate(u.getChangeUUID());
+                      consumer.accept(conn);
+                    }).start();
+                  }
                 }
                 long items = itemsToBeCleaned.incrementAndGet();
                 if (!startupPhase.get() && items>100){

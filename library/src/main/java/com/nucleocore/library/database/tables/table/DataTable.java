@@ -658,10 +658,12 @@ public class DataTable implements Serializable{
 
   private void consumerResponse(DataEntry dataEntry, String changeUUID) throws ExecutionException {
     try {
-      Consumer<DataEntry> dataEntryConsumer = consumers.getIfPresent(changeUUID);
-      if (dataEntryConsumer != null) {
-        new Thread(() -> dataEntryConsumer.accept(dataEntry)).start();
-        consumers.invalidate(changeUUID);
+      if(changeUUID!=null) {
+        Consumer<DataEntry> dataEntryConsumer = consumers.getIfPresent(changeUUID);
+        if (dataEntryConsumer != null) {
+          new Thread(() -> dataEntryConsumer.accept(dataEntry)).start();
+          consumers.invalidate(changeUUID);
+        }
       }
     } catch (CacheLoader.InvalidCacheLoadException e) {
     }

@@ -213,7 +213,7 @@ public class ConnectionHandler implements Serializable{
   public Set<Connection> getByFrom(DataEntry de) {
     Set<Connection> tmp = connections.get(de.getKey());
     if (tmp != null) {
-      return tmp.stream().map(c -> c.clone()).collect(Collectors.toSet());
+      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
@@ -221,7 +221,7 @@ public class ConnectionHandler implements Serializable{
   public Set<Connection> getByFromAndLabel(DataEntry from, String label) {
     Set<Connection> tmp = connections.get(from.getKey() + label);
     if (tmp != null) {
-      return tmp.stream().map(c -> c.clone()).collect(Collectors.toSet());
+      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
@@ -229,7 +229,7 @@ public class ConnectionHandler implements Serializable{
   public Set<Connection> getByFromAndLabelAndTo(DataEntry from, String label, DataEntry to) {
     Set<Connection> tmp = connections.get(from.getKey() + to.getKey() + label);
     if (tmp != null) {
-      return tmp.stream().collect(Collectors.toSet());
+      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
@@ -237,7 +237,7 @@ public class ConnectionHandler implements Serializable{
   public Set<Connection> getByLabel(String label) {
     Set<Connection> tmp = connections.get(label);
     if (tmp != null) {
-      return tmp.stream().collect(Collectors.toSet());
+      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
@@ -245,7 +245,7 @@ public class ConnectionHandler implements Serializable{
   public Set<Connection> getByFromAndTo(DataEntry from, DataEntry to) {
     Set<Connection> tmp = connections.get(from.getKey() + to.getKey());
     if (tmp != null) {
-      return tmp.stream().collect(Collectors.toSet());
+      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
@@ -253,7 +253,7 @@ public class ConnectionHandler implements Serializable{
   public Set<Connection> getReverseByLabelAndTo(String label, DataEntry to) {
     Set<Connection> tmp = connectionsReverse.get(to.getKey() + label);
     if (tmp != null) {
-      return tmp.stream().collect(Collectors.toSet());
+      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
@@ -261,7 +261,7 @@ public class ConnectionHandler implements Serializable{
   public Set<Connection> getReverseByFromAndLabelAndTo(DataEntry de, String label, DataEntry toDe) {
     Set<Connection> tmp = connectionsReverse.get(de.getKey() + toDe.getKey() + label);
     if (tmp != null) {
-      return tmp.stream().collect(Collectors.toSet());
+      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
@@ -269,7 +269,7 @@ public class ConnectionHandler implements Serializable{
   public Set<Connection> getReverseByFromAndTo(DataEntry from, DataEntry to) {
     Set<Connection> tmp = connectionsReverse.get(from.getKey() + to.getKey());
     if (tmp != null) {
-      return tmp.stream().collect(Collectors.toSet());
+      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
@@ -474,9 +474,8 @@ public class ConnectionHandler implements Serializable{
 
   private boolean deleteInternal(Connection connection, String changeUUID) throws IOException {
     if (allConnections.contains(connection)) {
-      Connection conn = connection.copy(Connection.class);
-      conn.versionIncrease();
-      ConnectionDelete deleteEntry = new ConnectionDelete(changeUUID, conn);
+      connection.versionIncrease();
+      ConnectionDelete deleteEntry = new ConnectionDelete(changeUUID, connection);
       producer.push(deleteEntry.getUuid(), deleteEntry.getVersion(), deleteEntry, null);
       return true;
     }
@@ -489,17 +488,16 @@ public class ConnectionHandler implements Serializable{
       producer.push(createEntry.getConnection().getUuid(), createEntry.getConnection().getVersion(), createEntry, null);
       return true;
     } else {
-      Connection conn = connection.copy(Connection.class);
-      conn.versionIncrease();
+      connection.versionIncrease();
       List<JsonOperations> changes = null;
-      Connection oldConnection = connectionByUUID.get(conn.getUuid());
-      JsonPatch patch = JsonDiff.asJsonPatch(Serializer.getObjectMapper().getOm().valueToTree(oldConnection), Serializer.getObjectMapper().getOm().valueToTree(conn));
+      Connection oldConnection = connectionByUUID.get(connection.getUuid());
+      JsonPatch patch = JsonDiff.asJsonPatch(Serializer.getObjectMapper().getOm().valueToTree(oldConnection), Serializer.getObjectMapper().getOm().valueToTree(connection));
       try {
         String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
         changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
         //Serializer.log(json);
         if (changes != null && changes.size() > 0) {
-          ConnectionUpdate updateEntry = new ConnectionUpdate(conn.getVersion(), json, changeUUID, conn.getUuid());
+          ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());
           producer.push(updateEntry.getUuid(), updateEntry.getVersion(), updateEntry, null);
           return true;
         }

@@ -14,7 +14,13 @@ public class ConnectionConfig implements Serializable{
   boolean loadSaved = true;
   boolean jsonExport = false;
   boolean saveChanges = true;
+  String topic;
+  String label;
   String bootstrap = "127.0.0.1:19092";
+
+  Class connectionClass;
+  Class toTable;
+  Class fromTable;
   @JsonIgnore
   private transient StartupRun startupRun = null;
 
@@ -83,5 +89,45 @@ public class ConnectionConfig implements Serializable{
 
   public void setJsonExport(boolean jsonExport) {
     this.jsonExport = jsonExport;
+  }
+
+  public Class getConnectionClass() {
+    return connectionClass;
+  }
+
+  public void setConnectionClass(Class connectionClass) {
+    this.connectionClass = connectionClass;
+  }
+
+  public Class getToTable() {
+    return toTable;
+  }
+
+  public void setToTable(Class toTable) {
+    this.toTable = toTable;
+  }
+
+  public Class getFromTable() {
+    return fromTable;
+  }
+
+  public void setFromTable(Class fromTable) {
+    this.fromTable = fromTable;
+  }
+
+  public String getTopic() {
+    return topic;
+  }
+
+  public void setTopic(String topic) {
+    this.topic = topic;
+  }
+
+  public String getLabel() {
+    return label;
+  }
+
+  public void setLabel(String label) {
+    this.label = label;
   }
 }

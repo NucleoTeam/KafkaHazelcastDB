@@ -3,6 +3,7 @@ package com.nucleocore.memcache;
 import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.Serializer;
+import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleocore.library.database.utils.index.TreeIndex;
 
 import java.io.*;
@@ -131,7 +132,7 @@ public class ClientHandler implements Runnable{
     Serializer.log("DISCONNECTED");
   }
 
-  private void handleSetCommand(String[] parts, BufferedReader in, PrintWriter out) throws IOException, InterruptedException {
+  private void handleSetCommand(String[] parts, BufferedReader in, PrintWriter out) throws IOException, InterruptedException, IncorrectDataEntryObjectException {
     int bytes = Integer.parseInt(parts[4]);
 
     char[] buffer = new char[bytes];
@@ -143,7 +144,7 @@ public class ClientHandler implements Runnable{
     // For demonstration purposes, just print the extracted value.
     System.out.println("Extracted value from set command: " + value);
 
-    Set<DataEntry> entrySet = this.table.get("name", parts[1]);
+    Set<DataEntry> entrySet = this.table.get("name", parts[1], null);
     if (entrySet != null && entrySet.size() >= 1) {
       DataEntry entry = table.createNewObject(entrySet).stream().findFirst().get();
       ((KeyVal) entry.getData()).setValue(value);

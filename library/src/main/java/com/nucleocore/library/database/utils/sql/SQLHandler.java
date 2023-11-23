@@ -283,7 +283,7 @@ public class SQLHandler{
         }
         return null;
       }).collect(Collectors.toList());
-      Set<DataEntry> valz = table.in(left, vals);
+      Set<DataEntry> valz = table.in(left, vals, null);
       /*try {
         System.out.println(left + " = " + Serializer.getObjectMapper().getOm().writeValueAsString(vals) + " size: " + valz.size());
       } catch (JsonProcessingException e) {
@@ -294,7 +294,7 @@ public class SQLHandler{
       BinaryExpression binary = (BinaryExpression) expr;
       String left = ((Column) binary.getLeftExpression()).getFullyQualifiedName();
       String right = ((StringValue) binary.getRightExpression()).getValue();
-      Set<DataEntry> vals = table.search(left, right);
+      Set<DataEntry> vals = table.search(left, right, null);
 //      System.out.println(left + " like " + right + " size: " + vals.size());
       return vals;
     } else if (expr instanceof Parenthesis) {
@@ -308,22 +308,22 @@ public class SQLHandler{
         Expression rightExpression = binary.getRightExpression();
         if (rightExpression instanceof StringValue) {
           String right = ((StringValue) rightExpression).getValue();
-          vals = table.get(left, right);
+          vals = table.get(left, right, null);
 //          System.out.println(left + " = " + right + " size: " + vals.size());
         } else if (rightExpression instanceof DoubleValue) {
           Double right = ((DoubleValue) rightExpression).getValue();
-          vals = table.get(left, right);
+          vals = table.get(left, right, null);
 //          System.out.println(left + " = " + right + " size: " + vals.size());
         } else if (rightExpression instanceof LongValue) {
           Long right = ((LongValue) rightExpression).getValue();
-          vals = table.get(left, right);
+          vals = table.get(left, right, null);
 //          System.out.println(left + " = " + right + " size: " + vals.size());
         }
         return vals;
       } else if (expr instanceof NotEqualsTo) {
         String right = ((StringValue) binary.getRightExpression()).getValue();
 //        System.out.println(left + " != " + right);
-        return table.getNotEqual(left, right);
+        return table.getNotEqual(left, right, null);
       } else {
         //System.out.println(binary.getClass().getName());
         //System.out.println(binary.getLeftExpression().getClass().getName());

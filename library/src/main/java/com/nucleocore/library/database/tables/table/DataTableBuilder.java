@@ -69,6 +69,11 @@ public class DataTableBuilder implements Comparable{
     return this;
   }
 
+  public DataTableBuilder setDataEntryClass(Class dataEntryClass) {
+    this.config.setDataEntryClass(dataEntryClass);
+    return this;
+  }
+
   public DataTableBuilder setReadToTime(Instant readToTime) {
     this.config.setReadToTime(readToTime);
     return this;

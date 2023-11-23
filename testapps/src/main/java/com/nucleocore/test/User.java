@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-@Table("user")
+@Table(tableName= "user")
 public class User implements Serializable{
     private static final long serialVersionUID = 1;
 

@@ -17,6 +17,7 @@ public class DataTableConfig implements Serializable{
   boolean loadSave = true;
   boolean jsonExport = false;
   Instant readToTime = null;
+  Class dataEntryClass;
   boolean read = true;
   boolean write = true;
   String[] indexes = new String[0];
@@ -127,5 +128,13 @@ public class DataTableConfig implements Serializable{
 
   public void setJsonExport(boolean jsonExport) {
     this.jsonExport = jsonExport;
+  }
+
+  public Class getDataEntryClass() {
+    return dataEntryClass;
+  }
+
+  public void setDataEntryClass(Class dataEntryClass) {
+    this.dataEntryClass = dataEntryClass;
   }
 }

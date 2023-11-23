@@ -6,11 +6,20 @@ import com.nucleocore.library.database.tables.connection.Connection;
 import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.InvalidConnectionException;
+import com.nucleocore.library.database.utils.Serializer;
+import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryClassException;
+import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
+import com.nucleocore.library.database.utils.exceptions.MissingDataEntryConstructorsException;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -18,9 +27,10 @@ import java.util.stream.Collectors;
 public class AnimeTest{
   private static Logger logger = Logger.getLogger(DataTable.class.getName());
   static ObjectMapper om = new ObjectMapper().findAndRegisterModules();
-  public static void main(String[] args) throws IOException, InterruptedException {
-    NucleoDB nucleoDB = new NucleoDB("127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092", "com.nucleocore.test", NucleoDB.DBType.NO_LOCAL);
-    logger.info(nucleoDB.getTables().keySet().stream().collect(Collectors.joining(", ")));
+  public static void main(String[] args) throws IOException, InterruptedException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException, IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
+    NucleoDB nucleoDB = new NucleoDB("127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092", NucleoDB.DBType.NO_LOCAL, "com.nucleocore.test", "com.nucleocore.library.database.tables.connection");
+    logger.info(String.format("tables: %s", nucleoDB.getTables().keySet().stream().collect(Collectors.joining(", "))));
+    logger.info(String.format("connections: %s", nucleoDB.getConnections().keySet().stream().collect(Collectors.joining(", "))));
     DataTable userTable = nucleoDB.getTable(User.class);
     DataTable animeTable = nucleoDB.getTable(Anime.class);
     logger.info("animes: "+animeTable.getEntries().size());
@@ -40,11 +50,13 @@ public class AnimeTest{
       a.setName(animeName);
       a.setOwner("firestar");
 
-      AtomicReference<DataEntry> animeReference = new AtomicReference<>();
+      AtomicReference<AnimeDE> animeReference = new AtomicReference<>();
       animeTable.saveAsync(a, dataEntry -> {
-        animeReference.set(dataEntry);
-        synchronized (animeReference) {
-          animeReference.notify();
+        if(dataEntry instanceof AnimeDE) {
+          animeReference.set((AnimeDE)dataEntry);
+          synchronized (animeReference) {
+            animeReference.notify();
+          }
         }
       });
       try {
@@ -70,17 +82,15 @@ public class AnimeTest{
         e.printStackTrace();
       }
 
-      if (animeReference.get()!=null) {
-        logger.info("do not expect, anime from connection "+om.writeValueAsString(nucleoDB.getConnectionHandler().getByFromAndLabel(animeReference.get(), "ADMIN_USER")));
-      } else {
-        logger.info("ERROR");
-        System.exit(1);
-        return;
-      }
+      logger.info("returned anime class "+nucleoDB
+          .getTable(Anime.class)
+          .get("name", animeName, null)
+          .stream().map(AnimeDE.class::cast).findFirst().get().getData().getName());
+
       if (userReference.get()!=null) {
         try {
           if (animeReference.get()!=null) {
-            nucleoDB.getConnectionHandler().saveSync(new Connection(userReference.get(), "WATCHING", animeReference.get(), new TreeMap<>(){{
+            nucleoDB.getConnectionHandler(WatchingConnection.class).saveSync(new WatchingConnection(userReference.get(), animeReference.get(), new TreeMap<>(){{
               put("time", "2.0402042");
             }}));
           }
@@ -90,11 +100,15 @@ public class AnimeTest{
           e.printStackTrace();
         }
 
-        Set<Connection> connectionOptional = nucleoDB.getConnectionHandler().getByFromAndLabel(userReference.get(), "WATCHING");
+        Set<Connection> connectionOptional = nucleoDB.getConnectionHandler(WatchingConnection.class).getByFrom(userReference.get(), null);
         if (connectionOptional.size() > 0) {
-          nucleoDB.getConnectionHandler().deleteSync(connectionOptional.stream().findFirst().get());
+          WatchingConnection connection = (WatchingConnection)connectionOptional.stream().findFirst().get();
+          logger.info("connection found type is "+connection.getClass().getName());
+          logger.info("anime name is "+connection.toEntry().getData().getName());
+          nucleoDB.getConnectionHandler(WatchingConnection.class).deleteSync(connectionOptional.stream().findFirst().get());
         }
-        connectionOptional = nucleoDB.getConnectionHandler().getByFromAndLabel(userReference.get(), "WATCHING");
+
+        connectionOptional = nucleoDB.getConnectionHandler(WatchingConnection.class).getByFrom(userReference.get(), null);
         if (connectionOptional.size() > 0) {
           logger.info("connection failed to delete.");
           logger.info("expect connection"+om.writeValueAsString(connectionOptional.stream().findFirst().get()));

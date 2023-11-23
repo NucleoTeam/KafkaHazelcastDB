@@ -1,5 +1,9 @@
 package com.nucleocore.library.database.utils;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.lang.reflect.Field;
 import java.util.Comparator;
 
@@ -57,6 +61,16 @@ public class Utils {
         }
         return false;
     }
+
+    private static ObjectMapper om = new ObjectMapper()
+        .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        .findAndRegisterModules();
+
+    public static ObjectMapper getOm() {
+        return om;
+    }
+
     public static class SortByElement implements Comparator<Object> {
         Field f;
 

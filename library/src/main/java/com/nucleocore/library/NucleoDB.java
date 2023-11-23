@@ -2,6 +2,8 @@ package com.nucleocore.library;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Queues;
+import com.nucleocore.library.database.modifications.Create;
+import com.nucleocore.library.database.tables.annotation.Conn;
 import com.nucleocore.library.database.tables.connection.ConnectionConfig;
 import com.nucleocore.library.database.tables.connection.ConnectionHandler;
 import com.nucleocore.library.database.tables.annotation.Index;
@@ -9,6 +11,8 @@ import com.nucleocore.library.database.tables.annotation.Relationship;
 import com.nucleocore.library.database.tables.annotation.Relationships;
 import com.nucleocore.library.database.tables.annotation.Table;
 import com.nucleocore.library.database.utils.TreeSetExt;
+import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryClassException;
+import com.nucleocore.library.database.utils.exceptions.MissingDataEntryConstructorsException;
 import com.nucleocore.library.database.utils.index.TreeIndex;
 import com.nucleocore.library.database.utils.sql.SQLHandler;
 import com.nucleocore.library.database.tables.table.DataTable;
@@ -35,7 +39,7 @@ public class NucleoDB{
   private TreeMap<String, DataTable> tables = new TreeMap<>();
   static String latestSave = "";
 
-  private ConnectionHandler connectionHandler;
+  private TreeMap<String, ConnectionHandler> connections = new TreeMap<>();
 
   public NucleoDB() {
   }
@@ -47,72 +51,124 @@ public class NucleoDB{
     ALL;
   }
 
-  public NucleoDB(String bootstrap, String packageToScan) {
-    this(bootstrap, packageToScan, DBType.ALL);
+  public NucleoDB(String bootstrap, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
+    this(bootstrap, DBType.ALL, packagesToScan);
   }
 
-  public NucleoDB(String bootstrap, String packageToScan, DBType dbType) {
-    Set<Class<?>> types = new Reflections(packageToScan).getTypesAnnotatedWith(Table.class);
-    CountDownLatch latch = new CountDownLatch(types.size()+1);
-    ConnectionConfig config = new ConnectionConfig();
-    config.setBootstrap(bootstrap);
-    config.setStartupRun(new StartupRun(){
-      public void run(ConnectionHandler connectionHandler) {
-        latch.countDown();
-      }
+  public NucleoDB(String bootstrap, DBType dbType, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
+    startTables(bootstrap, packagesToScan, dbType);
+    startConnections(bootstrap, packagesToScan, dbType);
+  }
+  private void startConnections(String bootstrap, String[] packagesToScan, DBType dbType){
+    logger.info("NucleoDB Connections Starting");
+    Optional<Set<Class<?>>> connectionTypesOptional = Arrays.stream(packagesToScan).map(packageToScan->new Reflections(packageToScan).getTypesAnnotatedWith(Conn.class)).reduce((a, b)->{
+      a.addAll(b);
+      return a;
     });
-    switch (dbType) {
-      case NO_LOCAL -> {
-        config.setSaveChanges(false);
-        config.setLoadSaved(false);
-      }
-      case EXPORT -> config.setJsonExport(true);
+    if(!connectionTypesOptional.isPresent()){
+      return;
     }
-    connectionHandler = new ConnectionHandler(this, config);
+    Set<Class<?>> connectionTypes = connectionTypesOptional.get();
+    CountDownLatch latch = new CountDownLatch(connectionTypes.size());
+    for (Class<?> type : connectionTypes) {
+      Conn connectionType = type.getAnnotation(Conn.class);
+      String topic = String.format("%ss",connectionType.name().toLowerCase());
+      ConnectionConfig config = new ConnectionConfig();
+      config.setBootstrap(bootstrap);
+      config.setTopic(topic);
+      config.setToTable(connectionType.to());
+      config.setFromTable(connectionType.from());
+      config.setConnectionClass(type);
+      config.setLabel(connectionType.name().toUpperCase());
+      config.setStartupRun(new StartupRun(){
+        public void run(ConnectionHandler connectionHandler) {
+          latch.countDown();
+        }
+      });
+      switch (dbType) {
+        case NO_LOCAL -> {
+          config.setSaveChanges(false);
+          config.setLoadSaved(false);
+        }
+        case EXPORT -> config.setJsonExport(true);
+      }
+      connections.put(connectionType.name().toUpperCase(), new ConnectionHandler(this, config));
+    }
 
+    try {
+
+      latch.await();
+      logger.info("NucleoDB Connections Started");
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+  private void startTables(String bootstrap, String[] packagesToScan, DBType dbType) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
+    logger.info("NucleoDB Tables Starting");
+    Optional<Set<Class<?>>> tableTypesOptional = Arrays.stream(packagesToScan).map(packageToScan->new Reflections(packageToScan).getTypesAnnotatedWith(Table.class)).reduce((a, b)->{
+      a.addAll(b);
+      return a;
+    });
+    if(!tableTypesOptional.isPresent()){
+      return;
+    }
+    Set<Class<?>> tableTypes = tableTypesOptional.get();
+    CountDownLatch latch = new CountDownLatch(tableTypes.size());
     Set<DataTableBuilder> tables = new TreeSetExt<>();
     Map<String, Set<String>> indexes = new TreeMap<>();
-
-    types.stream().forEach(type -> {
-      String tableName = type.getAnnotation(Table.class).value();
+    for (Class<?> type : tableTypes) {
+      Table tableAnnotation = type.getAnnotation(Table.class);
+      String tableName = tableAnnotation.tableName();
+      Class dataEntryClass = tableAnnotation.dataEntryClass();
+      if(!DataEntry.class.isAssignableFrom(dataEntryClass)){
+        throw new IncorrectDataEntryClassException(String.format("%s does not extend DataEntry", dataEntryClass.getName()));
+      }
+      try {
+        if(dataEntryClass!= DataEntry.class)
+          dataEntryClass.getDeclaredConstructor(type);
+        dataEntryClass.getDeclaredConstructor(Create.class);
+        dataEntryClass.getDeclaredConstructor();
+        dataEntryClass.getDeclaredConstructor(String.class);
+      } catch (NoSuchMethodException e) {
+        throw new MissingDataEntryConstructorsException(String.format("%s does not have all DataEntry constructors overridden!", dataEntryClass.getName()), e);
+      }
       processTableClass(tableName, indexes, type);
       switch (dbType) {
-        case ALL -> tables.add(launchTable(bootstrap, tableName, type, new StartupRun(){
+        case ALL -> tables.add(launchTable(bootstrap, tableName, dataEntryClass, type, new StartupRun(){
           public void run(DataTable table) {
             latch.countDown();
           }
         }));
-        case NO_LOCAL -> tables.add(launchLocalOnlyTable(bootstrap, tableName, type, new StartupRun(){
+        case NO_LOCAL -> tables.add(launchLocalOnlyTable(bootstrap, tableName, dataEntryClass, type, new StartupRun(){
           public void run(DataTable table) {
             latch.countDown();
           }
         }));
-        case EXPORT -> tables.add(launchExportOnlyTable(bootstrap, tableName, type, new StartupRun(){
+        case EXPORT -> tables.add(launchExportOnlyTable(bootstrap, tableName, dataEntryClass, type, new StartupRun(){
           public void run(DataTable table) {
             latch.countDown();
           }
         }));
       }
-    });
+    }
     tables.stream().forEach(table -> {
       table.setIndexes(indexes.get(table.getConfig().getTable()).toArray(new String[0]));
       table.build();
     });
     try {
-      logger.info("NucleoDB Starting");
+
       latch.await();
-      logger.info("NucleoDB Started");
+      logger.info("NucleoDB Tables Started");
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
-
   }
 
   public Set<DataEntry> getAllRelated(DataEntry dataEntry) {
     Set<DataEntry> set = new TreeSetExt<>();
     if (dataEntry.getData().getClass().isAnnotationPresent(Table.class)) {
       Table localTable = dataEntry.getData().getClass().getAnnotation(Table.class);
-      String localTableName = localTable.value();
+      String localTableName = localTable.tableName();
       for (Relationship relationship : getRelationships(dataEntry.getData().getClass())) {
         getRelatedByRelationship(dataEntry, set, localTableName, relationship);
       }
@@ -124,7 +180,7 @@ public class NucleoDB{
     Set<DataEntry> set = new TreeSetExt<>();
     if (dataEntry.getData().getClass().isAnnotationPresent(Table.class)) {
       Table localTable = dataEntry.getData().getClass().getAnnotation(Table.class);
-      String localTableName = localTable.value();
+      String localTableName = localTable.tableName();
       for (Relationship relationship : getRelationships(dataEntry.getData().getClass())) {
         if (relationship.clazz() == clazz) {
           getRelatedByRelationship(dataEntry, set, localTableName, relationship);
@@ -140,7 +196,7 @@ public class NucleoDB{
     Set<DataEntry> set = new TreeSetExt<>();
     if (dataEntry.getData().getClass().isAnnotationPresent(Table.class)) {
       Table localTable = dataEntry.getData().getClass().getAnnotation(Table.class);
-      String localTableName = localTable.value();
+      String localTableName = localTable.tableName();
       for (Relationship relationship : getRelationships(dataEntry.getData().getClass())) {
         if (relationship.clazz() == clazz && index.equals(relationship.remoteKey())) {
           getRelatedByRelationship(dataEntry, set, localTableName, relationship);
@@ -156,7 +212,7 @@ public class NucleoDB{
     Set<DataEntry> set = new TreeSetExt<>();
     if (dataEntry.getData().getClass().isAnnotationPresent(Table.class)) {
       Table localTable = dataEntry.getData().getClass().getAnnotation(Table.class);
-      String localTableName = localTable.value();
+      String localTableName = localTable.tableName();
       for (Relationship relationship : getRelationships(dataEntry.getData().getClass())) {
         if (relationship.clazz() == clazz && index.equals(relationship.localKey())) {
           getRelatedByRelationship(dataEntry, set, localTableName, relationship);
@@ -171,14 +227,14 @@ public class NucleoDB{
   private void getRelatedByRelationship(DataEntry dataEntry, Set<DataEntry> set, String localTableName, Relationship relationship) {
     if (relationship.clazz().isAnnotationPresent(Table.class)) {
       Table remoteTable = (Table) relationship.clazz().getAnnotation(Table.class);
-      String remoteTableName = remoteTable.value();
+      String remoteTableName = remoteTable.tableName();
       //logger.info("getting for relationship from " + localTableName + " to " + remoteTableName);
       try {
         //logger.info(relationship.localKey());
         List<Object> values = new TreeIndex().getValues(Queues.newLinkedBlockingDeque(Arrays.asList(relationship.localKey().split("\\."))), dataEntry.getData());
         if (values.size() > 0) {
           for (Object value : values) {
-            set.addAll(this.getTable(remoteTableName).get(relationship.remoteKey(), value));
+            set.addAll(this.getTable(remoteTableName).get(relationship.remoteKey(), value, null));
           }
         }
       } catch (JsonProcessingException e) {
@@ -193,7 +249,7 @@ public class NucleoDB{
   private void processRelationship(String tableName, Map<String, Set<String>> indexes, Relationship relationship) {
     indexes.get(tableName).add(relationship.localKey());
     if (relationship.clazz().isAnnotationPresent(Table.class)) {
-      String tableNameRemote = ((Table) relationship.clazz().getAnnotation(Table.class)).value();
+      String tableNameRemote = ((Table) relationship.clazz().getAnnotation(Table.class)).tableName();
       if (!indexes.containsKey(tableNameRemote)) {
         processTableClass(tableNameRemote, indexes, relationship.clazz());
       }
@@ -319,55 +375,60 @@ public class NucleoDB{
   public DataTable getTable(Class clazz) {
     Annotation annotation = clazz.getAnnotation(Table.class);
     if(annotation!=null) {
-      return tables.get(((Table)annotation).value());
+      return tables.get(((Table)annotation).tableName());
     }
     return null;
   }
 
-  public DataTableBuilder launchTable(String bootstrap, String table, Class clazz) {
-    return DataTableBuilder.create(bootstrap, table, clazz).setDb(this);
+  public DataTableBuilder launchTable(String bootstrap, String table, Class dataEntryClass, Class clazz) {
+    return DataTableBuilder.create(bootstrap, table, clazz).setDataEntryClass(dataEntryClass).setDb(this);
   }
 
-  public DataTableBuilder launchTable(String bootstrap, String table, Class clazz, StartupRun runnable) {
-    return DataTableBuilder.create(bootstrap, table, clazz).setDb(this).setStartupRun(runnable);
+  public DataTableBuilder launchTable(String bootstrap, String table, Class dataEntryClass, Class clazz, StartupRun runnable) {
+    return DataTableBuilder.create(bootstrap, table, clazz).setDataEntryClass(dataEntryClass).setDb(this).setStartupRun(runnable);
   }
 
-  public DataTableBuilder launchReadOnlyTable(String bootstrap, String table, Class clazz) {
-    return DataTableBuilder.createReadOnly(bootstrap, table, clazz).setDb(this);
+  public DataTableBuilder launchReadOnlyTable(String bootstrap, String table, Class dataEntryClass, Class clazz) {
+    return DataTableBuilder.createReadOnly(bootstrap, table, clazz).setDataEntryClass(dataEntryClass).setDb(this);
   }
 
-  public DataTableBuilder launchReadOnlyTable(String bootstrap, String table, Class clazz, StartupRun startupRun) {
-    return DataTableBuilder.createReadOnly(bootstrap, table, clazz).setDb(this).setStartupRun(startupRun);
+  public DataTableBuilder launchReadOnlyTable(String bootstrap, String table, Class dataEntryClass, Class clazz, StartupRun startupRun) {
+    return DataTableBuilder.createReadOnly(bootstrap, table, clazz).setDataEntryClass(dataEntryClass).setDb(this).setStartupRun(startupRun);
   }
 
-  public DataTableBuilder launchLocalOnlyTable(String bootstrap, String table, Class clazz) {
-    return DataTableBuilder.create(bootstrap, table, clazz).setLoadSave(false).setSaveChanges(false).setDb(this);
+  public DataTableBuilder launchLocalOnlyTable(String bootstrap, String table, Class dataEntryClass, Class clazz) {
+    return DataTableBuilder.create(bootstrap, table, clazz).setDataEntryClass(dataEntryClass).setLoadSave(false).setSaveChanges(false).setDb(this);
   }
 
-  public DataTableBuilder launchLocalOnlyTable(String bootstrap, String table, Class clazz, StartupRun startupRun) {
-    return DataTableBuilder.create(bootstrap, table, clazz).setLoadSave(false).setSaveChanges(false).setDb(this).setStartupRun(startupRun);
+  public DataTableBuilder launchLocalOnlyTable(String bootstrap, String table, Class dataEntryClass, Class clazz, StartupRun startupRun) {
+    return DataTableBuilder.create(bootstrap, table, clazz).setDataEntryClass(dataEntryClass).setLoadSave(false).setSaveChanges(false).setDb(this).setStartupRun(startupRun);
   }
 
-  public DataTableBuilder launchExportOnlyTable(String bootstrap, String table, Class clazz) {
-    return DataTableBuilder.create(bootstrap, table, clazz).setJSONExport(true).setDb(this);
+  public DataTableBuilder launchExportOnlyTable(String bootstrap, String table, Class dataEntryClass, Class clazz) {
+    return DataTableBuilder.create(bootstrap, table, clazz).setDataEntryClass(dataEntryClass).setJSONExport(true).setDb(this);
   }
-  public DataTableBuilder launchExportOnlyTable(String bootstrap, String table, Class clazz, StartupRun startupRun) {
-    return DataTableBuilder.create(bootstrap, table, clazz).setJSONExport(true).setDb(this).setStartupRun(startupRun);
-  }
-
-  public DataTableBuilder launchWriteOnlyTable(String bootstrap, String table, Class clazz) {
-    return DataTableBuilder.createWriteOnly(bootstrap, table, clazz).setLoadSave(false).setDb(this);
+  public DataTableBuilder launchExportOnlyTable(String bootstrap, String table, Class dataEntryClass, Class clazz, StartupRun startupRun) {
+    return DataTableBuilder.create(bootstrap, table, clazz).setDataEntryClass(dataEntryClass).setJSONExport(true).setDb(this).setStartupRun(startupRun);
   }
 
-  public DataTableBuilder launchWriteOnlyTable(String bootstrap, String table, Class clazz, StartupRun startupRun) {
-    return DataTableBuilder.createWriteOnly(bootstrap, table, clazz).setLoadSave(false).setDb(this).setStartupRun(startupRun);
+  public DataTableBuilder launchWriteOnlyTable(String bootstrap, String table, Class dataEntryClass, Class clazz) {
+    return DataTableBuilder.createWriteOnly(bootstrap, table, clazz).setDataEntryClass(dataEntryClass).setLoadSave(false).setDb(this);
   }
 
-  public ConnectionHandler getConnectionHandler() {
-    return connectionHandler;
+  public DataTableBuilder launchWriteOnlyTable(String bootstrap, String table, Class dataEntryClass, Class clazz, StartupRun startupRun) {
+    return DataTableBuilder.createWriteOnly(bootstrap, table, clazz).setDataEntryClass(dataEntryClass).setLoadSave(false).setDb(this).setStartupRun(startupRun);
   }
 
-  public void setConnectionHandler(ConnectionHandler connectionHandler) {
-    this.connectionHandler = connectionHandler;
+  public ConnectionHandler getConnectionHandler(Class clazz) {
+    if(!clazz.isAnnotationPresent(Conn.class)){
+      return null;
+    }
+    Conn conn = (Conn) clazz.getDeclaredAnnotation(Conn.class);
+    return connections.get(conn.name().toUpperCase());
   }
+
+  public TreeMap<String, ConnectionHandler> getConnections() {
+    return connections;
+  }
+
 }

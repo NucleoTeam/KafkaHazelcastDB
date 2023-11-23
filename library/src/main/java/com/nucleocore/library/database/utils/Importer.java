@@ -2,6 +2,7 @@ package com.nucleocore.library.database.utils;
 
 import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.tables.table.DataTable;
+import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import org.supercsv.cellprocessor.ift.CellProcessor;
 import org.supercsv.exception.SuperCsvCellProcessorException;
 import org.supercsv.io.CsvMapReader;
@@ -81,6 +82,8 @@ public class Importer {
                     try {
                         table.saveSync((DataEntry) obj);
                     } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    } catch (IncorrectDataEntryObjectException e) {
                         throw new RuntimeException(e);
                     }
                 }

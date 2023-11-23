@@ -1,7 +1,9 @@
 package com.nucleocore.library.database.tables.table;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,13 +43,9 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
         this.created = create.getTime();
     }
 
-
     public <T> T copy(Class<T> clazz) {
-        ObjectMapper om = new ObjectMapper()
-            .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
-            .findAndRegisterModules();
         try {
-            T obj =  om.readValue(om.writeValueAsString(this), clazz);
+            T obj =  Utils.getOm().readValue(Utils.getOm().writeValueAsString(this), clazz);
             return obj;
         } catch (JsonProcessingException e) {
             e.printStackTrace();

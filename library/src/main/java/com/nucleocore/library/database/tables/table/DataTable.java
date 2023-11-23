@@ -3,7 +3,6 @@ package com.nucleocore.library.database.tables.table;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.diff.JsonDiff;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -18,6 +17,8 @@ import com.nucleocore.library.database.modifications.Modification;
 import com.nucleocore.library.database.utils.ObjectFileReader;
 import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.TreeSetExt;
+import com.nucleocore.library.database.utils.Utils;
+import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleocore.library.database.utils.index.Index;
 import com.nucleocore.library.database.utils.index.TreeIndex;
 import com.nucleocore.library.kafkaLedger.ConsumerHandler;
@@ -31,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -39,7 +41,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -50,7 +51,6 @@ public class DataTable implements Serializable{
 
   private Set<DataEntry> entries = Sets.newTreeSet();
   private DataTableConfig config;
-
   private Map<String, Index> indexes = new TreeMap<>();
   private Set<DataEntry> dataEntries = new TreeSet<>();
   private Map<String, DataEntry> keyToEntry = new TreeMap<>();
@@ -213,7 +213,7 @@ public class DataTable implements Serializable{
     }
   }
 
-  public void exportTo(DataTable tb) {
+  public void exportTo(DataTable tb) throws IncorrectDataEntryObjectException {
     for (DataEntry de : this.entries) {
       //Serializer.log("INSERTING " + de.getKey());
       try {
@@ -235,11 +235,14 @@ public class DataTable implements Serializable{
     System.gc();
   }
 
-  public Set<DataEntry> in(String key, List<Object> values) {
+  public Set<DataEntry> in(String key, List<Object> values, DataEntryProjection dataEntryProjection) {
+    if(dataEntryProjection==null){
+      dataEntryProjection = new DataEntryProjection();
+    }
     Set<DataEntry> tmp = new TreeSet<>();
     try {
       for (Object val : values) {
-        Set<DataEntry> de = get(key, val);
+        Set<DataEntry> de = get(key, val, dataEntryProjection);
         if (de != null) {
           tmp.addAll(de);
         }
@@ -276,8 +279,14 @@ public class DataTable implements Serializable{
 
   DataEntry createNewObject(DataEntry o) {
     try {
-      DataEntry dataEntry = Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(o), DataEntry.class);
-      dataEntry.setData(Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(dataEntry.getData()), config.getClazz()));
+      DataEntry dataEntry = Utils.getOm().readValue(
+          Utils.getOm().writeValueAsString(o),
+          DataEntry.class
+      );
+      dataEntry.setData(Utils.getOm().readValue(
+          Utils.getOm().writeValueAsString(dataEntry.getData()),
+          config.getClazz()
+      ));
       return dataEntry;
     } catch (JsonProcessingException e) {
       e.printStackTrace();
@@ -285,16 +294,22 @@ public class DataTable implements Serializable{
     return null;
   }
 
-  public Set<DataEntry> search(String key, Object searchObject) {
+  public Set<DataEntry> search(String key, Object searchObject, DataEntryProjection dataEntryProjection) {
+    if(dataEntryProjection==null){
+      dataEntryProjection = new DataEntryProjection();
+    }
     try {
-      return this.indexes.get(key).search(searchObject);
+      return dataEntryProjection.process(this.indexes.get(key).search(searchObject).stream()).map(de->(DataEntry)de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
     } catch (Exception e) {
       e.printStackTrace();
     }
     return new TreeSet<>();
   }
 
-  public Set<DataEntry> get(String key, Object value) {
+  public Set<DataEntry> get(String key, Object value, DataEntryProjection dataEntryProjection) {
+    if(dataEntryProjection==null){
+      dataEntryProjection = new DataEntryProjection();
+    }
     Set<DataEntry> entries = new TreeSet<>();
     try {
       if (key.equals("id")) {
@@ -310,12 +325,15 @@ public class DataTable implements Serializable{
     } catch (Exception e) {
       e.printStackTrace();
     }
-    return entries;
+    return dataEntryProjection.process(entries.stream()).map(de->(DataEntry)de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
   }
 
-  public Set<DataEntry> getNotEqual(String key, Object value) {
+  public Set<DataEntry> getNotEqual(String key, Object value, DataEntryProjection dataEntryProjection) {
+    if(dataEntryProjection==null){
+      dataEntryProjection = new DataEntryProjection();
+    }
     try {
-      Set<DataEntry> foundEntries = new TreeSetExt<>();
+      Set<DataEntry> foundEntries;
       if (key.equals("id")) {
         foundEntries = new TreeSet<>(Arrays.asList(this.keyToEntry.get(value)));
       } else {
@@ -324,7 +342,7 @@ public class DataTable implements Serializable{
       Set<DataEntry> negation = new TreeSet<>(entries);
       negation.removeAll(foundEntries);
       if (entries != null) {
-        return negation;
+        return dataEntryProjection.process(negation.stream()).map(c->(DataEntry)c.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
       }
     } catch (Exception e) {
       e.printStackTrace();
@@ -333,10 +351,13 @@ public class DataTable implements Serializable{
   }
 
 
-  public DataEntry searchOne(String key, Object obj) {
-    Set<DataEntry> entries = search(key, obj);
+  public DataEntry searchOne(String key, Object obj, DataEntryProjection dataEntryProjection) {
+    if(dataEntryProjection==null){
+      dataEntryProjection = new DataEntryProjection();
+    }
+    Set<DataEntry> entries = search(key, obj, dataEntryProjection);
     if (entries != null && entries.size() > 0) {
-      Optional<DataEntry> d = entries.stream().findFirst();
+      Optional<DataEntry> d = dataEntryProjection.process(entries.stream()).findFirst();
       if (d.isPresent())
         return d.get();
     }
@@ -381,33 +402,48 @@ public class DataTable implements Serializable{
   }
 
 
-  public boolean saveSync(DataEntry obj) throws InterruptedException {
+  public boolean saveSync(DataEntry entry) throws InterruptedException, IncorrectDataEntryObjectException {
+    if(entry.getClass() != getConfig().getDataEntryClass() ){
+      throw new IncorrectDataEntryObjectException("Entry "+entry.getKey()+" using incorrect data entry class for this table.");
+    }
     CountDownLatch countDownLatch = new CountDownLatch(1);
-    boolean v = saveInternalConsumer(obj, (de) -> {
+    boolean v = saveInternalConsumer(entry, (de) -> {
       countDownLatch.countDown();
     });
     countDownLatch.await();
     return v;
   }
 
-  public boolean saveAndForget(DataEntry entry) {
+  public boolean saveAndForget(DataEntry entry) throws IncorrectDataEntryObjectException {
+    if(entry.getClass() != getConfig().getDataEntryClass() ){
+      throw new IncorrectDataEntryObjectException("Entry "+entry.getKey()+" using incorrect data entry class for this table.");
+    }
     return saveInternalConsumer(entry, null);
   }
 
-  public boolean saveAsync(DataEntry entry, Consumer<DataEntry> consumer) {
+  public boolean saveAsync(DataEntry entry, Consumer<DataEntry> consumer) throws IncorrectDataEntryObjectException {
+    if(entry.getClass() != getConfig().getDataEntryClass() ){
+      throw new IncorrectDataEntryObjectException("Entry "+entry.getKey()+" using incorrect data entry class for this table.");
+    }
     return saveInternalConsumer(entry, consumer);
   }
 
-  public boolean saveSync(Object data) throws InterruptedException {
-    return saveSync(new DataEntry(data));
+  public boolean saveSync(Object data) throws InterruptedException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException {
+    if(getConfig().getDataEntryClass()== DataEntry.class)
+      return saveSync((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(Object.class).newInstance(data));
+    return saveSync((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(data.getClass()).newInstance(data));
   }
 
-  public boolean saveAndForget(Object data) {
-    return saveAndForget(new DataEntry(data));
+  public boolean saveAndForget(Object data) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException {
+    if(getConfig().getDataEntryClass()== DataEntry.class)
+      return saveAndForget((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(Object.class).newInstance(data));
+    return saveAndForget((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(data.getClass()).newInstance(data));
   }
 
-  public boolean saveAsync(Object data, Consumer<DataEntry> consumer) {
-    return saveAsync(new DataEntry(data), consumer);
+  public boolean saveAsync(Object data, Consumer<DataEntry> consumer) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException {
+    if(getConfig().getDataEntryClass()== DataEntry.class)
+      return saveAsync((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(Object.class).newInstance(data), consumer);
+    return saveAsync((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(data.getClass()).newInstance(data), consumer);
   }
 
   private boolean saveInternalConsumer(DataEntry entry, Consumer<DataEntry> consumer) {
@@ -488,7 +524,8 @@ public class DataTable implements Serializable{
               //System.exit(1);
               return; // ignore this create
             }
-            DataEntry dataEntry = new DataEntry(c);
+
+            DataEntry dataEntry = (DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(Create.class).newInstance(c);
 
             dataEntry.setTableName(this.config.getTable());
 
@@ -682,7 +719,7 @@ public class DataTable implements Serializable{
     }
   }
 
-  public void multiImport(DataEntry newEntry) throws InterruptedException {
+  public void multiImport(DataEntry newEntry) throws InterruptedException, IncorrectDataEntryObjectException {
     this.saveSync(newEntry);
   }
 

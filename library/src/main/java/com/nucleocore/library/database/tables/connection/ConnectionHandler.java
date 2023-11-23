@@ -2,7 +2,6 @@ package com.nucleocore.library.database.tables.connection;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.diff.JsonDiff;
 import com.google.common.cache.Cache;
@@ -13,6 +12,7 @@ import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.modifications.ConnectionCreate;
 import com.nucleocore.library.database.modifications.ConnectionDelete;
 import com.nucleocore.library.database.modifications.ConnectionUpdate;
+import com.nucleocore.library.database.tables.table.DataEntryProjection;
 import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.modifications.Modification;
 import com.nucleocore.library.database.utils.InvalidConnectionException;
@@ -27,7 +27,9 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
+import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.errors.TopicExistsException;
 
@@ -108,13 +110,13 @@ public class ConnectionHandler implements Serializable{
     }
 
     if (config.isRead()) {
-      System.out.println("Connecting to " + config.getBootstrap());
+      logger.info("Connecting to " + config.getBootstrap());
       new Thread(new ModQueueHandler(this)).start();
       this.consume();
     }
     if (config.isWrite()) {
-      System.out.println("Producing to " + config.getBootstrap());
-      producer = new ProducerHandler(config.getBootstrap(), "connections", this.consumerId);
+      logger.info("Producing to " + config.getBootstrap());
+      producer = new ProducerHandler(config.getBootstrap(), config.getTopic(), this.consumerId);
     }
     if (config.isSaveChanges()) {
       new Thread(new SaveHandler(this)).start();
@@ -145,7 +147,7 @@ public class ConnectionHandler implements Serializable{
     }
     if (config.isWrite()) {
       System.out.println("Producing to " + config.getBootstrap());
-      producer = new ProducerHandler(config.getBootstrap(), "connections", this.consumerId);
+      producer = new ProducerHandler(config.getBootstrap(), config.getTopic(), this.consumerId);
     }
     if (config.isSaveChanges()) {
       new Thread(new SaveHandler(this)).start();
@@ -158,9 +160,9 @@ public class ConnectionHandler implements Serializable{
 
 
   public void loadSavedData() {
-    if (new File("./data/connections.dat").exists()) {
+    if (new File("./data/connection_"+ getConfig().getTopic()+".dat").exists()) {
       try {
-        ConnectionHandler tmpConnections = (ConnectionHandler) new ObjectFileReader().readObjectFromFile("./data/connections.dat");
+        ConnectionHandler tmpConnections = (ConnectionHandler) new ObjectFileReader().readObjectFromFile("./data/"+getConfig().getTopic()+".dat");
         tmpConnections.allConnections.forEach(c -> this.addConnection(c));
         this.changed = tmpConnections.changed;
         this.consumerId = tmpConnections.getConsumerId();
@@ -177,32 +179,40 @@ public class ConnectionHandler implements Serializable{
     Properties props = new Properties();
     props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.getBootstrap());
     AdminClient client = KafkaAdminClient.create(props);
+
+    CountDownLatch countDownLatch = new CountDownLatch(1);
     try {
-      if (client.listTopics().names().get().stream().filter(x -> x.equals("connections")).count() == 0) {
-        try {
-          final NewTopic newTopic = new NewTopic("connections", 36, (short) 3);
+      ListTopicsResult listTopicsResult = client.listTopics();
+      listTopicsResult.names().whenComplete((names, f)->{
+        if (names.stream().filter(name -> name.equals(config.getTopic())).count() == 0) {
+          final NewTopic newTopic = new NewTopic(config.getTopic(), 36, (short) 3);
           newTopic.configs(new TreeMap<>(){{
             put(TopicConfig.RETENTION_MS_CONFIG, "-1");
             put(TopicConfig.RETENTION_MS_CONFIG, "-1");
             put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
           }});
-          final CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
-          createTopicsResult.values().get("connections").get();
-        } catch (InterruptedException | ExecutionException e) {
-          if (!(e.getCause() instanceof TopicExistsException)) {
-            throw new RuntimeException(e.getMessage(), e);
-          }
+          client.createTopics(Collections.singleton(newTopic));
+
         }
-      }
+        countDownLatch.countDown();
+      });
     } catch (Exception e) {
       e.printStackTrace();
       System.exit(-1);
     }
+
     try {
-      if (client.listTopics().names().get().stream().filter(x -> x.equals("connections")).count() == 0) {
-        System.out.println("topic not created");
-        System.exit(-1);
-      }
+      countDownLatch.await();
+      CountDownLatch countDownLatchCreatedCheck = new CountDownLatch(1);
+      ListTopicsResult listTopicsResult = client.listTopics();
+      listTopicsResult.names().whenComplete((names, f)->{
+        if (names.stream().filter(name -> name.equals(config.getTopic())).count() == 0) {
+          logger.info("topic not created");
+          System.exit(-1);
+        }
+        countDownLatchCreatedCheck.countDown();
+      });
+      countDownLatchCreatedCheck.await();
     } catch (Exception e) {
       e.printStackTrace();
       System.exit(-1);
@@ -210,66 +220,53 @@ public class ConnectionHandler implements Serializable{
     client.close();
   }
 
-  public Set<Connection> getByFrom(DataEntry de) {
+  public Set<Connection> getByFrom(DataEntry de, ConnectionProjection connectionProjection) {
+    if(connectionProjection ==null){
+      connectionProjection = new ConnectionProjection();
+    }
     Set<Connection> tmp = connections.get(de.getKey());
     if (tmp != null) {
-      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
+      return connectionProjection.process(tmp.stream()).map(c->c.copy(config.getConnectionClass())).map(Connection.class::cast).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
 
-  public Set<Connection> getByFromAndLabel(DataEntry from, String label) {
-    Set<Connection> tmp = connections.get(from.getKey() + label);
-    if (tmp != null) {
-      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
+  public Set<Connection> getByFromAndTo(DataEntry from, DataEntry to, ConnectionProjection connectionProjection) {
+    if(connectionProjection ==null){
+      connectionProjection = new ConnectionProjection();
     }
-    return new TreeSetExt<>();
-  }
-
-  public Set<Connection> getByFromAndLabelAndTo(DataEntry from, String label, DataEntry to) {
-    Set<Connection> tmp = connections.get(from.getKey() + to.getKey() + label);
-    if (tmp != null) {
-      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
-    }
-    return new TreeSetExt<>();
-  }
-
-  public Set<Connection> getByLabel(String label) {
-    Set<Connection> tmp = connections.get(label);
-    if (tmp != null) {
-      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
-    }
-    return new TreeSetExt<>();
-  }
-
-  public Set<Connection> getByFromAndTo(DataEntry from, DataEntry to) {
     Set<Connection> tmp = connections.get(from.getKey() + to.getKey());
     if (tmp != null) {
-      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
+      return connectionProjection.process(tmp.stream()).map(c->c.copy(config.getConnectionClass())).map(Connection.class::cast).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
 
-  public Set<Connection> getReverseByLabelAndTo(String label, DataEntry to) {
-    Set<Connection> tmp = connectionsReverse.get(to.getKey() + label);
+  public Set<Connection> get(ConnectionProjection connectionProjection) {
+    if(connectionProjection ==null){
+      connectionProjection = new ConnectionProjection();
+    }
+    return connectionProjection.process(allConnections.stream()).map(c->c.copy(config.getConnectionClass())).map(Connection.class::cast).collect(Collectors.toSet());
+  }
+
+  public Set<Connection> getReverseByTo(DataEntry to, ConnectionProjection connectionProjection) {
+    if(connectionProjection ==null){
+      connectionProjection = new ConnectionProjection();
+    }
+    Set<Connection> tmp = connectionsReverse.get(to.getKey());
     if (tmp != null) {
-      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
+      return connectionProjection.process(tmp.stream()).map(c->c.copy(config.getConnectionClass())).map(Connection.class::cast).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
 
-  public Set<Connection> getReverseByFromAndLabelAndTo(DataEntry de, String label, DataEntry toDe) {
-    Set<Connection> tmp = connectionsReverse.get(de.getKey() + toDe.getKey() + label);
-    if (tmp != null) {
-      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
+  public Set<Connection> getReverseByFromAndTo(DataEntry de, DataEntry toDe, ConnectionProjection connectionProjection) {
+    if(connectionProjection ==null){
+      connectionProjection = new ConnectionProjection();
     }
-    return new TreeSetExt<>();
-  }
-
-  public Set<Connection> getReverseByFromAndTo(DataEntry from, DataEntry to) {
-    Set<Connection> tmp = connectionsReverse.get(from.getKey() + to.getKey());
+    Set<Connection> tmp = connectionsReverse.get(de.getKey() + toDe.getKey());
     if (tmp != null) {
-      return tmp.stream().map(c->c.copy(Connection.class)).collect(Collectors.toSet());
+      return connectionProjection.process(tmp.stream()).map(c->c.copy(config.getConnectionClass())).map(Connection.class::cast).collect(Collectors.toSet());
     }
     return new TreeSetExt<>();
   }
@@ -292,14 +289,9 @@ public class ConnectionHandler implements Serializable{
     synchronized (connections) {
       connection.connectionHandler = this;
       connectionByUUID.put(connection.getUuid(), connection);
-      String connectionKey = connection.getFromKey();
-      this.putConnectionInKey(connectionKey, connection);
-      this.putConnectionInKey(connection.getLabel(), connection);
-      this.putConnectionInKey(connection.getFromKey() + connection.getLabel(), connection);
+      this.putConnectionInKey(connection.getFromKey(), connection);
       this.putConnectionInKey(connection.getFromKey() + connection.getToKey(), connection);
-      this.putConnectionInKey(connection.getFromKey() + connection.getToKey() + connection.getLabel(), connection);
-      this.putReverseConnectionInKey(connection.getToKey() + connection.getLabel(), connection);
-      this.putReverseConnectionInKey(connection.getToKey() + connection.getFromKey() + connection.getLabel(), connection);
+      this.putReverseConnectionInKey(connection.getToKey(), connection);
       this.putReverseConnectionInKey(connection.getToKey() + connection.getFromKey(), connection);
       allConnections.add(connection);
     }
@@ -326,14 +318,9 @@ public class ConnectionHandler implements Serializable{
   private void removeConnection(Connection connection) {
     synchronized (connections) {
       connectionByUUID.remove(connection.getUuid());
-      String connectionKey = connection.getFromKey();
-      this.removeByKey(connectionKey, connection);
-      this.removeByKey(connection.getLabel(), connection);
-      this.removeByKey(connection.getFromKey() + connection.getLabel(), connection);
+      this.removeByKey(connection.getFromKey(), connection);
       this.removeByKey(connection.getFromKey() + connection.getToKey(), connection);
-      this.removeByKey(connection.getFromKey() + connection.getToKey() + connection.getLabel(), connection);
-      this.removeReverseByKey(connection.getToKey() + connection.getLabel(), connection);
-      this.removeReverseByKey(connection.getToKey() + connection.getFromKey() + connection.getLabel(), connection);
+      this.removeReverseByKey(connection.getToKey(), connection);
       this.removeReverseByKey(connection.getToKey() + connection.getFromKey(), connection);
       allConnections.remove(connection);
     }
@@ -342,7 +329,7 @@ public class ConnectionHandler implements Serializable{
   public void consume() {
     if (this.config.getBootstrap() != null) {
       System.out.println(this.consumerId + " connecting to: " + this.config.getBootstrap());
-      this.consumer = new ConsumerHandler(this.config.getBootstrap(), this.consumerId, this, "connections");
+      this.consumer = new ConsumerHandler(this.config.getBootstrap(), this.consumerId, this, getConfig().getTopic());
     }
   }
 
@@ -394,8 +381,6 @@ public class ConnectionHandler implements Serializable{
     List<String> invalids = new LinkedList<>();
     if (c.getFromKey() == null) invalids.add("[FromKey]");
     if (c.getToKey() == null) invalids.add("[ToKey]");
-    if (c.getFromTable() == null) invalids.add("[FromTable]");
-    if (c.getToTable() == null) invalids.add("[ToTable]");
     return invalids;
   }
 
@@ -557,6 +542,7 @@ public class ConnectionHandler implements Serializable{
     switch (mod) {
       case CONNECTIONCREATE:
         ConnectionCreate c = (ConnectionCreate) modification;
+
         //if(!startupPhase.get()) logger.info("Create statement called");
         if (c != null) {
           itemProcessed();
@@ -570,14 +556,21 @@ public class ConnectionHandler implements Serializable{
               return; // ignore this create
             }
 
-            this.addConnection(c.getConnection());
+            Connection connection;
+            if(c.getConnection()!=null) {
+              this.addConnection(c.getConnection());
+              connection = c.getConnection();
+            }else{
+              connection = (Connection) getConfig().getConnectionClass().getDeclaredConstructor(ConnectionCreate.class).newInstance(c);
+              this.addConnection(connection);
+            }
             this.changed = new Date().getTime();
             if (c.getChangeUUID() != null) {
               Consumer<Connection> consumer = consumers.getIfPresent(c.getChangeUUID());
               if (consumer != null) {
                 new Thread(() -> {
                   consumers.invalidate(c.getChangeUUID());
-                  consumer.accept(c.getConnection());
+                  consumer.accept(connection);
                 }).start();
               }
             }
@@ -677,15 +670,12 @@ public class ConnectionHandler implements Serializable{
                 }
               } else {
 
-                Connection connectionTmp = Serializer.getObjectMapper().getOm().readValue(
-                    u.getChangesPatch().apply(Serializer.getObjectMapper().getOm().valueToTree(conn)).toString(),
-                    Connection.class
+                Connection connectionTmp = (Connection) Utils.getOm().readValue(
+                    u.getChangesPatch().apply(Utils.getOm().valueToTree(conn)).toString(),
+                    config.getConnectionClass()
                 );
                 conn.setVersion(u.getVersion());
                 conn.setMetadata(connectionTmp.getMetadata());
-                conn.setLabel(connectionTmp.getLabel());
-                conn.setToKey(connectionTmp.getToKey());
-                conn.setToTable(connectionTmp.getToTable());
                 this.changed = new Date().getTime();
                 if (u.getChangeUUID() != null) {
                   Consumer<Connection> consumer = consumers.getIfPresent(u.getChangeUUID());

@@ -4,7 +4,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nucleocore.library.database.modifications.ConnectionCreate;
+import com.nucleocore.library.database.tables.annotation.Conn;
 import com.nucleocore.library.database.tables.table.DataEntry;
+import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.utils.SkipCopy;
 import org.jetbrains.annotations.NotNull;
 
@@ -16,27 +19,24 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 
+
+@Conn(name = "connection", to = DataEntry.class, from = DataEntry.class)
 public class Connection implements Serializable, Comparable<Connection>{
   @SkipCopy
   private static final long serialVersionUID = 1;
 
   private String uuid;
-
   private String fromKey;
-  private String fromTable;
   private String toKey;
-  private String toTable;
-  private String label;
   private Instant date;
-
   private Instant modified;
-
   public long version = 0;
+  private Map<String, String> metadata = new TreeMap<>();
 
   @JsonIgnore
   public transient ConnectionHandler connectionHandler;
 
-  private Map<String, String> metadata = new TreeMap<>();
+
 
   public Connection() {
     this.uuid = UUID.randomUUID().toString();
@@ -44,15 +44,22 @@ public class Connection implements Serializable, Comparable<Connection>{
     this.modified = Instant.now();
   }
 
-  public Connection(DataEntry from, String label, DataEntry to) {
+  public Connection(DataEntry from, DataEntry to) {
     this.uuid = UUID.randomUUID().toString();
     this.fromKey = from.getKey();
     this.toKey = to.getKey();
-    this.label = label;
-    this.toTable = to.getTableName();
-    this.fromTable = from.getTableName();
     this.date = Instant.now();
     this.modified = Instant.now();
+  }
+
+  public Connection(ConnectionCreate connectionCreate) {
+    this.uuid = connectionCreate.getUuid();
+    this.fromKey = connectionCreate.getFromKey();
+    this.toKey = connectionCreate.getToKey();;
+    this.date = connectionCreate.getDate();
+    this.version = connectionCreate.getVersion();
+    this.metadata = new TreeMap<>(connectionCreate.getMetadata());
+
   }
 
   public <T> T copy(Class<T> clazz)  {
@@ -69,14 +76,11 @@ public class Connection implements Serializable, Comparable<Connection>{
     return null;
   }
 
-  public Connection(DataEntry from, String label, DataEntry to, Map<String, String> metadata) {
+  public Connection(DataEntry from, DataEntry to, Map<String, String> metadata) {
     this.uuid = UUID.randomUUID().toString();
     this.fromKey = from.getKey();
     this.toKey = to.getKey();
-    this.label = label;
     this.metadata = metadata;
-    this.toTable = to.getTableName();
-    this.fromTable = from.getTableName();
     this.date = Instant.now();
     this.modified = Instant.now();
   }
@@ -113,30 +117,6 @@ public class Connection implements Serializable, Comparable<Connection>{
     this.uuid = uuid;
   }
 
-  public String getLabel() {
-    return label;
-  }
-
-  public void setLabel(String label) {
-    this.label = label;
-  }
-
-  public String getFromTable() {
-    return fromTable;
-  }
-
-  public void setFromTable(String fromTable) {
-    this.fromTable = fromTable;
-  }
-
-  public String getToTable() {
-    return toTable;
-  }
-
-  public void setToTable(String toTable) {
-    this.toTable = toTable;
-  }
-
   public long getVersion() {
     return version;
   }
@@ -171,14 +151,9 @@ public class Connection implements Serializable, Comparable<Connection>{
     Connection clonedConnection = new Connection();
     clonedConnection.uuid = this.uuid;
     clonedConnection.fromKey = this.fromKey;
-    clonedConnection.fromTable = this.fromTable;
     clonedConnection.toKey = this.toKey;
-    clonedConnection.toTable = this.toTable;
-
     clonedConnection.date = this.date;
     clonedConnection.modified = this.modified;
-
-    clonedConnection.label = this.label;
     clonedConnection.connectionHandler = this.connectionHandler;
     clonedConnection.version = this.version;
     clonedConnection.metadata = new TreeMap<>(this.metadata); // Create a copy of the metadata map
@@ -188,15 +163,16 @@ public class Connection implements Serializable, Comparable<Connection>{
 
   @Override
   public int compareTo(@NotNull Connection o) {
-    return this.getUuid().hashCode()-o.getUuid().hashCode();
+    return this.getUuid().compareTo(o.getUuid());
   }
 
   @JsonIgnore
   public DataEntry toEntry(){
     if(this.connectionHandler!=null) {
-      Set<DataEntry> tmp = this.connectionHandler.getNucleoDB().getTable(this.getToTable()).get("id", this.getToKey());
+      DataTable table = this.connectionHandler.getNucleoDB().getTable(this.connectionHandler.getConfig().getToTable());
+      Set<DataEntry> tmp = table.get("id", this.getToKey(), null);
       if (tmp != null) {
-        Optional<DataEntry> tmpOp = tmp.stream().findFirst();
+        Optional<DataEntry> tmpOp = tmp.stream().findFirst().map(c->c.copy(table.getConfig().getDataEntryClass())).map(DataEntry.class::cast);
         if (tmpOp.isPresent()) {
           return tmpOp.get();
         }
@@ -207,9 +183,10 @@ public class Connection implements Serializable, Comparable<Connection>{
   @JsonIgnore
   public DataEntry fromEntry(){
     if(this.connectionHandler!=null) {
-      Set<DataEntry> tmp = this.connectionHandler.getNucleoDB().getTable(this.getFromTable()).get("id", this.getFromKey());
+      DataTable table = this.connectionHandler.getNucleoDB().getTable(this.connectionHandler.getConfig().getFromTable());
+      Set<DataEntry> tmp = table.get("id", this.getFromKey(), null);
       if (tmp != null) {
-        Optional<DataEntry> tmpOp = tmp.stream().findFirst();
+        Optional<DataEntry> tmpOp = tmp.stream().findFirst().map(c->c.copy(table.getConfig().getDataEntryClass())).map(DataEntry.class::cast);
         if (tmpOp.isPresent()) {
           return tmpOp.get();
         }

@@ -7,7 +7,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-@Table("anime")
+@Table(tableName = "anime", dataEntryClass = AnimeDE.class)
 public class Anime implements Serializable{
   private static final long serialVersionUID = 1;
   @Index()

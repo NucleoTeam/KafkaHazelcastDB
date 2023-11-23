@@ -1,9 +1,11 @@
 package com.nucleocore.library.cli;
 
 import com.nucleocore.library.NucleoDB;
+import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.StartupRun;
+import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 
 public class DBRestore{
   public static void main(String[] args) throws ClassNotFoundException {
@@ -18,14 +20,16 @@ public class DBRestore{
 
     NucleoDB db = new NucleoDB();
     Serializer.log(args);
-    db.launchLocalOnlyTable(sourceKafkaHosts, "temptable1", Class.forName(clazz), new StartupRun(){
+    db.launchLocalOnlyTable(sourceKafkaHosts, "temptable1", DataEntry.class, Class.forName(clazz), new StartupRun(){
       @Override
       public void run(DataTable table) {
         try {
-          table.exportTo(db.launchWriteOnlyTable(targetKafkaHosts, targetTable, Class.forName(clazz)).build());
+          table.exportTo(db.launchWriteOnlyTable(targetKafkaHosts, targetTable, DataEntry.class, Class.forName(clazz)).build());
           System.exit(0);
         } catch (ClassNotFoundException e) {
-          throw new RuntimeException(e);
+          e.printStackTrace();
+        } catch (IncorrectDataEntryObjectException e) {
+          e.printStackTrace();
         }
       }
     }).setTableFileName("./data/" + sourceTable + ".dat").build();

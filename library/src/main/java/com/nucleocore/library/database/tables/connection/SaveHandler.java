@@ -20,7 +20,7 @@ public class SaveHandler implements Runnable{
         try {
           if (this.connectionHandler.getChanged() > changedSaved) {
             //System.out.println("Saved connections");
-            new ObjectFileWriter().writeObjectToFile(this.connectionHandler, "./data/connections.dat");
+            new ObjectFileWriter().writeObjectToFile(this.connectionHandler, "./data/"+connectionHandler.getConfig().getTopic()+".dat");
             changedSaved = this.connectionHandler.getChanged();
           }
           Thread.sleep(5000);

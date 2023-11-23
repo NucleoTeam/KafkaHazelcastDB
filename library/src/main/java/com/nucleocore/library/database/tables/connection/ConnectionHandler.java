@@ -160,7 +160,7 @@ public class ConnectionHandler implements Serializable{
 
 
   public void loadSavedData() {
-    if (new File("./data/connection_"+ getConfig().getTopic()+".dat").exists()) {
+    if (new File("./data/"+ getConfig().getTopic()+".dat").exists()) {
       try {
         ConnectionHandler tmpConnections = (ConnectionHandler) new ObjectFileReader().readObjectFromFile("./data/"+getConfig().getTopic()+".dat");
         tmpConnections.allConnections.forEach(c -> this.addConnection(c));

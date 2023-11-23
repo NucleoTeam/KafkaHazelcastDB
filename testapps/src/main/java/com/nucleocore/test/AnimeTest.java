@@ -28,7 +28,7 @@ public class AnimeTest{
   private static Logger logger = Logger.getLogger(DataTable.class.getName());
   static ObjectMapper om = new ObjectMapper().findAndRegisterModules();
   public static void main(String[] args) throws IOException, InterruptedException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException, IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
-    NucleoDB nucleoDB = new NucleoDB("127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092", NucleoDB.DBType.NO_LOCAL, "com.nucleocore.test", "com.nucleocore.library.database.tables.connection");
+    NucleoDB nucleoDB = new NucleoDB("127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092", NucleoDB.DBType.ALL, "com.nucleocore.test", "com.nucleocore.library.database.tables.connection");
     logger.info(String.format("tables: %s", nucleoDB.getTables().keySet().stream().collect(Collectors.joining(", "))));
     logger.info(String.format("connections: %s", nucleoDB.getConnections().keySet().stream().collect(Collectors.joining(", "))));
     DataTable userTable = nucleoDB.getTable(User.class);

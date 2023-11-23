@@ -6,13 +6,13 @@ plugins {
 }
 
 group = 'com.nucleodb'
-version = '1.11.0'
+version = '1.11.1'
 
 repositories {
     mavenCentral()
     maven {
         name = 'SynloadRepo'
-        url = uri("https://nexus.synload.com/repository/maven-repo-releases/") // Replace 'OWNER' and 'REPO' with appropriate values
+        url = uri("https://nexus.synload.com/repository/maven-repo-releases/")
         credentials {
             username = System.getenv("SYNLOAD_REPO_USER")
             password = System.getenv("SYNLOAD_REPO_PASS")

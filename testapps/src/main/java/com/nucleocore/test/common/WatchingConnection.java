@@ -1,9 +1,12 @@
-package com.nucleocore.test;
+package com.nucleocore.test.common;
 
 import com.nucleocore.library.database.modifications.ConnectionCreate;
 import com.nucleocore.library.database.tables.annotation.Conn;
 import com.nucleocore.library.database.tables.connection.Connection;
 import com.nucleocore.library.database.tables.table.DataEntry;
+import com.nucleocore.test.common.Anime;
+import com.nucleocore.test.common.AnimeDE;
+import com.nucleocore.test.common.User;
 
 import java.util.Map;
 

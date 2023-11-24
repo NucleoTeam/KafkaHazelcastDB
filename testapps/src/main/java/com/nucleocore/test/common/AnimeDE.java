@@ -1,4 +1,4 @@
-package com.nucleocore.test;
+package com.nucleocore.test.common;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nucleocore.library.database.modifications.Create;

@@ -184,6 +184,9 @@ public class ConnectionHandler implements Serializable{
     try {
       ListTopicsResult listTopicsResult = client.listTopics();
       listTopicsResult.names().whenComplete((names, f)->{
+        if(f!=null){
+          f.printStackTrace();
+        }
         if (names.stream().filter(name -> name.equals(config.getTopic())).count() == 0) {
           final NewTopic newTopic = new NewTopic(config.getTopic(), 36, (short) 3);
           newTopic.configs(new TreeMap<>(){{
@@ -206,6 +209,9 @@ public class ConnectionHandler implements Serializable{
       CountDownLatch countDownLatchCreatedCheck = new CountDownLatch(1);
       ListTopicsResult listTopicsResult = client.listTopics();
       listTopicsResult.names().whenComplete((names, f)->{
+        if(f!=null){
+          f.printStackTrace();
+        }
         if (names.stream().filter(name -> name.equals(config.getTopic())).count() == 0) {
           logger.info("topic not created");
           System.exit(-1);

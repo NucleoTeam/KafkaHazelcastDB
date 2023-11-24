@@ -1,4 +1,4 @@
-package com.nucleocore.test;
+package com.nucleocore.test.raw;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nucleocore.library.NucleoDB;
@@ -6,17 +6,17 @@ import com.nucleocore.library.database.tables.connection.Connection;
 import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.InvalidConnectionException;
-import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryClassException;
 import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleocore.library.database.utils.exceptions.MissingDataEntryConstructorsException;
-import org.slf4j.LoggerFactory;
+import com.nucleocore.test.common.Anime;
+import com.nucleocore.test.common.AnimeDE;
+import com.nucleocore.test.common.User;
+import com.nucleocore.test.common.WatchingConnection;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -24,11 +24,17 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+@SpringBootApplication
 public class AnimeTest{
   private static Logger logger = Logger.getLogger(DataTable.class.getName());
   static ObjectMapper om = new ObjectMapper().findAndRegisterModules();
   public static void main(String[] args) throws IOException, InterruptedException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException, IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
-    NucleoDB nucleoDB = new NucleoDB("127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092", NucleoDB.DBType.ALL, "com.nucleocore.test", "com.nucleocore.library.database.tables.connection");
+    NucleoDB nucleoDB = new NucleoDB(
+        "127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092",
+        NucleoDB.DBType.ALL,
+        "com.nucleocore.test.common",
+        "com.nucleocore.library.database.tables.connection"
+    );
     logger.info(String.format("tables: %s", nucleoDB.getTables().keySet().stream().collect(Collectors.joining(", "))));
     logger.info(String.format("connections: %s", nucleoDB.getConnections().keySet().stream().collect(Collectors.joining(", "))));
     DataTable userTable = nucleoDB.getTable(User.class);

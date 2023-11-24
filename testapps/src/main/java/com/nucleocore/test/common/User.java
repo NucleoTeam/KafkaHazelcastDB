@@ -1,9 +1,7 @@
-package com.nucleocore.test;
+package com.nucleocore.test.common;
 
 
 import com.nucleocore.library.database.tables.annotation.Index;
-import com.nucleocore.library.database.tables.annotation.Relationship;
-import com.nucleocore.library.database.tables.annotation.Relationships;
 import com.nucleocore.library.database.tables.annotation.Table;
 
 import java.io.Serializable;

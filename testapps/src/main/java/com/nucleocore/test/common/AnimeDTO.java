@@ -1,4 +1,4 @@
-package com.nucleocore.test;
+package com.nucleocore.test.common;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JacksonException;
@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.nucleocore.library.database.utils.sql.PrimaryKey;
+import com.nucleocore.test.common.VoiceActor;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -25,7 +26,7 @@ public class AnimeDTO{
     }
     @Override
     public List<String> deserialize(JsonParser jsonparser, DeserializationContext context) throws IOException, JacksonException {
-      List<VoiceActor> actorz = jsonparser.readValueAs( new TypeReference<List<VoiceActor>>(){});
+      List<VoiceActor> actorz = jsonparser.readValueAs(new TypeReference<List<VoiceActor>>(){});
       return actorz.stream().map(a->a.name).collect(Collectors.toList());
     }
   }

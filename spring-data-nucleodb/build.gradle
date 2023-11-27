@@ -11,6 +11,7 @@ dependencyManagement {
     }
 }
 group = 'org.springframework.data'
+version = '3.3.0'
 
 repositories {
     mavenCentral()
@@ -20,7 +21,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.nucleodb:library:1.11.2'
+    implementation 'com.nucleodb:library:1.11.3'
     implementation 'org.springframework:spring-beans'
     implementation 'org.springframework:spring-context'
     implementation 'org.springframework:spring-expression'

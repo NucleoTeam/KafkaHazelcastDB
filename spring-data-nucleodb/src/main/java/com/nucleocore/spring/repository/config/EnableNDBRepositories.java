@@ -1,7 +1,6 @@
 package com.nucleocore.spring.repository.config;
 
 import com.nucleocore.library.NucleoDB;
-import com.nucleocore.spring.config.DefaultBeanNames;
 import com.nucleocore.spring.repository.NDBRepositoryFactoryBean;
 import org.springframework.context.annotation.Import;
 
@@ -84,14 +83,8 @@ public @interface EnableNDBRepositories{
   Class<?> repositoryBaseClass() default DefaultRepositoryBaseClass.class;
 
   /**
-   * Configures the name of the {@link } bean to be used with the repositories detected. Defaults to
-   * {@link DefaultBeanNames#DATA_TEMPLATE}
-   */
-  String nucleodbTemplateRef() default "nucleodbTemplate";
-
-  /**
    * Configures whether nested repository-interfaces (e.g. defined as inner classes) should be discovered by the
    * repositories infrastructure.
    */
-  boolean considerNestedRepositories() default false;
+  boolean considerNestedRepositories() default true;
 }

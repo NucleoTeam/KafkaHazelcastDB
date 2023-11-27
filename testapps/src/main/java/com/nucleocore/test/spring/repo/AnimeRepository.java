@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface AnimeRepository extends NDBRepository<AnimeDE, String>{
-  AnimeDE findByKey(String key);
+  AnimeDE findByName(String key);
 }

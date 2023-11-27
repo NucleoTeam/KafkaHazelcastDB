@@ -2,6 +2,7 @@ package com.nucleocore.spring.repository;
 
 import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.utils.Serializer;
+import com.nucleocore.library.examples.anime.definitions.AnimeDE;
 import com.nucleocore.spring.repository.query.MappingNDBEntityInformation;
 import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.repository.core.EntityInformation;
@@ -17,6 +18,7 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Optional;
 
@@ -83,7 +85,9 @@ public class NDBRepositoryFactory extends RepositoryFactorySupport{
       return new RepositoryQuery(){
         @Override
         public Object execute(Object[] parameters) {
+          Serializer.log(method.getName());
           Serializer.log(parameters);
+
           return null;
         }
 

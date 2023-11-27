@@ -11,7 +11,10 @@ import org.springframework.context.annotation.ComponentScan;
 @SpringBootApplication
 @EnableNDBRepositories(
     dbType = NucleoDB.DBType.ALL,
-    kafkaServers = "127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092"
+    kafkaServers = "127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092",
+    scanPackages = {
+        "com.nucleocore.test.common"
+    }
 )
 @ComponentScan(basePackages = {"com.nucleocore.spring.repository", "com.nucleocore.test.spring"})
 public class SpringRepoTest{

@@ -21,7 +21,7 @@ import java.util.UUID;
 
 
 @Conn(name = "connection", to = DataEntry.class, from = DataEntry.class)
-public class Connection implements Serializable, Comparable<Connection>{
+public class Connection<T extends DataEntry, F extends DataEntry> implements Serializable, Comparable<Connection>{
   @SkipCopy
   private static final long serialVersionUID = 1;
 
@@ -167,28 +167,28 @@ public class Connection implements Serializable, Comparable<Connection>{
   }
 
   @JsonIgnore
-  public DataEntry toEntry(){
+  public T toEntry(){
     if(this.connectionHandler!=null) {
       DataTable table = this.connectionHandler.getNucleoDB().getTable(this.connectionHandler.getConfig().getToTable());
       Set<DataEntry> tmp = table.get("id", this.getToKey(), null);
       if (tmp != null) {
         Optional<DataEntry> tmpOp = tmp.stream().findFirst().map(c->c.copy(table.getConfig().getDataEntryClass())).map(DataEntry.class::cast);
         if (tmpOp.isPresent()) {
-          return tmpOp.get();
+          return (T)tmpOp.get();
         }
       }
     }
     return null;
   }
   @JsonIgnore
-  public DataEntry fromEntry(){
+  public F fromEntry(){
     if(this.connectionHandler!=null) {
       DataTable table = this.connectionHandler.getNucleoDB().getTable(this.connectionHandler.getConfig().getFromTable());
       Set<DataEntry> tmp = table.get("id", this.getFromKey(), null);
       if (tmp != null) {
         Optional<DataEntry> tmpOp = tmp.stream().findFirst().map(c->c.copy(table.getConfig().getDataEntryClass())).map(DataEntry.class::cast);
         if (tmpOp.isPresent()) {
-          return tmpOp.get();
+          return (F)tmpOp.get();
         }
       }
     }

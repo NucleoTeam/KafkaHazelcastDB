@@ -10,7 +10,7 @@ dependencyManagement {
         mavenBom 'org.springframework.data.build:spring-data-parent:3.3.0-SNAPSHOT'
     }
 }
-group = 'com.nucleocore.spring'
+group = 'org.springframework.data'
 
 repositories {
     mavenCentral()
@@ -20,12 +20,14 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.nucleodb:library:1.11.1'
+    implementation 'com.nucleodb:library:1.11.2'
     implementation 'org.springframework:spring-beans'
     implementation 'org.springframework:spring-context'
+    implementation 'org.springframework:spring-expression'
     implementation 'org.springframework:spring-core'
     implementation 'org.springframework:spring-tx'
-    implementation 'org.springframework.data:spring-data-commons:3.1.5'
+    implementation 'org.springframework.data:spring-data-commons:3.3.0-SNAPSHOT'
+    implementation 'io.projectreactor:reactor-core'
 }
 
 test {

@@ -180,6 +180,7 @@ public class ConnectionHandler implements Serializable{
     props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.getBootstrap());
     AdminClient client = KafkaAdminClient.create(props);
 
+    String topic = config.getTopic();
     CountDownLatch countDownLatch = new CountDownLatch(1);
     try {
       ListTopicsResult listTopicsResult = client.listTopics();
@@ -187,17 +188,24 @@ public class ConnectionHandler implements Serializable{
         if(f!=null){
           f.printStackTrace();
         }
-        if (names.stream().filter(name -> name.equals(config.getTopic())).count() == 0) {
-          final NewTopic newTopic = new NewTopic(config.getTopic(), 36, (short) 3);
+        if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
+          logger.info(String.format("kafka topic not found for %s", topic));
+          final NewTopic newTopic = new NewTopic(topic, 36, (short) 3);
           newTopic.configs(new TreeMap<>(){{
             put(TopicConfig.RETENTION_MS_CONFIG, "-1");
             put(TopicConfig.RETENTION_MS_CONFIG, "-1");
             put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
           }});
-          client.createTopics(Collections.singleton(newTopic));
-
+          CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
+          createTopicsResult.all().whenComplete((c, e) -> {
+            if (e != null) {
+              e.printStackTrace();
+            }
+            countDownLatch.countDown();
+          });
+        }else{
+          countDownLatch.countDown();
         }
-        countDownLatch.countDown();
       });
     } catch (Exception e) {
       e.printStackTrace();
@@ -205,14 +213,14 @@ public class ConnectionHandler implements Serializable{
     }
 
     try {
-      countDownLatch.await();
+      countDownLatch.await(60, TimeUnit.SECONDS);
       CountDownLatch countDownLatchCreatedCheck = new CountDownLatch(1);
       ListTopicsResult listTopicsResult = client.listTopics();
       listTopicsResult.names().whenComplete((names, f)->{
         if(f!=null){
           f.printStackTrace();
         }
-        if (names.stream().filter(name -> name.equals(config.getTopic())).count() == 0) {
+        if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
           logger.info("topic not created");
           System.exit(-1);
         }

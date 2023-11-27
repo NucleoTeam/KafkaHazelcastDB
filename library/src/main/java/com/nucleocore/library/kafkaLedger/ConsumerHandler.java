@@ -150,9 +150,7 @@ public class ConsumerHandler implements Runnable{
       startupLoadCount = getConnectionHandler().getStartupLoadCount();
       tableName = "connections";
     }
-    if(startupPhaseConsume.get()){
-      consumer.commitAsync();
-    }
+    consumer.commitAsync();
     Map<Integer, OffsetAndMetadata> offsetMetaMap = new HashMap<>();
     try {
       do {

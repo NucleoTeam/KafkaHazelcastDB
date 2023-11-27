@@ -17,18 +17,18 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.UUID;
 
-public class DataEntry implements Serializable, Comparable<DataEntry> {
+public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
     @SkipCopy
     private static final long serialVersionUID = 1;
     public String key;
     public long version = -1;
     private JsonNode reference;
-    public Object data;
+    public T data;
     private transient String tableName;
     private Instant created;
     private Instant modified;
 
-    public DataEntry(Object obj) {
+    public DataEntry(T obj) {
         this.data = obj;
         this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = UUID.randomUUID().toString();
@@ -36,7 +36,7 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
     }
 
     public DataEntry(Create create) throws ClassNotFoundException, JsonProcessingException {
-        this.data = Serializer.getObjectMapper().getOm().readValue(create.getData(), Class.forName(create.getMasterClass()));
+        this.data = (T) Serializer.getObjectMapper().getOm().readValue(create.getData(), Class.forName(create.getMasterClass()));
         this.version = create.getVersion();
         this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = create.getKey();
@@ -89,7 +89,7 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
         return reference;
     }
 
-    public Object getData() {
+    public T getData() {
         return data;
     }
 
@@ -97,7 +97,7 @@ public class DataEntry implements Serializable, Comparable<DataEntry> {
         this.reference = reference;
     }
 
-    public void setData(Object data) {
+    public void setData(T data) {
         this.data = data;
     }
 

@@ -123,39 +123,58 @@ public class DataTable implements Serializable{
       }
     }
   }
-
   public void createTopics() {
     Properties props = new Properties();
     props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.getBootstrap());
     AdminClient client = KafkaAdminClient.create(props);
+
+    String topic = config.getTable();
+    CountDownLatch countDownLatch = new CountDownLatch(1);
     try {
-      if (client.listTopics().names().get().stream().filter(x -> x.equals(config.getTable())).count() == 0) {
-        try {
-          final NewTopic newTopic = new NewTopic(config.getTable(), 36, (short) 3);
+      ListTopicsResult listTopicsResult = client.listTopics();
+      listTopicsResult.names().whenComplete((names, f)->{
+        if(f!=null){
+          f.printStackTrace();
+        }
+        if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
+          logger.info(String.format("kafka topic not found for %s", topic));
+          final NewTopic newTopic = new NewTopic(topic, 36, (short) 3);
           newTopic.configs(new TreeMap<>(){{
             put(TopicConfig.RETENTION_MS_CONFIG, "-1");
             put(TopicConfig.RETENTION_MS_CONFIG, "-1");
             put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
           }});
-          final CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
-          createTopicsResult.values().get(config.getTable()).get();
-        } catch (InterruptedException | ExecutionException e) {
-          if (!(e.getCause() instanceof TopicExistsException)) {
-            throw new RuntimeException(e.getMessage(), e);
-          }
+          CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
+          createTopicsResult.all().whenComplete((c, e) -> {
+            if (e != null) {
+              e.printStackTrace();
+            }
+            countDownLatch.countDown();
+          });
+        }else{
+          countDownLatch.countDown();
         }
-      }
+      });
     } catch (Exception e) {
       e.printStackTrace();
       System.exit(-1);
     }
+
     try {
-      if (client.listTopics().names().get().stream().filter(x -> x.equals(config.getTable())).count() == 0) {
-        logger.info("topic not created");
-        System.exit(-1);
-      } else {
-        logger.info("topic created/exists");
-      }
+      countDownLatch.await();
+      CountDownLatch countDownLatchCreatedCheck = new CountDownLatch(1);
+      ListTopicsResult listTopicsResult = client.listTopics();
+      listTopicsResult.names().whenComplete((names, f)->{
+        if(f!=null){
+          f.printStackTrace();
+        }
+        if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
+          logger.info("topic not created");
+          System.exit(-1);
+        }
+        countDownLatchCreatedCheck.countDown();
+      });
+      countDownLatchCreatedCheck.await();
     } catch (Exception e) {
       e.printStackTrace();
       System.exit(-1);

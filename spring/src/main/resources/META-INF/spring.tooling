@@ -1,0 +1,4 @@
+# Tooling related information for the cql namespace
+http\://www.springframework.org/schema/nucleodb@name=NucleoDB Namespace
+http\://www.springframework.org/schema/nucleodb@prefix=nucleodb
+http\://www.springframework.org/schema/nucleodb@icon=org/springframework/data/nucleodb/config/spring-nucleodb.gif

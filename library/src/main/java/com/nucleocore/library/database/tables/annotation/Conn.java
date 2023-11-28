@@ -10,7 +10,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface Conn{
-  String name();
-  Class to();
-  Class from();
+  String value();
 }

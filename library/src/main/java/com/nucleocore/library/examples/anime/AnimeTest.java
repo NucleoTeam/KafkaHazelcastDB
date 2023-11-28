@@ -76,9 +76,9 @@ public class AnimeTest{
         e.printStackTrace();
       }
 
-      AtomicReference<DataEntry> userReference = new AtomicReference<>();
+      AtomicReference<UserDE> userReference = new AtomicReference<>();
       userTable.saveAsync(new User(userName, "me"), (dataEntry -> {
-        userReference.set(dataEntry);
+        userReference.set((UserDE) dataEntry);
         synchronized (userReference) {
           userReference.notify();
         }

@@ -11,11 +11,11 @@ import com.nucleocore.test.common.User;
 import java.util.Map;
 
 @Conn(name = "WATCHING", to = Anime.class, from = User.class)
-public class WatchingConnection extends Connection{
+public class WatchingConnection<AnimeDE, UserDE> extends Connection{
   public WatchingConnection() {
   }
 
-  public WatchingConnection(DataEntry from, AnimeDE to) {
+  public WatchingConnection(DataEntry from, DataEntry to) {
     super(from, to);
   }
 
@@ -23,12 +23,8 @@ public class WatchingConnection extends Connection{
     super(connectionCreate);
   }
 
-  public WatchingConnection(DataEntry from, AnimeDE to, Map<String, String> metadata) {
+  public WatchingConnection(DataEntry from, DataEntry to, Map metadata) {
     super(from, to, metadata);
   }
 
-  @Override
-  public AnimeDE toEntry() {
-    return (AnimeDE) super.toEntry();
-  }
 }

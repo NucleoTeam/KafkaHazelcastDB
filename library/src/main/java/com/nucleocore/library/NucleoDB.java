@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Queues;
 import com.nucleocore.library.database.modifications.Create;
 import com.nucleocore.library.database.tables.annotation.Conn;
+import com.nucleocore.library.database.tables.connection.Connection;
 import com.nucleocore.library.database.tables.connection.ConnectionConfig;
 import com.nucleocore.library.database.tables.connection.ConnectionHandler;
 import com.nucleocore.library.database.tables.annotation.Index;
@@ -30,6 +31,8 @@ import org.reflections.Reflections;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Logger;
@@ -72,14 +75,28 @@ public class NucleoDB{
     CountDownLatch latch = new CountDownLatch(connectionTypes.size());
     for (Class<?> type : connectionTypes) {
       Conn connectionType = type.getAnnotation(Conn.class);
-      String topic = String.format("%ss",connectionType.name().toLowerCase());
+      String topic = String.format("%ss",connectionType.value().toLowerCase());
       ConnectionConfig config = new ConnectionConfig();
       config.setBootstrap(bootstrap);
       config.setTopic(topic);
-      config.setToTable(connectionType.to());
-      config.setFromTable(connectionType.from());
+
+      Type[] actualTypeArguments = ((ParameterizedType) type.getGenericSuperclass()).getActualTypeArguments();
+      if(actualTypeArguments.length==2) {
+        Class<?> toTable = (Class<?>) actualTypeArguments[0];
+        Type[] toTableTypeArguments = ((ParameterizedType) toTable.getGenericSuperclass()).getActualTypeArguments();
+        if(toTableTypeArguments.length==1) {
+          config.setToTable((Class<?>) toTableTypeArguments[0]);
+          logger.info("To Table " + config.getToTable().getName());
+        }
+        Class<?> fromTable = (Class<?>) actualTypeArguments[1];
+        Type[] fromTableTypeArguments = ((ParameterizedType) fromTable.getGenericSuperclass()).getActualTypeArguments();
+        if(fromTableTypeArguments.length==1) {
+          config.setFromTable((Class<?>) fromTableTypeArguments[0]);
+          logger.info("From table " + config.getFromTable().getName());
+        }
+      }
       config.setConnectionClass(type);
-      config.setLabel(connectionType.name().toUpperCase());
+      config.setLabel(connectionType.value().toUpperCase());
       config.setStartupRun(new StartupRun(){
         public void run(ConnectionHandler connectionHandler) {
           latch.countDown();
@@ -92,7 +109,7 @@ public class NucleoDB{
         }
         case EXPORT -> config.setJsonExport(true);
       }
-      connections.put(connectionType.name().toUpperCase(), new ConnectionHandler(this, config));
+      connections.put(connectionType.value().toUpperCase(), new ConnectionHandler(this, config));
     }
 
     try {
@@ -424,7 +441,7 @@ public class NucleoDB{
       return null;
     }
     Conn conn = (Conn) clazz.getDeclaredAnnotation(Conn.class);
-    return connections.get(conn.name().toUpperCase());
+    return connections.get(conn.value().toUpperCase());
   }
 
   public TreeMap<String, ConnectionHandler> getConnections() {

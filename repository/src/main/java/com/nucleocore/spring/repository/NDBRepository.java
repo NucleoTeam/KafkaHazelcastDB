@@ -9,7 +9,7 @@ import java.util.List;
 
 
 @NoRepositoryBean
-public interface NDBRepository<T extends DataEntry, ID extends String> extends CrudRepository<T, ID>{
+public interface NDBRepository<T, ID> extends CrudRepository<T, ID>{
 
   <S extends T> List<S> saveAll(Iterable<S> entities);
 

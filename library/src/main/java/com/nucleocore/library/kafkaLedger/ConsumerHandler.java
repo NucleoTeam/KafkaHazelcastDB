@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class ConsumerHandler implements Runnable{
   private static Logger logger = Logger.getLogger(DataTable.class.getName());
@@ -120,7 +121,7 @@ public class ConsumerHandler implements Runnable{
     Set<TopicPartition> partitions = getConsumer().assignment();
     if (startupMap == null || partitions.size() > startupMap.size()) {
       if (partitions == null) return false;
-      //if (partitions.size() != 36) return false;
+      if (partitions.size() != 36) return false;
       Map<TopicPartition, Long> tmp = getConsumer().endOffsets(partitions);
       startupMap = tmp;
     }
@@ -151,6 +152,7 @@ public class ConsumerHandler implements Runnable{
       tableName = "connections";
     }
     consumer.commitAsync();
+
     Map<Integer, OffsetAndMetadata> offsetMetaMap = new HashMap<>();
     try {
       do {
@@ -171,7 +173,7 @@ public class ConsumerHandler implements Runnable{
               this.getDatabase().getPartitionOffsets().put(action.partition(), action.offset());
             offsetMetaMap.put(action.partition(), new OffsetAndMetadata(action.offset()));
           });
-          consumer.commitSync(createCommitMap(tableName, offsetMetaMap));
+          consumer.commitAsync();
         }
         while(startupPhaseConsume.get() && leftToRead.get()>50000){
           Thread.sleep(1000);

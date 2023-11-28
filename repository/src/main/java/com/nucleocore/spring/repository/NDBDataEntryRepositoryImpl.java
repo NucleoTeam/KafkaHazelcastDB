@@ -5,25 +5,23 @@ import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.tables.table.DataEntryProjection;
 import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.utils.Pagination;
-import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import org.springframework.data.domain.Sort;
 import org.springframework.lang.Nullable;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class NDBRepositoryImpl<T extends DataEntry, ID extends String> implements NDBRepository<T, ID>{
+public class NDBDataEntryRepositoryImpl<T extends DataEntry, ID extends String> implements NDBRepository<T, ID>{
   private @Nullable DataTable table = null;
   private final NucleoDB nucleoDB;
   private final Class<T> classType;
   private @Nullable Class<?> tableClass = null;
-  public NDBRepositoryImpl(NucleoDB nucleoDB, Class<T> classType) {
+  public NDBDataEntryRepositoryImpl(NucleoDB nucleoDB, Class<T> classType) {
     this.nucleoDB = nucleoDB;
     this.classType = classType;
     Type[] actualTypeArguments = ((ParameterizedType) classType.getGenericSuperclass()).getActualTypeArguments();
@@ -31,7 +29,6 @@ public class NDBRepositoryImpl<T extends DataEntry, ID extends String> implement
       this.tableClass = (Class<?>) actualTypeArguments[0];
       this.table = nucleoDB.getTable(this.tableClass);
     }
-
   }
 
   @Override

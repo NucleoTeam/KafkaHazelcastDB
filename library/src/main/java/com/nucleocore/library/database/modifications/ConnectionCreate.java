@@ -8,7 +8,6 @@ import java.util.TreeMap;
 import java.util.UUID;
 
 public class ConnectionCreate extends Modify {
-  public Connection connection;
 
   private String uuid;
   private String fromKey;
@@ -17,30 +16,30 @@ public class ConnectionCreate extends Modify {
   private Map<String, String> metadata = new TreeMap<>();
 
   public long version;
-  public Instant time;
   public String changeUUID = UUID.randomUUID().toString();
 
   public ConnectionCreate() {
-    this.time = Instant.now();
+    this.date = Instant.now();
   }
 
   public ConnectionCreate(Connection connection) {
-    this.connection = connection;
-    this.time = connection.getDate();
+    this.date = connection.getDate();
+    this.fromKey = connection.getFromKey();
+    this.toKey = connection.getToKey();
+    this.uuid = connection.getUuid();
+    this.date = connection.getDate();
+    this.metadata = connection.getMetadata();
+    this.version = connection.getVersion();
   }
 
   public ConnectionCreate(String changeUUID, Connection connection) {
-    this.connection = connection;
     this.changeUUID = changeUUID;
-    this.time = Instant.now();
-  }
-
-  public Connection getConnection() {
-    return connection;
-  }
-
-  public void setConnection(Connection connection) {
-    this.connection = connection;
+    this.fromKey = connection.getFromKey();
+    this.toKey = connection.getToKey();
+    this.uuid = connection.getUuid();
+    this.date = connection.getDate();
+    this.metadata = connection.getMetadata();
+    this.version = connection.getVersion();
   }
 
   public long getVersion() {
@@ -49,14 +48,6 @@ public class ConnectionCreate extends Modify {
 
   public void setVersion(long version) {
     this.version = version;
-  }
-
-  public Instant getTime() {
-    return time;
-  }
-
-  public void setTime(Instant time) {
-    this.time = time;
   }
 
   public String getChangeUUID() {

@@ -19,8 +19,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 
-
-@Conn(name = "connection", to = DataEntry.class, from = DataEntry.class)
 public class Connection<T extends DataEntry, F extends DataEntry> implements Serializable, Comparable<Connection>{
   @SkipCopy
   private static final long serialVersionUID = 1;
@@ -44,7 +42,7 @@ public class Connection<T extends DataEntry, F extends DataEntry> implements Ser
     this.modified = Instant.now();
   }
 
-  public Connection(DataEntry from, DataEntry to) {
+  public Connection(F from, T to) {
     this.uuid = UUID.randomUUID().toString();
     this.fromKey = from.getKey();
     this.toKey = to.getKey();
@@ -76,7 +74,7 @@ public class Connection<T extends DataEntry, F extends DataEntry> implements Ser
     return null;
   }
 
-  public Connection(DataEntry from, DataEntry to, Map<String, String> metadata) {
+  public Connection(F from, T to, Map<String, String> metadata) {
     this.uuid = UUID.randomUUID().toString();
     this.fromKey = from.getKey();
     this.toKey = to.getKey();

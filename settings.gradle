@@ -11,6 +11,6 @@ include 'memcache', 'shared', 'library'
 include ':cli:backup'
 include ':cli:restore'
 include 'mysql'
-include 'spring-data-nucleodb'
+include 'repository'
 include 'testapps'
 

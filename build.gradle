@@ -1,14 +1,24 @@
 plugins {
     id 'java'
+    id 'java-library'
+    id 'maven-publish'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 group = 'com.nucleodb'
-version = '1.7.10'
+version = '1.11.6'
 
 repositories {
     mavenCentral()
+    maven {
+        name = 'SynloadRepo'
+        url = uri("https://nexus.synload.com/repository/maven-repo-releases/")
+        credentials {
+            username = System.getenv("SYNLOAD_REPO_USER")
+            password = System.getenv("SYNLOAD_REPO_PASS")
+        }
+    }
 }
-
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(19)
@@ -31,4 +41,34 @@ dependencies {
     implementation 'org.dizitart:nitrite:3.4.3'
     implementation group: 'com.fasterxml.jackson.datatype', name:'jackson-datatype-jsr310', version:'2.15.2'
     implementation 'com.github.jsqlparser:jsqlparser:4.6'
+}
+
+task sourceJar(type: Jar) {
+    from sourceSets.main.allSource
+    archiveClassifier.set('sources')
+}
+task javadocJar(type: Jar) {
+    from javadoc.destinationDir
+    archiveClassifier.set('javadoc')
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+
+            artifact sourceJar
+            artifact javadocJar
+        }
+    }
+    repositories {
+        maven {
+            name = 'SynloadRepo'
+            url = uri("https://nexus.synload.com/repository/maven-repo-releases/")
+            credentials {
+                username = System.getenv("SYNLOAD_REPO_USER")
+                password = System.getenv("SYNLOAD_REPO_PASS")
+            }
+        }
+    }
 }

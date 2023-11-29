@@ -1,15 +1,1 @@
-pluginManagement {
-    repositories {
-        maven { url 'https://repo.spring.io/milestone' }
-        maven { url 'https://repo.spring.io/snapshot' }
-        gradlePluginPortal()
-    }
-}
-
-rootProject.name = 'database'
-include 'memcache', 'shared', 'library'
-include ':cli:backup'
-include ':cli:restore'
-include 'spring'
-include 'testapps'
-
+rootProject.name = 'library'

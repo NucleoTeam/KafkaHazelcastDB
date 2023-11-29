@@ -1,9 +1,11 @@
 package com.nucleocore.spring.repository.config;
 
 import com.nucleocore.library.NucleoDB;
+import com.nucleocore.library.database.tables.annotation.Conn;
 import com.nucleocore.library.database.tables.annotation.Table;
 import com.nucleocore.spring.repository.NDBRepositoryFactoryBean;
-import com.nucleocore.spring.repository.NDBRepository;
+import com.nucleocore.spring.repository.types.NDBConnRepository;
+import com.nucleocore.spring.repository.types.NDBDataRepository;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.data.repository.config.AnnotationRepositoryConfigurationSource;
 import org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport;
@@ -11,6 +13,7 @@ import org.springframework.data.repository.config.XmlRepositoryConfigurationSour
 import org.springframework.data.repository.core.RepositoryMetadata;
 
 import java.lang.annotation.Annotation;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
@@ -55,12 +58,12 @@ public class NDBRepositoryConfigurationExtension extends RepositoryConfiguration
 
   @Override
   protected Collection<Class<? extends Annotation>> getIdentifyingAnnotations() {
-    return Collections.singleton(Table.class);
+    return Arrays.asList(Table.class, Conn.class);
   }
 
   @Override
   protected Collection<Class<?>> getIdentifyingTypes() {
-    return Collections.singleton(NDBRepository.class);
+    return Arrays.asList(NDBDataRepository.class, NDBConnRepository.class);
   }
 
   @Override

@@ -1,4 +1,4 @@
-package com.nucleocore.spring.repository;
+package com.nucleocore.spring.repository.impl;
 
 import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.tables.table.DataEntry;
@@ -6,6 +6,7 @@ import com.nucleocore.library.database.tables.table.DataEntryProjection;
 import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.utils.Pagination;
 import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
+import com.nucleocore.spring.repository.types.NDBDataRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.lang.Nullable;
 
@@ -16,7 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class NDBDataEntryRepositoryImpl<T extends DataEntry, ID extends String> implements NDBRepository<T, ID>{
+public class NDBDataEntryRepositoryImpl<T extends DataEntry, ID extends String> implements NDBDataRepository<T, ID>{
   private @Nullable DataTable table = null;
   private final NucleoDB nucleoDB;
   private final Class<T> classType;

@@ -9,10 +9,11 @@ import com.nucleocore.library.database.utils.InvalidConnectionException;
 import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryClassException;
 import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleocore.library.database.utils.exceptions.MissingDataEntryConstructorsException;
-import com.nucleocore.test.common.Anime;
-import com.nucleocore.test.common.AnimeDE;
-import com.nucleocore.test.common.User;
-import com.nucleocore.test.common.WatchingConnection;
+import com.nucleocore.test.domain.Anime;
+import com.nucleocore.test.domain.AnimeDE;
+import com.nucleocore.test.domain.User;
+import com.nucleocore.test.domain.UserDE;
+import com.nucleocore.test.domain.WatchingConnection;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.IOException;
@@ -32,7 +33,7 @@ public class AnimeTest{
     NucleoDB nucleoDB = new NucleoDB(
         "127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092",
         NucleoDB.DBType.ALL,
-        "com.nucleocore.test.common",
+        "com.nucleocore.test.domain",
         "com.nucleocore.library.database.tables.connection"
     );
     logger.info(String.format("tables: %s", nucleoDB.getTables().keySet().stream().collect(Collectors.joining(", "))));
@@ -96,7 +97,7 @@ public class AnimeTest{
       if (userReference.get()!=null) {
         try {
           if (animeReference.get()!=null) {
-            nucleoDB.getConnectionHandler(WatchingConnection.class).saveSync(new WatchingConnection(userReference.get(), animeReference.get(), new TreeMap<>(){{
+            nucleoDB.getConnectionHandler(WatchingConnection.class).saveSync(new WatchingConnection((UserDE) userReference.get(), animeReference.get(), new TreeMap<>(){{
               put("time", "2.0402042");
             }}));
           }

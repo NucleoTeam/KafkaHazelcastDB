@@ -20,7 +20,7 @@ public class NDBRepositoryFactoryBean<T extends Repository<S, ID>, S, ID>
   private @NonNull NucleoDB.DBType dbType;
 
 
-  private @Nullable NucleoDB nucleoDB;
+  private static @Nullable NucleoDB nucleoDB = null;
 
   /**
    * Creates a new {@link RepositoryFactoryBeanSupport} for the given repository interface.

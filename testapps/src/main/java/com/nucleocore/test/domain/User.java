@@ -1,4 +1,4 @@
-package com.nucleocore.test.common;
+package com.nucleocore.test.domain;
 
 
 import com.nucleocore.library.database.tables.annotation.Index;

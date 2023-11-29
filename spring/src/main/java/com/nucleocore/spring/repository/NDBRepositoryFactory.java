@@ -3,6 +3,10 @@ package com.nucleocore.spring.repository;
 import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.Serializer;
+import com.nucleocore.spring.repository.impl.NDBConnectionRepositoryImpl;
+import com.nucleocore.spring.repository.impl.NDBDataEntryRepositoryImpl;
+import com.nucleocore.spring.repository.types.NDBConnRepository;
+import com.nucleocore.spring.repository.types.NDBDataRepository;
 import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.repository.core.EntityInformation;
 import org.springframework.data.repository.core.NamedQueries;
@@ -51,9 +55,9 @@ public class NDBRepositoryFactory extends RepositoryFactorySupport{
 
   @Override
   protected Class<?> getRepositoryBaseClass(RepositoryMetadata metadata) {
-    if(DataEntry.class.isAssignableFrom(metadata.getDomainType())){
+    if(NDBDataRepository.class.isAssignableFrom(metadata.getRepositoryInterface())){
       return NDBDataEntryRepositoryImpl.class;
-    }else if(Connection.class.isAssignableFrom(metadata.getDomainType())){
+    }else if(NDBConnRepository.class.isAssignableFrom(metadata.getRepositoryInterface())){
       return NDBConnectionRepositoryImpl.class;
     }
     return null;

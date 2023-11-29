@@ -1,22 +1,23 @@
-package com.nucleocore.test.common;
+package com.nucleocore.test.domain;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nucleocore.library.database.modifications.Create;
 import com.nucleocore.library.database.tables.table.DataEntry;
 
-public class UserDE extends DataEntry<User>{
-  public UserDE(User obj) {
+public class AnimeDE extends DataEntry<Anime>{
+  public AnimeDE(Anime obj) {
     super(obj);
   }
 
-  public UserDE(Create create) throws ClassNotFoundException, JsonProcessingException {
+  public AnimeDE(Create create) throws ClassNotFoundException, JsonProcessingException {
     super(create);
   }
 
-  public UserDE() {
+  public AnimeDE() {
   }
 
-  public UserDE(String key) {
+  public AnimeDE(String key) {
     super(key);
   }
+
 }

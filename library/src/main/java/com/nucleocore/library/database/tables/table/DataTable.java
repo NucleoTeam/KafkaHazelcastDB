@@ -19,13 +19,12 @@ import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.TreeSetExt;
 import com.nucleocore.library.database.utils.Utils;
 import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
-import com.nucleocore.library.database.utils.index.Index;
-import com.nucleocore.library.database.utils.index.TreeIndex;
+import com.nucleocore.library.database.tables.table.index.Index;
+import com.nucleocore.library.database.tables.table.index.TreeIndex;
 import com.nucleocore.library.kafkaLedger.ConsumerHandler;
 import com.nucleocore.library.kafkaLedger.ProducerHandler;
 import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.common.config.TopicConfig;
-import org.apache.kafka.common.errors.TopicExistsException;
 import com.github.fge.jsonpatch.JsonPatch;
 
 import java.io.File;
@@ -49,16 +48,17 @@ public class DataTable implements Serializable{
   @JsonIgnore
   private transient static Logger logger = Logger.getLogger(DataTable.class.getName());
 
-  private Set<DataEntry> entries = Sets.newTreeSet();
+  private Set<DataEntry> entries = new TreeSetExt<>();
   private DataTableConfig config;
-  private Map<String, Index> indexes = new TreeMap<>();
-  private Set<DataEntry> dataEntries = new TreeSet<>();
+  @JsonIgnore
+  private transient Map<String, Index> indexes = new TreeMap<>();
+  private Set<DataEntry> dataEntries = new TreeSetExt<>();
   private Map<String, DataEntry> keyToEntry = new TreeMap<>();
   private Map<Integer, Long> partitionOffsets = new TreeMap<>();
   private String consumerId = UUID.randomUUID().toString();
   private long changed = new Date().getTime();
   private transient AtomicInteger leftInModQueue = new AtomicInteger(0);
-  private Set<String> deletedEntries = Sets.newTreeSet();
+  private Set<String> deletedEntries = new TreeSetExt<>();
   @JsonIgnore
   private transient Queue<Object[]> indexQueue = Queues.newLinkedBlockingQueue();
   @JsonIgnore
@@ -112,10 +112,18 @@ public class DataTable implements Serializable{
         this.changed = tmpTable.changed;
         this.entries = tmpTable.entries;
         this.consumerId = tmpTable.consumerId;
-        this.indexes = tmpTable.indexes;
         this.partitionOffsets = tmpTable.partitionOffsets;
         this.keyToEntry = tmpTable.keyToEntry;
-        this.entries.forEach(e -> e.setTableName(this.config.getTable()));
+        this.entries.forEach(e -> {
+          for (Index i : this.indexes.values()) {
+            try {
+              i.add(e);
+            } catch (JsonProcessingException ex) {
+              throw new RuntimeException(ex);
+            }
+          }
+          e.setTableName(this.config.getTable());
+        });
       } catch (IOException e) {
         throw new RuntimeException(e);
       } catch (ClassNotFoundException e) {
@@ -185,6 +193,12 @@ public class DataTable implements Serializable{
   public DataTable(DataTableConfig config) {
     this.config = config;
 
+    config.getIndexes().stream().map(i -> new TreeIndex(i)).collect(Collectors.toSet()).forEach(i -> {
+      if (!this.indexes.containsKey(i.getIndexedKey())) {
+        this.indexes.put(i.getIndexedKey(), i);
+      }
+    });
+
     if (config.isLoadSave()) {
       loadSavedData();
     }
@@ -192,12 +206,6 @@ public class DataTable implements Serializable{
     if (config.isWrite()) {
       createTopics();
     }
-
-    Arrays.stream(config.getIndexes()).map(i -> new TreeIndex(i)).collect(Collectors.toSet()).forEach(i -> {
-      if (!this.indexes.containsKey(i.getIndexedKey())) {
-        this.indexes.put(i.getIndexedKey(), i);
-      }
-    });
 
     this.fields = new ArrayList<>(){{
       addAll(Arrays.asList(config.getClazz().getDeclaredFields()));

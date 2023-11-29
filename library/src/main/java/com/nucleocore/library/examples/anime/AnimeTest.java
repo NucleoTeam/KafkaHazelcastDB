@@ -15,6 +15,7 @@ import com.nucleocore.library.examples.anime.definitions.UserDE;
 import com.nucleocore.library.examples.anime.definitions.AnimeDE;
 import com.nucleocore.library.examples.anime.tables.Anime;
 import com.nucleocore.library.examples.anime.tables.User;
+import com.nucleocore.library.examples.anime.tables.nested.VoiceActor;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -37,6 +38,7 @@ public class AnimeTest{
         "com.nucleocore.library.examples.anime.tables",
         "com.nucleocore.library.examples.anime.connections"
     );
+    logger.info(String.format("indexes: %s",Serializer.getObjectMapper().getOm().writeValueAsString(nucleoDB.getTable(Anime.class).getIndexes())));
     logger.info(String.format("tables: %s", nucleoDB.getTables().keySet().stream().collect(Collectors.joining(", "))));
     logger.info(String.format("connections: %s", nucleoDB.getConnections().keySet().stream().collect(Collectors.joining(", "))));
     DataTable userTable = nucleoDB.getTable(User.class);
@@ -57,6 +59,7 @@ public class AnimeTest{
 
       Anime a = new Anime();
       a.setName(animeName);
+      a.getActors().add(new VoiceActor("Maaya Sakamoto"));
       a.setOwner("firestar");
 
       AtomicReference<AnimeDE> animeReference = new AtomicReference<>();
@@ -75,6 +78,8 @@ public class AnimeTest{
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
+      //logger.info(String.format("indexes: %s",Serializer.getObjectMapper().getOm().writeValueAsString(nucleoDB.getTable(Anime.class).getIndexes())));
+
 
       AtomicReference<UserDE> userReference = new AtomicReference<>();
       userTable.saveAsync(new User(userName, "me"), (dataEntry -> {
@@ -92,7 +97,6 @@ public class AnimeTest{
       }
       try {
         String user = ((UserDE) userTable.getEntries().stream().findFirst().get()).getData().getUser();
-        Serializer.log(user);
       }catch (Exception e){
         e.printStackTrace();
       }
@@ -119,6 +123,12 @@ public class AnimeTest{
           WatchingConnection connection = (WatchingConnection)connectionOptional.stream().findFirst().get();
           logger.info("connection found type is "+connection.getClass().getName());
           logger.info("anime name is "+connection.toEntry().getData().getName());
+          connection.setTime(555.222f);
+          try {
+            nucleoDB.getConnectionHandler(WatchingConnection.class).saveSync(connection);
+          } catch (InvalidConnectionException e) {
+            throw new RuntimeException(e);
+          }
           nucleoDB.getConnectionHandler(WatchingConnection.class).deleteSync(connectionOptional.stream().findFirst().get());
         }
 

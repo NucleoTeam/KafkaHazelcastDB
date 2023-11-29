@@ -1,20 +1,14 @@
 package com.nucleocore.library;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.collect.Queues;
 import com.nucleocore.library.database.modifications.Create;
 import com.nucleocore.library.database.tables.annotation.Conn;
-import com.nucleocore.library.database.tables.connection.Connection;
 import com.nucleocore.library.database.tables.connection.ConnectionConfig;
 import com.nucleocore.library.database.tables.connection.ConnectionHandler;
 import com.nucleocore.library.database.tables.annotation.Index;
-import com.nucleocore.library.database.tables.annotation.Relationship;
-import com.nucleocore.library.database.tables.annotation.Relationships;
 import com.nucleocore.library.database.tables.annotation.Table;
 import com.nucleocore.library.database.utils.TreeSetExt;
 import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryClassException;
 import com.nucleocore.library.database.utils.exceptions.MissingDataEntryConstructorsException;
-import com.nucleocore.library.database.utils.index.TreeIndex;
 import com.nucleocore.library.database.utils.sql.SQLHandler;
 import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.tables.table.DataTableBuilder;
@@ -30,12 +24,13 @@ import net.sf.jsqlparser.statement.update.Update;
 import org.reflections.Reflections;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Logger;
+
+import static com.nucleocore.library.utils.field.FieldFinder.getAllAnnotatedFields;
 
 public class NucleoDB{
   private static Logger logger = Logger.getLogger(DataTable.class.getName());
@@ -136,6 +131,9 @@ public class NucleoDB{
     for (Class<?> type : tableTypes) {
       Table tableAnnotation = type.getAnnotation(Table.class);
       String tableName = tableAnnotation.tableName();
+      if(tableName.isEmpty()){
+        tableName = type.getName().toLowerCase();
+      }
       Class dataEntryClass = tableAnnotation.dataEntryClass();
       if(!DataEntry.class.isAssignableFrom(dataEntryClass)){
         throw new IncorrectDataEntryClassException(String.format("%s does not extend DataEntry", dataEntryClass.getName()));
@@ -149,7 +147,9 @@ public class NucleoDB{
       } catch (NoSuchMethodException e) {
         throw new MissingDataEntryConstructorsException(String.format("%s does not have all DataEntry constructors overridden!", dataEntryClass.getName()), e);
       }
-      processTableClass(tableName, indexes, type);
+
+      indexes.put(tableName, processIndexListForClass(type));
+
       switch (dbType) {
         case ALL -> tables.add(launchTable(bootstrap, tableName, dataEntryClass, type, new StartupRun(){
           public void run(DataTable table) {
@@ -169,7 +169,7 @@ public class NucleoDB{
       }
     }
     tables.stream().forEach(table -> {
-      table.setIndexes(indexes.get(table.getConfig().getTable()).toArray(new String[0]));
+      table.addIndexes(indexes.get(table.getConfig().getTable()));
       table.build();
     });
     try {
@@ -181,130 +181,17 @@ public class NucleoDB{
     }
   }
 
-  public Set<DataEntry> getAllRelated(DataEntry dataEntry) {
-    Set<DataEntry> set = new TreeSetExt<>();
-    if (dataEntry.getData().getClass().isAnnotationPresent(Table.class)) {
-      Table localTable = dataEntry.getData().getClass().getAnnotation(Table.class);
-      String localTableName = localTable.tableName();
-      for (Relationship relationship : getRelationships(dataEntry.getData().getClass())) {
-        getRelatedByRelationship(dataEntry, set, localTableName, relationship);
+  private Set<String> processIndexListForClass(Class<?> clazz) {
+    Set<String> indexes = new TreeSet<>();
+
+    getAllAnnotatedFields(clazz, Index.class, "").forEach(field->{
+      if (field.getAnnotation().value().isEmpty()) {
+        indexes.add(field.getPath());
+      } else {
+        indexes.add(field.getAnnotation().value());
       }
-    }
-    return set;
-  }
-
-  public Set<DataEntry> getRelated(DataEntry dataEntry, Class clazz) {
-    Set<DataEntry> set = new TreeSetExt<>();
-    if (dataEntry.getData().getClass().isAnnotationPresent(Table.class)) {
-      Table localTable = dataEntry.getData().getClass().getAnnotation(Table.class);
-      String localTableName = localTable.tableName();
-      for (Relationship relationship : getRelationships(dataEntry.getData().getClass())) {
-        if (relationship.clazz() == clazz) {
-          getRelatedByRelationship(dataEntry, set, localTableName, relationship);
-        } else {
-          //logger.info("Relation ignored");
-        }
-      }
-    }
-    return set;
-  }
-
-  public Set<DataEntry> getRelatedRemote(DataEntry dataEntry, Class clazz, String index) {
-    Set<DataEntry> set = new TreeSetExt<>();
-    if (dataEntry.getData().getClass().isAnnotationPresent(Table.class)) {
-      Table localTable = dataEntry.getData().getClass().getAnnotation(Table.class);
-      String localTableName = localTable.tableName();
-      for (Relationship relationship : getRelationships(dataEntry.getData().getClass())) {
-        if (relationship.clazz() == clazz && index.equals(relationship.remoteKey())) {
-          getRelatedByRelationship(dataEntry, set, localTableName, relationship);
-        } else {
-          //logger.info("Relation ignored");
-        }
-      }
-    }
-    return set;
-  }
-
-  public Set<DataEntry> getRelatedLocal(DataEntry dataEntry, Class clazz, String index) {
-    Set<DataEntry> set = new TreeSetExt<>();
-    if (dataEntry.getData().getClass().isAnnotationPresent(Table.class)) {
-      Table localTable = dataEntry.getData().getClass().getAnnotation(Table.class);
-      String localTableName = localTable.tableName();
-      for (Relationship relationship : getRelationships(dataEntry.getData().getClass())) {
-        if (relationship.clazz() == clazz && index.equals(relationship.localKey())) {
-          getRelatedByRelationship(dataEntry, set, localTableName, relationship);
-        } else {
-          //logger.info("Relation ignored");
-        }
-      }
-    }
-    return set;
-  }
-
-  private void getRelatedByRelationship(DataEntry dataEntry, Set<DataEntry> set, String localTableName, Relationship relationship) {
-    if (relationship.clazz().isAnnotationPresent(Table.class)) {
-      Table remoteTable = (Table) relationship.clazz().getAnnotation(Table.class);
-      String remoteTableName = remoteTable.tableName();
-      //logger.info("getting for relationship from " + localTableName + " to " + remoteTableName);
-      try {
-        //logger.info(relationship.localKey());
-        List<Object> values = new TreeIndex().getValues(Queues.newLinkedBlockingDeque(Arrays.asList(relationship.localKey().split("\\."))), dataEntry.getData());
-        if (values.size() > 0) {
-          for (Object value : values) {
-            set.addAll(this.getTable(remoteTableName).get(relationship.remoteKey(), value, null));
-          }
-        }
-      } catch (JsonProcessingException e) {
-        e.printStackTrace();
-      }
-    } else {
-      logger.info("Target class not a NucleoDB Table.");
-    }
-
-  }
-
-  private void processRelationship(String tableName, Map<String, Set<String>> indexes, Relationship relationship) {
-    indexes.get(tableName).add(relationship.localKey());
-    if (relationship.clazz().isAnnotationPresent(Table.class)) {
-      String tableNameRemote = ((Table) relationship.clazz().getAnnotation(Table.class)).tableName();
-      if (!indexes.containsKey(tableNameRemote)) {
-        processTableClass(tableNameRemote, indexes, relationship.clazz());
-      }
-      indexes.get(tableNameRemote).add(relationship.remoteKey());
-    }
-  }
-
-  private List<Relationship> getRelationships(Class<?> clazz) {
-    List<Relationship> relationships = new LinkedList<>();
-    if (clazz.isAnnotationPresent(Relationship.class)) {
-      Relationship relationship = clazz.getAnnotation(Relationship.class);
-      relationships.add(relationship);
-    }
-    if (clazz.isAnnotationPresent(Relationships.class)) {
-      Relationships relationship = clazz.getAnnotation(Relationships.class);
-      relationships.addAll(Arrays.stream(relationship.value()).toList());
-    }
-    return relationships;
-  }
-
-  private void processTableClass(String tableName, Map<String, Set<String>> indexes, Class<?> clazz) {
-    if (!indexes.containsKey(tableName)) {
-      indexes.put(tableName, new TreeSetExt<>());
-    }
-    for (Field declaredField : clazz.getDeclaredFields()) {
-      if (declaredField.isAnnotationPresent(Index.class)) {
-        Index i = declaredField.getAnnotation(Index.class);
-        if (i.value().isEmpty()) {
-          indexes.get(tableName).addAll(Arrays.asList(declaredField.getName().toLowerCase()));
-        } else {
-          indexes.get(tableName).addAll(Arrays.asList(i.value()));
-        }
-      }
-    }
-
-    for (Relationship relationship : getRelationships(clazz)) {
-      processRelationship(tableName, indexes, relationship);
-    }
+    });
+    return indexes;
   }
 
   public <T> Object sql(String sqlStr) throws JSQLParserException {

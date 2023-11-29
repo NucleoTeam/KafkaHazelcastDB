@@ -1,6 +1,8 @@
 package com.nucleocore.library.database.modifications;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nucleocore.library.database.tables.connection.Connection;
+import com.nucleocore.library.database.utils.Serializer;
 
 import java.time.Instant;
 import java.util.Map;
@@ -9,11 +11,9 @@ import java.util.UUID;
 
 public class ConnectionCreate extends Modify {
 
+  private String connectionData;
   private String uuid;
-  private String fromKey;
-  private String toKey;
   private Instant date;
-  private Map<String, String> metadata = new TreeMap<>();
 
   public long version;
   public String changeUUID = UUID.randomUUID().toString();
@@ -24,22 +24,26 @@ public class ConnectionCreate extends Modify {
 
   public ConnectionCreate(Connection connection) {
     this.date = connection.getDate();
-    this.fromKey = connection.getFromKey();
-    this.toKey = connection.getToKey();
     this.uuid = connection.getUuid();
     this.date = connection.getDate();
-    this.metadata = connection.getMetadata();
     this.version = connection.getVersion();
+    try {
+      this.connectionData = Serializer.getObjectMapper().getOm().writeValueAsString(connection);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public ConnectionCreate(String changeUUID, Connection connection) {
     this.changeUUID = changeUUID;
-    this.fromKey = connection.getFromKey();
-    this.toKey = connection.getToKey();
     this.uuid = connection.getUuid();
     this.date = connection.getDate();
-    this.metadata = connection.getMetadata();
     this.version = connection.getVersion();
+    try {
+      this.connectionData = Serializer.getObjectMapper().getOm().writeValueAsString(connection);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public long getVersion() {
@@ -66,22 +70,6 @@ public class ConnectionCreate extends Modify {
     this.uuid = uuid;
   }
 
-  public String getFromKey() {
-    return fromKey;
-  }
-
-  public void setFromKey(String fromKey) {
-    this.fromKey = fromKey;
-  }
-
-  public String getToKey() {
-    return toKey;
-  }
-
-  public void setToKey(String toKey) {
-    this.toKey = toKey;
-  }
-
   public Instant getDate() {
     return date;
   }
@@ -90,11 +78,11 @@ public class ConnectionCreate extends Modify {
     this.date = date;
   }
 
-  public Map<String, String> getMetadata() {
-    return metadata;
+  public String getConnectionData() {
+    return connectionData;
   }
 
-  public void setMetadata(Map<String, String> metadata) {
-    this.metadata = metadata;
+  public void setConnectionData(String connectionData) {
+    this.connectionData = connectionData;
   }
 }

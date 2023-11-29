@@ -15,7 +15,7 @@ public class Anime implements Serializable{
   @Index()
   String name;
   List<String> tags = new ArrayList<>();
-  List<VoiceActor> actors;
+  List<VoiceActor> actors = new ArrayList<>();
   String image;
 
   String owner;

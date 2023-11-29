@@ -50,16 +50,6 @@ public class Connection<T extends DataEntry, F extends DataEntry> implements Ser
     this.modified = Instant.now();
   }
 
-  public Connection(ConnectionCreate connectionCreate) {
-    this.uuid = connectionCreate.getUuid();
-    this.fromKey = connectionCreate.getFromKey();
-    this.toKey = connectionCreate.getToKey();;
-    this.date = connectionCreate.getDate();
-    this.version = connectionCreate.getVersion();
-    this.metadata = new TreeMap<>(connectionCreate.getMetadata());
-
-  }
-
   public <T> T copy(Class<T> clazz)  {
     ObjectMapper om = new ObjectMapper()
         .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)

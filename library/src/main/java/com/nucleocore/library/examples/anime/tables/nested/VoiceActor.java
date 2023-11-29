@@ -1,10 +1,13 @@
 package com.nucleocore.library.examples.anime.tables.nested;
 
+import com.nucleocore.library.database.tables.annotation.Index;
+
 import java.io.Serializable;
 import java.util.List;
 
 public class VoiceActor implements Serializable{
   private static final long serialVersionUID = 1;
+  @Index
   String name;
   String character;
 

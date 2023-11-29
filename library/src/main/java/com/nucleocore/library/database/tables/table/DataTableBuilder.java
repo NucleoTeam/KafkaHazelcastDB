@@ -5,6 +5,7 @@ import com.nucleocore.library.database.utils.StartupRun;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Instant;
+import java.util.Set;
 
 public class DataTableBuilder implements Comparable{
   private static final long serialVersionUID = 1;
@@ -94,18 +95,8 @@ public class DataTableBuilder implements Comparable{
     return this;
   }
 
-  public DataTableBuilder setIndexes(String... indexes) {
-    int inLen = indexes.length;
-    int oldLen = this.config.getIndexes().length;
-    String[] newIndexArray = new String[inLen+oldLen];
-
-    for (int i = 0; i < inLen; i++) {
-      newIndexArray[i] = indexes[i];
-    }
-    for (int i = 0; i < oldLen; i++) {
-      newIndexArray[inLen+i] = this.config.getIndexes()[i];
-    }
-    this.config.setIndexes(newIndexArray);
+  public DataTableBuilder addIndexes(Set<String> indexes) {
+    this.config.getIndexes().addAll(indexes);
     return this;
   }
   public DataTableBuilder setStartupRun(StartupRun startupRun) {

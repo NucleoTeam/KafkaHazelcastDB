@@ -1,4 +1,4 @@
-package com.nucleocore.library.database.utils.index;
+package com.nucleocore.library.database.tables.table.index;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nucleocore.library.database.tables.table.DataEntry;

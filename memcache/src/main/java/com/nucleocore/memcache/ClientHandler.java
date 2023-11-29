@@ -4,7 +4,7 @@ import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
-import com.nucleocore.library.database.utils.index.TreeIndex;
+import com.nucleocore.library.database.tables.table.index.TreeIndex;
 
 import java.io.*;
 import java.net.*;

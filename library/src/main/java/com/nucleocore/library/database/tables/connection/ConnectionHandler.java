@@ -557,24 +557,25 @@ public class ConnectionHandler implements Serializable{
       case CONNECTIONCREATE:
         ConnectionCreate c = (ConnectionCreate) modification;
 
-        logger.info("Create statement called");
+        //logger.info("Create statement called");
         if (c != null) {
           itemProcessed();
           if (this.config.getReadToTime() != null && c.getDate().isAfter(this.config.getReadToTime())) {
-            logger.info("Create after target db date");
+            //logger.info("Create after target db date");
             return;
           }
           try {
             if (connectionByUUID.containsKey(c.getUuid())) {
-              logger.info("Ignore already saved change.");
+              //logger.info("Ignore already saved change.");
               return; // ignore this create
             }
 
-            Connection connection = (Connection) getConfig().getConnectionClass().getDeclaredConstructor(ConnectionCreate.class).newInstance(c);
-            Serializer.log(connection);
+
+            Connection connection = (Connection) Serializer.getObjectMapper().getOm().readValue(c.getConnectionData(), getConfig().getConnectionClass());
+
             this.addConnection(connection);
-            Serializer.log("Connection added to db");
-            Serializer.log(consumers.asMap().keySet());
+            //Serializer.log("Connection added to db");
+            //Serializer.log(consumers.asMap().keySet());
             this.changed = new Date().getTime();
             if (c.getChangeUUID() != null) {
               Consumer<Connection> consumer = consumers.getIfPresent(c.getChangeUUID());
@@ -594,35 +595,35 @@ public class ConnectionHandler implements Serializable{
       case CONNECTIONDELETE:
         try {
           ConnectionDelete d = (ConnectionDelete) modification;
-          logger.info("Delete statement called");
+          //logger.info("Delete statement called");
           if (d != null) {
             itemProcessed();
             if (this.config.getReadToTime() != null && d.getTime().isAfter(this.config.getReadToTime())) {
-              logger.info("Delete after target db date");
+              //logger.info("Delete after target db date");
               //System.exit(1);
               return;
             }
             Connection conn = connectionByUUID.get(d.getUuid());
             if (conn != null) {
               if (conn.getVersion() >= d.getVersion()) {
-                logger.info("Ignore already saved change.");
+                //logger.info("Ignore already saved change.");
                 //System.exit(1);
                 return; // ignore change
               }
               if (conn.getVersion() + 1 != d.getVersion()) {
                 itemRequeue();
-                Serializer.log("Version not ready!");
+                //Serializer.log("Version not ready!");
                 modqueue.add(new ModificationQueueItem(mod, modification));
                 leftInModQueue.incrementAndGet();
                 synchronized (modqueue) {
                   modqueue.notifyAll();
                 }
               } else {
-                logger.info("Deleted");
+                //logger.info("Deleted");
                 this.removeConnection(conn);
-                logger.info("removed from db");
+                //logger.info("removed from db");
                 deletedEntries.add(d.getUuid());
-                logger.info("Added to deleted entries");
+                //logger.info("Added to deleted entries");
                 this.changed = new Date().getTime();
                 if (d.getChangeUUID() != null) {
                   Consumer<Connection> consumer = consumers.getIfPresent(d.getChangeUUID());
@@ -641,7 +642,7 @@ public class ConnectionHandler implements Serializable{
               }
             } else {
               if (deletedEntries.contains(d.getUuid())) {
-                logger.info("already deleted conn "+d.getUuid());
+                //logger.info("already deleted conn "+d.getUuid());
                 //System.exit(1);
                 return;
               } else {

@@ -2,7 +2,9 @@ package com.nucleocore.test.spring;
 
 import com.nucleocore.test.common.Anime;
 import com.nucleocore.test.common.AnimeDE;
+import com.nucleocore.test.common.WatchingConnection;
 import com.nucleocore.test.spring.repo.AnimeRepository;
+import com.nucleocore.test.spring.repo.WatchingConnectionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +18,8 @@ import java.util.Optional;
 public class AnimeController{
   @Autowired
   AnimeRepository animeRepository;
+  @Autowired
+  WatchingConnectionRepository watchingConnectionRepository;
 
   @GetMapping("/")
   public List<AnimeDE> test(){
@@ -34,5 +38,11 @@ public class AnimeController{
   @GetMapping("/query")
   public AnimeDE queryTest(){
     return animeRepository.findByName("test");
+  }
+
+  @GetMapping
+  public void createRelationship(){
+
+    watchingConnectionRepository.save(new WatchingConnection());
   }
 }

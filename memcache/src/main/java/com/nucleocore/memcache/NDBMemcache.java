@@ -30,7 +30,7 @@ public class NDBMemcache{
           e.printStackTrace();
         }
       }
-    }).setIndexes("name").build();
+    }).addIndexes("name").build();
   }
 
 

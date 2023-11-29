@@ -1,4 +1,4 @@
-package com.nucleocore.library.database.utils.index;
+package com.nucleocore.library.database.tables.table.index;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Queues;
@@ -25,7 +25,7 @@ public abstract class Index implements Serializable{
 
 
   public List<Object> getIndexValue(DataEntry dataEntry) throws JsonProcessingException {
-    return getValues(Queues.newLinkedBlockingDeque(Arrays.asList(this.indexedKeyStr.split("\\."))), dataEntry.getData());
+    return getValues(Queues.newConcurrentLinkedQueue(Arrays.asList(this.indexedKeyStr.split("\\."))), dataEntry.getData());
     /*String json = dataEntry.getReference().toString();
     try (JsonReader reader = Json.createReader(new StringReader(json))) {
       System.out.println(json);
@@ -71,7 +71,7 @@ public abstract class Index implements Serializable{
       //System.out.println(current.getClass().getName());
       return ((Collection<?>) current).stream().map(c-> {
         try {
-          return getValues(Queues.newLinkedBlockingDeque(pointer), c);
+          return getValues(Queues.newConcurrentLinkedQueue(pointer), c);
         } catch (JsonProcessingException e) {
           return new LinkedList();
         }

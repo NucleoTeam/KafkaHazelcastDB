@@ -5,6 +5,8 @@ import com.nucleocore.library.database.utils.StartupRun;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.Set;
+import java.util.TreeSet;
 
 public class DataTableConfig implements Serializable{
   private static final long serialVersionUID = 4416983891804575837L;
@@ -20,7 +22,7 @@ public class DataTableConfig implements Serializable{
   Class dataEntryClass;
   boolean read = true;
   boolean write = true;
-  String[] indexes = new String[0];
+  Set<String> indexes = new TreeSet<>();
   @JsonIgnore
   private transient StartupRun startupRun = null;
 
@@ -66,7 +68,7 @@ public class DataTableConfig implements Serializable{
     return write;
   }
 
-  public String[] getIndexes() {
+  public Set<String> getIndexes() {
     return indexes;
   }
 
@@ -107,7 +109,7 @@ public class DataTableConfig implements Serializable{
     this.write = write;
   }
 
-  public void setIndexes(String[] indexes) {
+  public void setIndexes(Set<String> indexes) {
     this.indexes = indexes;
   }
 

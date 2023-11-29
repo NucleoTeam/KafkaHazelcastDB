@@ -1,4 +1,4 @@
-package com.nucleocore.spring.repository.types;
+package com.nucleodb.spring.types;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.repository.CrudRepository;

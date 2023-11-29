@@ -1,4 +1,4 @@
-package com.nucleocore.spring.repository.impl;
+package com.nucleodb.spring.impl;
 
 import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.tables.connection.Connection;
@@ -8,16 +8,10 @@ import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.InvalidConnectionException;
 import com.nucleocore.library.database.utils.Pagination;
 import com.nucleocore.library.database.utils.TreeSetExt;
-import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
-import com.nucleocore.spring.repository.types.NDBConnRepository;
-import jdk.jshell.spi.ExecutionControl;
+import com.nucleodb.spring.types.NDBConnRepository;
 import org.springframework.lang.Nullable;
 
 import java.io.IOException;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;

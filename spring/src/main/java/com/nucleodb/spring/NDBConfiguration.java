@@ -1,4 +1,4 @@
-package com.nucleocore.spring.repository;
+package com.nucleodb.spring;
 
 public class NDBConfiguration{
   String[] packages;

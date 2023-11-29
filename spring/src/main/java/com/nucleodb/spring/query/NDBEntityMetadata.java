@@ -1,4 +1,4 @@
-package com.nucleocore.spring.repository.query;
+package com.nucleodb.spring.query;
 
 import com.nucleocore.library.database.tables.table.DataEntry;
 import org.springframework.data.repository.core.EntityInformation;

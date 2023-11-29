@@ -1,4 +1,4 @@
-package com.nucleocore.spring.repository.impl;
+package com.nucleodb.spring.impl;
 
 import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.tables.table.DataEntry;
@@ -6,7 +6,7 @@ import com.nucleocore.library.database.tables.table.DataEntryProjection;
 import com.nucleocore.library.database.tables.table.DataTable;
 import com.nucleocore.library.database.utils.Pagination;
 import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryObjectException;
-import com.nucleocore.spring.repository.types.NDBDataRepository;
+import com.nucleodb.spring.types.NDBDataRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.lang.Nullable;
 

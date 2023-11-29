@@ -1,11 +1,11 @@
-package com.nucleocore.spring.repository.config;
+package com.nucleodb.spring.config;
 
 import com.nucleocore.library.NucleoDB;
 import com.nucleocore.library.database.tables.annotation.Conn;
 import com.nucleocore.library.database.tables.annotation.Table;
-import com.nucleocore.spring.repository.NDBRepositoryFactoryBean;
-import com.nucleocore.spring.repository.types.NDBConnRepository;
-import com.nucleocore.spring.repository.types.NDBDataRepository;
+import com.nucleodb.spring.NDBRepositoryFactoryBean;
+import com.nucleodb.spring.types.NDBConnRepository;
+import com.nucleodb.spring.types.NDBDataRepository;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.data.repository.config.AnnotationRepositoryConfigurationSource;
 import org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport;
@@ -15,7 +15,6 @@ import org.springframework.data.repository.core.RepositoryMetadata;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Optional;
 
 public class NDBRepositoryConfigurationExtension extends RepositoryConfigurationExtensionSupport{

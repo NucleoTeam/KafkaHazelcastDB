@@ -1,4 +1,4 @@
-package com.nucleocore.spring.repository.config;
+package com.nucleodb.spring.config;
 
 import org.springframework.data.repository.config.RepositoryBeanDefinitionRegistrarSupport;
 import org.springframework.data.repository.config.RepositoryConfigurationExtension;

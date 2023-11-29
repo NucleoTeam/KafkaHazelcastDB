@@ -1,7 +1,7 @@
-package com.nucleocore.spring.repository.config;
+package com.nucleodb.spring.config;
 
 import com.nucleocore.library.NucleoDB;
-import com.nucleocore.spring.repository.NDBRepositoryFactoryBean;
+import com.nucleodb.spring.NDBRepositoryFactoryBean;
 import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.ElementType;

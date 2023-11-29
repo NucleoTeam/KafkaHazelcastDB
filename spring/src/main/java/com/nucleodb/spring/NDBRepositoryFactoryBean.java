@@ -1,7 +1,6 @@
-package com.nucleocore.spring.repository;
+package com.nucleodb.spring;
 
 import com.nucleocore.library.NucleoDB;
-import com.nucleocore.library.database.utils.Serializer;
 import com.nucleocore.library.database.utils.exceptions.IncorrectDataEntryClassException;
 import com.nucleocore.library.database.utils.exceptions.MissingDataEntryConstructorsException;
 import org.springframework.data.repository.core.support.RepositoryFactoryBeanSupport;

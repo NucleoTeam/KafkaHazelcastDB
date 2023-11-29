@@ -1,4 +1,4 @@
-package com.nucleocore.spring.repository.types;
+package com.nucleodb.spring.types;
 
 import com.nucleocore.library.database.tables.connection.Connection;
 import com.nucleocore.library.database.tables.connection.ConnectionProjection;

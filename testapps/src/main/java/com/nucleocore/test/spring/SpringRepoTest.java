@@ -1,8 +1,8 @@
 package com.nucleocore.test.spring;
 
 import com.nucleocore.library.NucleoDB;
-import com.nucleocore.spring.repository.config.EnableNDBRepositories;
-import com.nucleocore.spring.repository.NDBConfiguration;
+import com.nucleodb.spring.config.EnableNDBRepositories;
+import com.nucleodb.spring.NDBConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -17,7 +17,7 @@ import org.springframework.context.annotation.ComponentScan;
     },
     basePackages = "com.nucleocore.test.spring.repo"
 )
-@ComponentScan(basePackages = {"com.nucleocore.spring.repository", "com.nucleocore.test.spring"})
+@ComponentScan(basePackages = {"com.nucleodb.spring", "com.nucleocore.test.spring"})
 public class SpringRepoTest{
     public static void main(String[] args){
         SpringApplication.run(SpringRepoTest.class);

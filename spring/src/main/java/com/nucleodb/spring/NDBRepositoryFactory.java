@@ -1,12 +1,11 @@
-package com.nucleocore.spring.repository;
+package com.nucleodb.spring;
 
 import com.nucleocore.library.NucleoDB;
-import com.nucleocore.library.database.tables.table.DataEntry;
 import com.nucleocore.library.database.utils.Serializer;
-import com.nucleocore.spring.repository.impl.NDBConnectionRepositoryImpl;
-import com.nucleocore.spring.repository.impl.NDBDataEntryRepositoryImpl;
-import com.nucleocore.spring.repository.types.NDBConnRepository;
-import com.nucleocore.spring.repository.types.NDBDataRepository;
+import com.nucleodb.spring.impl.NDBConnectionRepositoryImpl;
+import com.nucleodb.spring.impl.NDBDataEntryRepositoryImpl;
+import com.nucleodb.spring.types.NDBConnRepository;
+import com.nucleodb.spring.types.NDBDataRepository;
 import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.repository.core.EntityInformation;
 import org.springframework.data.repository.core.NamedQueries;
@@ -22,7 +21,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 import java.lang.reflect.Method;
-import java.sql.Connection;
 import java.util.Optional;
 
 public class NDBRepositoryFactory extends RepositoryFactorySupport{

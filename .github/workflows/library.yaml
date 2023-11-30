@@ -18,7 +18,7 @@ jobs:
       - name: Publish package
         uses: gradle/gradle-build-action@749f47bda3e44aa060e82d7b3ef7e40d953bd629
         with:
-          arguments: "shadowJar publish"
+          arguments: "build publish"
         env:
           SYNLOAD_REPO_USER: ${{ secrets.SYNLOAD_REPO_USER}}
           SYNLOAD_REPO_PASS: ${{ secrets.SYNLOAD_REPO_PASS}}

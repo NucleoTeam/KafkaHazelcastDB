@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class DataTable implements Serializable{
   private static final long serialVersionUID = 1;
@@ -325,7 +326,12 @@ public class DataTable implements Serializable{
       dataEntryProjection = new DataEntryProjection();
     }
     try {
-      return dataEntryProjection.process(this.indexes.get(key).search(searchObject).stream()).map(de->(DataEntry)de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+      Stream<DataEntry> process = dataEntryProjection.process(this.indexes.get(key).search(searchObject).stream());
+      if(dataEntryProjection.isWritable()) {
+        return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+      }else{
+        return process.collect(Collectors.toSet());
+      }
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -351,7 +357,12 @@ public class DataTable implements Serializable{
     } catch (Exception e) {
       e.printStackTrace();
     }
-    return dataEntryProjection.process(entries.stream()).map(de->(DataEntry)de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+    Stream<DataEntry> process = dataEntryProjection.process(entries.stream());
+    if(dataEntryProjection.isWritable()) {
+      return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+    }else{
+      return process.collect(Collectors.toSet());
+    }
   }
 
   public Set<DataEntry> getNotEqual(String key, Object value, DataEntryProjection dataEntryProjection) {
@@ -368,7 +379,12 @@ public class DataTable implements Serializable{
       Set<DataEntry> negation = new TreeSet<>(entries);
       negation.removeAll(foundEntries);
       if (entries != null) {
-        return dataEntryProjection.process(negation.stream()).map(c->(DataEntry)c.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+        Stream<DataEntry> process = dataEntryProjection.process(negation.stream());
+        if(dataEntryProjection.isWritable()) {
+          return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+        }else{
+          return process.collect(Collectors.toSet());
+        }
       }
     } catch (Exception e) {
       e.printStackTrace();

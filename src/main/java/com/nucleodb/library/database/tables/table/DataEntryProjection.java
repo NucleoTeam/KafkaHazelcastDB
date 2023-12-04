@@ -9,6 +9,8 @@ public class DataEntryProjection{
 
   Predicate<DataEntry> filter = null;
 
+  boolean writable = true;
+
   public DataEntryProjection(Pagination pagination, Predicate<DataEntry> filter) {
     this.pagination = pagination;
     this.filter = filter;
@@ -40,5 +42,21 @@ public class DataEntryProjection{
   }
   public void setFilter(Predicate<DataEntry> filter) {
     this.filter = filter;
+  }
+
+  public Pagination getPagination() {
+    return pagination;
+  }
+
+  public Predicate<DataEntry> getFilter() {
+    return filter;
+  }
+
+  public boolean isWritable() {
+    return writable;
+  }
+
+  public void setWritable(boolean writable) {
+    this.writable = writable;
   }
 }

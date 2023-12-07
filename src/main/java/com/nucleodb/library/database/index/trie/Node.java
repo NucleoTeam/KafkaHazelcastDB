@@ -1,5 +1,6 @@
 package com.nucleodb.library.database.index.trie;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Lists;
 
 import java.util.List;
@@ -24,6 +25,7 @@ public class Node{
     return nodes;
   }
 
+  @JsonIgnore
   public Node getParent() {
     return parent;
   }
@@ -36,6 +38,7 @@ public class Node{
     return entries;
   }
 
+  @JsonIgnore
   public List<Entry> getPartialEntries() {
     return partialEntries;
   }

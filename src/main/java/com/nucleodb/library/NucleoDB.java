@@ -1,11 +1,13 @@
 package com.nucleodb.library;
 
+import com.nucleodb.library.database.index.TreeIndex;
 import com.nucleodb.library.database.modifications.Create;
 import com.nucleodb.library.database.tables.annotation.Conn;
 import com.nucleodb.library.database.tables.connection.ConnectionConfig;
 import com.nucleodb.library.database.tables.connection.ConnectionHandler;
-import com.nucleodb.library.database.tables.annotation.Index;
+import com.nucleodb.library.database.index.annotation.Index;
 import com.nucleodb.library.database.tables.annotation.Table;
+import com.nucleodb.library.database.tables.table.DataTableConfig;
 import com.nucleodb.library.database.utils.TreeSetExt;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryClassException;
 import com.nucleodb.library.database.utils.exceptions.MissingDataEntryConstructorsException;
@@ -127,7 +129,7 @@ public class NucleoDB{
     Set<Class<?>> tableTypes = tableTypesOptional.get();
     CountDownLatch latch = new CountDownLatch(tableTypes.size());
     Set<DataTableBuilder> tables = new TreeSetExt<>();
-    Map<String, Set<String>> indexes = new TreeMap<>();
+    Map<String, Set<DataTableConfig.IndexConfig>> indexes = new TreeMap<>();
     for (Class<?> type : tableTypes) {
       Table tableAnnotation = type.getAnnotation(Table.class);
       String tableName = tableAnnotation.tableName();
@@ -181,14 +183,14 @@ public class NucleoDB{
     }
   }
 
-  private Set<String> processIndexListForClass(Class<?> clazz) {
-    Set<String> indexes = new TreeSet<>();
+  private Set<DataTableConfig.IndexConfig> processIndexListForClass(Class<?> clazz) {
+    Set<DataTableConfig.IndexConfig> indexes = new TreeSet<>();
 
     getAllAnnotatedFields(clazz, Index.class, "").forEach(field->{
       if (field.getAnnotation().value().isEmpty()) {
-        indexes.add(field.getPath());
+        indexes.add(new DataTableConfig.IndexConfig(field.getPath(), field.getAnnotation().type()) );
       } else {
-        indexes.add(field.getAnnotation().value());
+        indexes.add(new DataTableConfig.IndexConfig(field.getAnnotation().value(), field.getAnnotation().type()));
       }
     });
     return indexes;

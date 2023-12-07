@@ -95,7 +95,7 @@ public class DataTableBuilder implements Comparable{
     return this;
   }
 
-  public DataTableBuilder addIndexes(Set<String> indexes) {
+  public DataTableBuilder addIndexes(Set<DataTableConfig.IndexConfig> indexes) {
     this.config.getIndexes().addAll(indexes);
     return this;
   }

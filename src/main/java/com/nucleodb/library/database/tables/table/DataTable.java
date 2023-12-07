@@ -18,8 +18,8 @@ import com.nucleodb.library.database.utils.Serializer;
 import com.nucleodb.library.database.utils.TreeSetExt;
 import com.nucleodb.library.database.utils.Utils;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryObjectException;
-import com.nucleodb.library.database.tables.table.index.Index;
-import com.nucleodb.library.database.tables.table.index.TreeIndex;
+import com.nucleodb.library.database.index.IndexWrapper;
+import com.nucleodb.library.database.index.TreeIndex;
 import com.nucleodb.library.kafkaLedger.ConsumerHandler;
 import com.nucleodb.library.kafkaLedger.ProducerHandler;
 import org.apache.kafka.clients.admin.*;
@@ -51,7 +51,7 @@ public class DataTable implements Serializable{
   private Set<DataEntry> entries = new TreeSetExt<>();
   private DataTableConfig config;
   @JsonIgnore
-  private transient Map<String, Index> indexes = new TreeMap<>();
+  private transient Map<String, IndexWrapper<DataEntry>> indexes = new TreeMap<>();
   private Set<DataEntry> dataEntries = new TreeSetExt<>();
   private Map<String, DataEntry> keyToEntry = new TreeMap<>();
   private Map<Integer, Long> partitionOffsets = new TreeMap<>();
@@ -115,7 +115,7 @@ public class DataTable implements Serializable{
         this.partitionOffsets = tmpTable.partitionOffsets;
         this.keyToEntry = tmpTable.keyToEntry;
         this.entries.forEach(e -> {
-          for (Index i : this.indexes.values()) {
+          for (IndexWrapper i : this.indexes.values()) {
             try {
               i.add(e);
             } catch (JsonProcessingException ex) {
@@ -193,7 +193,19 @@ public class DataTable implements Serializable{
   public DataTable(DataTableConfig config) {
     this.config = config;
 
-    config.getIndexes().stream().map(i -> new TreeIndex(i)).collect(Collectors.toSet()).forEach(i -> {
+    config.getIndexes().stream().map(i -> {
+      try {
+        return i.getIndexType().getDeclaredConstructor(String.class).newInstance(i.getName());
+      } catch (InstantiationException e) {
+        throw new RuntimeException(e);
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      } catch (InvocationTargetException e) {
+        throw new RuntimeException(e);
+      } catch (NoSuchMethodException e) {
+        throw new RuntimeException(e);
+      }
+    }).collect(Collectors.toSet()).forEach(i -> {
       if (!this.indexes.containsKey(i.getIndexedKey())) {
         this.indexes.put(i.getIndexedKey(), i);
       }
@@ -326,7 +338,7 @@ public class DataTable implements Serializable{
       dataEntryProjection = new DataEntryProjection();
     }
     try {
-      Stream<DataEntry> process = dataEntryProjection.process(this.indexes.get(key).search(searchObject).stream());
+      Stream<DataEntry> process = dataEntryProjection.process(this.indexes.get(key).contains(searchObject).stream());
       if(dataEntryProjection.isWritable()) {
         return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
       }else{
@@ -575,7 +587,7 @@ public class DataTable implements Serializable{
               entries.add(dataEntry);
               dataEntries.add(dataEntry);
               keyToEntry.put(dataEntry.getKey(), dataEntry);
-              for (Index i : this.indexes.values()) {
+              for (IndexWrapper i : this.indexes.values()) {
                 try {
                   i.add(dataEntry);
                 } catch (JsonProcessingException e) {
@@ -691,9 +703,9 @@ public class DataTable implements Serializable{
                     case "copy":
                       try {
                         synchronized (entries) {
-                          Index index = this.indexes.get(op.getPath());
-                          if (index != null) {
-                            index.modify(de);
+                          IndexWrapper indexWrapper = this.indexes.get(op.getPath());
+                          if (indexWrapper != null) {
+                            indexWrapper.modify(de);
                           }
                         }
                       } catch (JsonProcessingException e) {
@@ -704,8 +716,8 @@ public class DataTable implements Serializable{
                       break;
                     case "remove":
                       synchronized (entries) {
-                        Index index = this.indexes.get(op.getPath());
-                        if (index != null) index.delete(de);
+                        IndexWrapper indexWrapper = this.indexes.get(op.getPath());
+                        if (indexWrapper != null) indexWrapper.delete(de);
                       }
                       break;
                   }
@@ -809,11 +821,11 @@ public class DataTable implements Serializable{
     this.unsavedIndexModifications = unsavedIndexModifications;
   }
 
-  public Map<String, Index> getIndexes() {
+  public Map<String, IndexWrapper<DataEntry>> getIndexes() {
     return indexes;
   }
 
-  public void setIndexes(Map<String, Index> indexes) {
+  public void setIndexes(Map<String, IndexWrapper<DataEntry>> indexes) {
     this.indexes = indexes;
   }
 

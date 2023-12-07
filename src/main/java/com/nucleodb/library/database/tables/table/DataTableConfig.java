@@ -1,6 +1,7 @@
 package com.nucleodb.library.database.tables.table;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.nucleodb.library.database.index.IndexWrapper;
 import com.nucleodb.library.database.utils.StartupRun;
 
 import java.io.Serializable;
@@ -11,6 +12,31 @@ import java.util.TreeSet;
 public class DataTableConfig implements Serializable{
   private static final long serialVersionUID = 4416983891804575837L;
 
+  public static class IndexConfig {
+    String name;
+    Class<? extends IndexWrapper> indexType;
+
+    public IndexConfig(String name, Class<? extends IndexWrapper> indexType) {
+      this.name = name;
+      this.indexType = indexType;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public Class<? extends IndexWrapper> getIndexType() {
+      return indexType;
+    }
+
+    public void setIndexType(Class<? extends IndexWrapper> indexType) {
+      this.indexType = indexType;
+    }
+  }
   String bootstrap = "127.0.0.1:19092";
   String table;
   @JsonIgnore
@@ -22,7 +48,7 @@ public class DataTableConfig implements Serializable{
   Class dataEntryClass;
   boolean read = true;
   boolean write = true;
-  Set<String> indexes = new TreeSet<>();
+  Set<IndexConfig> indexes = new TreeSet<>();
   @JsonIgnore
   private transient StartupRun startupRun = null;
 
@@ -68,7 +94,7 @@ public class DataTableConfig implements Serializable{
     return write;
   }
 
-  public Set<String> getIndexes() {
+  public Set<IndexConfig> getIndexes() {
     return indexes;
   }
 
@@ -109,7 +135,7 @@ public class DataTableConfig implements Serializable{
     this.write = write;
   }
 
-  public void setIndexes(Set<String> indexes) {
+  public void setIndexes(Set<IndexConfig> indexes) {
     this.indexes = indexes;
   }
 

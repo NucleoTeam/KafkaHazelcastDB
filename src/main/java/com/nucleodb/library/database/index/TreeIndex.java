@@ -1,4 +1,4 @@
-package com.nucleodb.library.database.tables.table.index;
+package com.nucleodb.library.database.index;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nucleodb.library.database.tables.table.DataEntry;
@@ -6,13 +6,13 @@ import com.nucleodb.library.database.utils.TreeSetExt;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-public class TreeIndex extends Index implements Serializable{
+public class TreeIndex<T> extends IndexWrapper<T> implements Serializable{
   private static final long serialVersionUID = 1;
   public TreeIndex() {
     super(null);
@@ -21,8 +21,8 @@ public class TreeIndex extends Index implements Serializable{
 
 
   private boolean unique;
-  private Map<DataEntry, Set<Set<DataEntry>>> reverseMap = new TreeMap<>();
-  private Map<Object, Set<DataEntry>> index = new TreeMap<>();
+  private TreeMap<T, Set<Set<T>>> reverseMap = new TreeMap<>();
+  private TreeMap<Object, Set<T>> index = new TreeMap<>();
 
 
   public TreeIndex(String indexedKey) {
@@ -33,11 +33,11 @@ public class TreeIndex extends Index implements Serializable{
 
 
   @Override
-  public void add(DataEntry dataEntry) throws JsonProcessingException {
+  public void add(T dataEntry) throws JsonProcessingException {
     List<Object> values = getIndexValue(dataEntry);
     //System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(values));
     values.forEach(val->{
-      Set<DataEntry> entries;
+      Set<T> entries;
       synchronized (index) {
         entries = index.get(val);
         if (entries == null) {
@@ -46,7 +46,7 @@ public class TreeIndex extends Index implements Serializable{
         }
       }
       entries.add(dataEntry);
-      Set<Set<DataEntry>> rMap;
+      Set<Set<T>> rMap;
       synchronized (reverseMap) {
         rMap = reverseMap.get(dataEntry);
         if (rMap == null) {
@@ -61,9 +61,9 @@ public class TreeIndex extends Index implements Serializable{
   }
 
   @Override
-  public void delete(DataEntry dataEntry) {
+  public void delete(T dataEntry) {
     //System.out.println("Delete "+dataEntry);
-    Set<Set<DataEntry>> i = reverseMap.get(dataEntry);
+    Set<Set<T>> i = reverseMap.get(dataEntry);
     if(i!=null)
       i.forEach(c -> c.remove(dataEntry));
     reverseMap.remove(dataEntry);
@@ -71,14 +71,14 @@ public class TreeIndex extends Index implements Serializable{
   }
 
   @Override
-  public void modify(DataEntry dataEntry) throws JsonProcessingException {
+  public void modify(T dataEntry) throws JsonProcessingException {
     //System.out.println("Modify, "+ this.getIndexedKey() + " = " +dataEntry);
     delete(dataEntry);
     add(dataEntry);
   }
 
   @Override
-  public Set<DataEntry> get(Object search) {
+  public Set<T> get(Object search) {
     Optional<Object> optionalO = index.keySet().stream().findFirst();
     if(optionalO.isPresent()) {
       Object o = optionalO.get();
@@ -102,7 +102,7 @@ public class TreeIndex extends Index implements Serializable{
 
 
   @Override
-  public Set<DataEntry> search(Object searchObj) {
+  public Set<T> contains(Object searchObj) {
     return index.keySet().stream().filter(key->{
       if(key instanceof String && searchObj instanceof String){
         return ((String) key).contains((String)searchObj);
@@ -114,20 +114,45 @@ public class TreeIndex extends Index implements Serializable{
       return a;
     });
   }
+  Set<T> reduce(SortedMap<Object, Set<T>> objectSetSortedMap){
+    return objectSetSortedMap.entrySet()
+      .stream()
+      .map(c->c.getValue()).reduce(new TreeSetExt<>(), (a,b)->{
+        a.addAll(b);
+        return a;
+      });
+  }
 
-  public Map<DataEntry, Set<Set<DataEntry>>> getReverseMap() {
+  public Set<T> lessThan(Object searchObj) {
+    return reduce(index.headMap(searchObj));
+  }
+
+  public Set<T> lessThanEqualTo(Object searchObj) {
+    return reduce(index.headMap(searchObj, true));
+  }
+
+  public Set<T> greaterThan(Object searchObj) {
+    return reduce(index.tailMap(searchObj));
+  }
+
+  public Set<T> greaterThanEqual(Object searchObj) {
+    return reduce(index.tailMap(searchObj, true));
+  }
+
+
+  public TreeMap<T, Set<Set<T>>> getReverseMap() {
     return reverseMap;
   }
 
-  public void setReverseMap(Map<DataEntry, Set<Set<DataEntry>>> reverseMap) {
+  public void setReverseMap(TreeMap<T, Set<Set<T>>> reverseMap) {
     this.reverseMap = reverseMap;
   }
 
-  public Map<Object, Set<DataEntry>> getIndex() {
+  public TreeMap<Object, Set<T>> getIndex() {
     return index;
   }
 
-  public void setIndex(Map<Object, Set<DataEntry>> index) {
+  public void setIndex(TreeMap<Object, Set<T>> index) {
     this.index = index;
   }
 

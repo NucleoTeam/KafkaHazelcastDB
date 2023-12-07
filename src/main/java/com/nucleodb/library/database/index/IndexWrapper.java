@@ -1,4 +1,4 @@
-package com.nucleodb.library.database.tables.table.index;
+package com.nucleodb.library.database.index;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Queues;
@@ -15,17 +15,21 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
-public abstract class Index implements Serializable{
+public abstract class IndexWrapper<T> implements Serializable{
   private static final long serialVersionUID = 1;
   String indexedKeyStr;
-  public Index(String indexedKey) {
+  public IndexWrapper(String indexedKey) {
     this.indexedKeyStr = indexedKey;
   }
 
-
-
-  public List<Object> getIndexValue(DataEntry dataEntry) throws JsonProcessingException {
-    return getValues(Queues.newConcurrentLinkedQueue(Arrays.asList(this.indexedKeyStr.split("\\."))), dataEntry.getData());
+  public List<Object> getIndexValue(T object) throws JsonProcessingException {
+    Object obj;
+    if(object instanceof DataEntry<?>){
+      obj = ((DataEntry<?>) object).getData();
+    }else{
+      obj = object;
+    }
+    return getValues(Queues.newConcurrentLinkedQueue(Arrays.asList(this.indexedKeyStr.split("\\."))), object);
     /*String json = dataEntry.getReference().toString();
     try (JsonReader reader = Json.createReader(new StringReader(json))) {
       System.out.println(json);
@@ -86,28 +90,28 @@ public abstract class Index implements Serializable{
   }
 
 
-  public void add(DataEntry dataEntry) throws JsonProcessingException {
+  public void add(T dataEntry) throws JsonProcessingException {
     System.out.println("Add ERROR");
   }
 
-  public void delete(DataEntry dataEntry) {
+  public void delete(T dataEntry) {
     System.out.println("Delete ERROR");
   }
 
-  public void modify(DataEntry dataEntry) throws JsonProcessingException {
+  public void modify(T dataEntry) throws JsonProcessingException {
     System.out.println("Modify ERROR");
   }
 
-  public Set<DataEntry> get(Object search){
+  public Set<T> get(Object search){
     return null;
   }
 
-  public Set<DataEntry> getNotEqual(Object notEqualVal) {
+  public Set<T> getNotEqual(Object notEqualVal) {
     return null;
   }
 
 
-  public Set<DataEntry> search(Object searchObj) {
+  public Set<T> contains(Object searchObj) {
     return null;
   }
 

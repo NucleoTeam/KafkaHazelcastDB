@@ -29,11 +29,13 @@ import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.common.config.TopicConfig;
 import com.github.fge.jsonpatch.JsonPatch;
 
+import javax.xml.crypto.Data;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -42,6 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -338,65 +341,75 @@ public class DataTable implements Serializable{
     return null;
   }
 
-  public Set<DataEntry> search(String key, Object searchObject, DataEntryProjection dataEntryProjection) {
+  public Set<DataEntry> handleIndexOperation(Object obj, DataEntryProjection dataEntryProjection, Function<Object, Set<DataEntry>> func){
     if(dataEntryProjection==null){
       dataEntryProjection = new DataEntryProjection();
     }
-    try {
-      Stream<DataEntry> process = dataEntryProjection.process(this.indexes.get(key).contains(searchObject).stream());
-      if(dataEntryProjection.isWritable()) {
-        return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
-      }else{
-        return process.collect(Collectors.toSet());
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
+    Stream<DataEntry> process = dataEntryProjection.process(func.apply(obj).stream());
+    if(dataEntryProjection.isWritable()) {
+      return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
     }
-    return new TreeSet<>();
+    return process.collect(Collectors.toSet());
+  }
+
+  public Set<DataEntry> handleIndexStringOperation(String obj, DataEntryProjection dataEntryProjection, Function<String, Set<DataEntry>> func){
+    if(dataEntryProjection==null){
+      dataEntryProjection = new DataEntryProjection();
+    }
+    Stream<DataEntry> process = dataEntryProjection.process(func.apply(obj).stream());
+    if(dataEntryProjection.isWritable()) {
+      return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+    }
+    return process.collect(Collectors.toSet());
+  }
+
+  public Set<DataEntry> search(String key, Object searchObject, DataEntryProjection dataEntryProjection) {
+    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
+    return handleIndexOperation(searchObject, dataEntryProjection, dataEntryIndexWrapper::contains);
   }
 
   public Set<DataEntry> startsWith(String key, String str, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
     IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
-    Stream<DataEntry> process = dataEntryProjection.process(dataEntryIndexWrapper.startsWith(str).stream().map(e-> (DataEntry) e.getData()));
-    if(dataEntryProjection.isWritable()) {
-      return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
-    }
-    return process.collect(Collectors.toSet());
+    return handleIndexStringOperation(str, dataEntryProjection, dataEntryIndexWrapper::startsWith);
   }
+
+
   public Set<DataEntry> endsWith(String key, String str, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
     IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
-    Stream<DataEntry> process = dataEntryProjection.process(dataEntryIndexWrapper.endsWith(str).stream().map(e-> (DataEntry) e.getData()));
-    if(dataEntryProjection.isWritable()) {
-      return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
-    }
-    return process.collect(Collectors.toSet());
+    return handleIndexStringOperation(str, dataEntryProjection, dataEntryIndexWrapper::endsWith);
+  }
+
+  public Set<DataEntry> greaterThan(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
+    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
+    return handleIndexOperation(obj, dataEntryProjection, dataEntryIndexWrapper::greaterThan);
+  }
+  public Set<DataEntry> greaterThanEqual(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
+    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
+    return handleIndexOperation(obj, dataEntryProjection, dataEntryIndexWrapper::greaterThanEqual);
+  }
+  public Set<DataEntry> lessThan(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
+    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
+    return handleIndexOperation(obj, dataEntryProjection, dataEntryIndexWrapper::lessThan);
+  }
+  public Set<DataEntry> lessThanEqual(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
+    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
+    return handleIndexOperation(obj, dataEntryProjection, dataEntryIndexWrapper::lessThanEqual);
   }
 
   public Set<DataEntry> get(String key, Object value, DataEntryProjection dataEntryProjection) {
     if(dataEntryProjection==null){
       dataEntryProjection = new DataEntryProjection();
     }
-    Set<DataEntry> entries = new TreeSet<>();
-    try {
-      if (key.equals("id")) {
-        if (this.keyToEntry.containsKey(value)) {
-          entries = new TreeSet<>(Arrays.asList(this.keyToEntry.get(value)));
-        }
-      } else if (this.indexes.containsKey(key)) {
-        Set<DataEntry> tmpEntries = this.indexes.get(key).get(value);
-        if (tmpEntries != null) {
-          entries = tmpEntries;
-        }
+    if (key.equals("id")) {
+      Set<DataEntry>  entrySet = new TreeSet(Arrays.asList(this.keyToEntry.get(value)));
+      Stream<DataEntry> process = dataEntryProjection.process(entrySet.stream());
+      if(dataEntryProjection.isWritable()) {
+        return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
       }
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    Stream<DataEntry> process = dataEntryProjection.process(entries.stream());
-    if(dataEntryProjection.isWritable()) {
-      return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
-    }else{
       return process.collect(Collectors.toSet());
     }
+    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
+    return handleIndexOperation(value, dataEntryProjection, dataEntryIndexWrapper::get);
   }
 
   public Set<DataEntry> getNotEqual(String key, Object value, DataEntryProjection dataEntryProjection) {

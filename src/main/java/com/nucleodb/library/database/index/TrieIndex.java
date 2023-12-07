@@ -202,7 +202,11 @@ public class TrieIndex<T> extends IndexWrapper<T>{
   }
 
   @Override
-  public List<Entry> endsWith(String findString) {
+  public Set<T> endsWith(String findString) {
+    return endsWithInternal(findString).stream().map(e->(T)e.getData()).collect(Collectors.toSet());
+  }
+
+  public List<Entry> endsWithInternal(String findString) {
     LinkedList<Entry> objects = Lists.newLinkedList();
     Root partialRoot = null;
     int start = findString.charAt(0);
@@ -228,7 +232,10 @@ public class TrieIndex<T> extends IndexWrapper<T>{
   }
 
   @Override
-  public List<Entry> startsWith(String findString) {
+  public Set<T> startsWith(String findString) {
+    return startsWithInternal(findString).stream().map(e->(T)e.getData()).collect(Collectors.toSet());
+  }
+  public List<Entry> startsWithInternal(String findString) {
     char[] charArray = findString.toCharArray();
     Node tmp = this.root;
     for (int i = 0; i < charArray.length; i++) {

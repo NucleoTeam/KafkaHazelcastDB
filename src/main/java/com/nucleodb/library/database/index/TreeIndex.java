@@ -1,7 +1,6 @@
 package com.nucleodb.library.database.index;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.utils.TreeSetExt;
 
 import java.io.Serializable;
@@ -122,19 +121,19 @@ public class TreeIndex<T> extends IndexWrapper<T> implements Serializable{
         return a;
       });
   }
-
+  @Override
   public Set<T> lessThan(Object searchObj) {
     return reduce(index.headMap(searchObj));
   }
-
-  public Set<T> lessThanEqualTo(Object searchObj) {
+  @Override
+  public Set<T> lessThanEqual(Object searchObj) {
     return reduce(index.headMap(searchObj, true));
   }
-
+  @Override
   public Set<T> greaterThan(Object searchObj) {
     return reduce(index.tailMap(searchObj));
   }
-
+  @Override
   public Set<T> greaterThanEqual(Object searchObj) {
     return reduce(index.tailMap(searchObj, true));
   }

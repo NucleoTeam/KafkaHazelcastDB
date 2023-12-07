@@ -2,6 +2,7 @@ package com.nucleodb.library.database.index;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Queues;
+import com.google.common.collect.Sets;
 import com.nucleodb.library.database.index.trie.Entry;
 import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.utils.exceptions.InvalidIndexTypeException;
@@ -104,24 +105,39 @@ public abstract class IndexWrapper<T> implements Serializable{
     throw new InvalidIndexTypeException("index selected does not implement modify.");
   }
 
-  public Set<T> get(Object search) throws InvalidIndexTypeException {
-    throw new InvalidIndexTypeException("index selected does not implement get.");
+  public Set<T> get(Object search) {
+    return (Set<T>) Sets.newTreeSet();
   }
 
-  public Set<T> contains(Object searchObj) throws InvalidIndexTypeException {
-    throw new InvalidIndexTypeException("index selected does not implement contains.");
+  public Set<T> contains(Object searchObj) {
+    return (Set<T>) Sets.newTreeSet();
   }
 
   public String getIndexedKey() {
     return indexedKeyStr;
   }
 
-  public List<Entry> endsWith(String findString) throws InvalidIndexTypeException {
-    throw new InvalidIndexTypeException("index selected does not implement endsWith.");
+  public Set<T> endsWith(String findString)  {
+    return (Set<T>) Sets.newTreeSet();
   }
 
-  public List<Entry> startsWith(String findString) throws InvalidIndexTypeException {
-    throw new InvalidIndexTypeException("index selected does not implement startsWith.");
+  public Set<T> startsWith(String findString) {
+    return (Set<T>) Sets.newTreeSet();
   }
 
+  public Set<T> lessThan(Object searchObj) {
+    return (Set<T>) Sets.newTreeSet();
+  }
+
+  public Set<T> lessThanEqual(Object searchObj) {
+    return (Set<T>) Sets.newTreeSet();
+  }
+
+  public Set<T> greaterThan(Object searchObj)  {
+    return (Set<T>) Sets.newTreeSet();
+  }
+
+  public Set<T> greaterThanEqual(Object searchObj)  {
+    return (Set<T>) Sets.newTreeSet();
+  }
 }

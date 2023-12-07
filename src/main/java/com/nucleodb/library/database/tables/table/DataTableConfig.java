@@ -3,6 +3,7 @@ package com.nucleodb.library.database.tables.table;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nucleodb.library.database.index.IndexWrapper;
 import com.nucleodb.library.database.utils.StartupRun;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
 import java.time.Instant;
@@ -14,7 +15,7 @@ import java.util.TreeSet;
 public class DataTableConfig implements Serializable{
   private static final long serialVersionUID = 4416983891804575837L;
 
-  public static class IndexConfig {
+  public static class IndexConfig implements Comparable {
     String name;
     Class<? extends IndexWrapper> indexType;
 
@@ -37,6 +38,14 @@ public class DataTableConfig implements Serializable{
 
     public void setIndexType(Class<? extends IndexWrapper> indexType) {
       this.indexType = indexType;
+    }
+
+    @Override
+    public int compareTo(@NotNull Object o) {
+      if(o instanceof IndexConfig){
+        return this.getName().compareTo(((IndexConfig) o).getName());
+      }
+      return 0;
     }
   }
   String bootstrap = "127.0.0.1:19092";

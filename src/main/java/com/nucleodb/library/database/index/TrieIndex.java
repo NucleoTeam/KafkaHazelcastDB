@@ -252,4 +252,5 @@ public class TrieIndex<T> extends IndexWrapper<T>{
     return tmp.getPartialEntries().stream().collect(Collectors.toList());
   }
 
+
 }

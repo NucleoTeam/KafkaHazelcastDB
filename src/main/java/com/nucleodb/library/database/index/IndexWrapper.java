@@ -6,6 +6,7 @@ import com.google.common.collect.Sets;
 import com.nucleodb.library.database.index.trie.Entry;
 import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.utils.exceptions.InvalidIndexTypeException;
+import org.jetbrains.annotations.NotNull;
 
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
@@ -18,7 +19,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
-public abstract class IndexWrapper<T> implements Serializable{
+public abstract class IndexWrapper<T> implements Serializable, Comparable{
   private static final long serialVersionUID = 1;
   String indexedKeyStr;
   public IndexWrapper(String indexedKey) {
@@ -139,5 +140,13 @@ public abstract class IndexWrapper<T> implements Serializable{
 
   public Set<T> greaterThanEqual(Object searchObj)  {
     return (Set<T>) Sets.newTreeSet();
+  }
+
+  @Override
+  public int compareTo(@NotNull Object o) {
+    if(o instanceof IndexWrapper) {
+      return indexedKeyStr.compareTo(((IndexWrapper<?>) o).getIndexedKey());
+    }
+    return 0;
   }
 }

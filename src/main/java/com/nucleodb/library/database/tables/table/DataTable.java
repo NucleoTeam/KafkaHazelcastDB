@@ -201,9 +201,12 @@ public class DataTable implements Serializable{
   public DataTable(DataTableConfig config) {
     this.config = config;
 
-    config.getIndexes().stream().map(i -> {
+    config.getIndexes().forEach(i -> {
       try {
-        return i.getIndexType().getDeclaredConstructor(String.class).newInstance(i.getName());
+        IndexWrapper indexWrapper = i.getIndexType().getDeclaredConstructor(String.class).newInstance(i.getName());
+        if (!this.indexes.containsKey(indexWrapper.getIndexedKey())) {
+          this.indexes.put(indexWrapper.getIndexedKey(), indexWrapper);
+        }
       } catch (InstantiationException e) {
         throw new RuntimeException(e);
       } catch (IllegalAccessException e) {
@@ -212,10 +215,6 @@ public class DataTable implements Serializable{
         throw new RuntimeException(e);
       } catch (NoSuchMethodException e) {
         throw new RuntimeException(e);
-      }
-    }).collect(Collectors.toSet()).forEach(i -> {
-      if (!this.indexes.containsKey(i.getIndexedKey())) {
-        this.indexes.put(i.getIndexedKey(), i);
       }
     });
 

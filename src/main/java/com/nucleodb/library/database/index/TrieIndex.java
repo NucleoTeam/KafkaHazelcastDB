@@ -8,6 +8,7 @@ import com.nucleodb.library.database.index.trie.Node;
 import com.nucleodb.library.database.index.trie.Root;
 import com.nucleodb.library.database.tables.connection.Connection;
 import com.nucleodb.library.database.tables.table.DataEntry;
+import com.nucleodb.library.database.utils.Serializer;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.LinkedList;
@@ -49,10 +50,13 @@ public class TrieIndex<T> extends IndexWrapper<T>{
     Entry entry = entries.get(key);
     if(entry==null){
       entry = new Entry(obj);
+      entries.put(key, entry);
     }
     for (Object o : getIndexValue(obj)) {
       if(o instanceof String){
         insert(entry, (String) o);
+      }else{
+        Serializer.log(o.getClass().getName());
       }
     }
   }

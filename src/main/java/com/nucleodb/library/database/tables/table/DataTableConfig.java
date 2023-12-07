@@ -6,6 +6,8 @@ import com.nucleodb.library.database.utils.StartupRun;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -48,7 +50,7 @@ public class DataTableConfig implements Serializable{
   Class dataEntryClass;
   boolean read = true;
   boolean write = true;
-  Set<IndexConfig> indexes = new TreeSet<>();
+  List<IndexConfig> indexes = new LinkedList<>();
   @JsonIgnore
   private transient StartupRun startupRun = null;
 
@@ -94,7 +96,7 @@ public class DataTableConfig implements Serializable{
     return write;
   }
 
-  public Set<IndexConfig> getIndexes() {
+  public List<IndexConfig> getIndexes() {
     return indexes;
   }
 
@@ -135,7 +137,7 @@ public class DataTableConfig implements Serializable{
     this.write = write;
   }
 
-  public void setIndexes(Set<IndexConfig> indexes) {
+  public void setIndexes(List<IndexConfig> indexes) {
     this.indexes = indexes;
   }
 

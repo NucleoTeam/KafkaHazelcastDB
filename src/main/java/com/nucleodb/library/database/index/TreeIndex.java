@@ -2,6 +2,7 @@ package com.nucleodb.library.database.index;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nucleodb.library.database.utils.TreeSetExt;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
 import java.util.List;
@@ -11,7 +12,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-public class TreeIndex<T> extends IndexWrapper<T> implements Serializable{
+public class TreeIndex<T> extends IndexWrapper<T>{
   private static final long serialVersionUID = 1;
   public TreeIndex() {
     super(null);
@@ -162,4 +163,5 @@ public class TreeIndex<T> extends IndexWrapper<T> implements Serializable{
   public void setUnique(boolean unique) {
     this.unique = unique;
   }
+
 }

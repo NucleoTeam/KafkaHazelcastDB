@@ -8,6 +8,7 @@ import com.nucleodb.library.database.index.trie.Node;
 import com.nucleodb.library.database.index.trie.Root;
 import com.nucleodb.library.database.tables.connection.Connection;
 import com.nucleodb.library.database.tables.table.DataEntry;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -250,4 +251,5 @@ public class TrieIndex<T> extends IndexWrapper<T>{
     if (tmp == null) return new LinkedList<>();
     return tmp.getPartialEntries().stream().collect(Collectors.toList());
   }
+
 }

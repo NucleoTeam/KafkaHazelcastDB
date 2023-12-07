@@ -8,6 +8,8 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.collect.Queues;
+import com.google.common.collect.Sets;
+import com.nucleodb.library.database.index.TrieIndex;
 import com.nucleodb.library.database.modifications.Create;
 import com.nucleodb.library.database.modifications.Delete;
 import com.nucleodb.library.database.modifications.Update;
@@ -20,6 +22,7 @@ import com.nucleodb.library.database.utils.Utils;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleodb.library.database.index.IndexWrapper;
 import com.nucleodb.library.database.index.TreeIndex;
+import com.nucleodb.library.database.utils.exceptions.InvalidIndexTypeException;
 import com.nucleodb.library.kafkaLedger.ConsumerHandler;
 import com.nucleodb.library.kafkaLedger.ProducerHandler;
 import org.apache.kafka.clients.admin.*;
@@ -119,6 +122,8 @@ public class DataTable implements Serializable{
             try {
               i.add(e);
             } catch (JsonProcessingException ex) {
+              throw new RuntimeException(ex);
+            } catch (InvalidIndexTypeException ex) {
               throw new RuntimeException(ex);
             }
           }
@@ -348,6 +353,23 @@ public class DataTable implements Serializable{
       e.printStackTrace();
     }
     return new TreeSet<>();
+  }
+
+  public Set<DataEntry> startsWith(String key, String str, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
+    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
+    Stream<DataEntry> process = dataEntryProjection.process(dataEntryIndexWrapper.startsWith(str).stream().map(e-> (DataEntry) e.getData()));
+    if(dataEntryProjection.isWritable()) {
+      return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+    }
+    return process.collect(Collectors.toSet());
+  }
+  public Set<DataEntry> endsWith(String key, String str, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
+    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
+    Stream<DataEntry> process = dataEntryProjection.process(dataEntryIndexWrapper.endsWith(str).stream().map(e-> (DataEntry) e.getData()));
+    if(dataEntryProjection.isWritable()) {
+      return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+    }
+    return process.collect(Collectors.toSet());
   }
 
   public Set<DataEntry> get(String key, Object value, DataEntryProjection dataEntryProjection) {
@@ -637,7 +659,13 @@ public class DataTable implements Serializable{
                   entries.remove(de);
                   keyToEntry.remove(de.getKey());
                   dataEntries.remove(de);
-                  this.indexes.values().forEach(i -> i.delete(de));
+                  this.indexes.values().forEach(i -> {
+                    try {
+                      i.delete(de);
+                    } catch (InvalidIndexTypeException e) {
+                      throw new RuntimeException(e);
+                    }
+                  });
                 }
                 size--;
                 consumerResponse(de, d.getChangeUUID());
@@ -710,6 +738,8 @@ public class DataTable implements Serializable{
                         }
                       } catch (JsonProcessingException e) {
                         throw new RuntimeException(e);
+                      } catch (InvalidIndexTypeException e) {
+                        throw new RuntimeException(e);
                       }
                       break;
                     case "move":
@@ -717,7 +747,13 @@ public class DataTable implements Serializable{
                     case "remove":
                       synchronized (entries) {
                         IndexWrapper indexWrapper = this.indexes.get(op.getPath());
-                        if (indexWrapper != null) indexWrapper.delete(de);
+                        if (indexWrapper != null) {
+                          try {
+                            indexWrapper.delete(de);
+                          } catch (InvalidIndexTypeException e) {
+                            throw new RuntimeException(e);
+                          }
+                        }
                       }
                       break;
                   }

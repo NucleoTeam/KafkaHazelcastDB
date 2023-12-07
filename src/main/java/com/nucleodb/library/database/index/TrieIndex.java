@@ -201,6 +201,7 @@ public class TrieIndex<T> extends IndexWrapper<T>{
     return objects.stream().distinct().collect(Collectors.toList());
   }
 
+  @Override
   public List<Entry> endsWith(String findString) {
     LinkedList<Entry> objects = Lists.newLinkedList();
     Root partialRoot = null;
@@ -226,6 +227,7 @@ public class TrieIndex<T> extends IndexWrapper<T>{
     return objects.stream().distinct().collect(Collectors.toList());
   }
 
+  @Override
   public List<Entry> startsWith(String findString) {
     char[] charArray = findString.toCharArray();
     Node tmp = this.root;

@@ -2,7 +2,9 @@ package com.nucleodb.library.database.index;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Queues;
+import com.nucleodb.library.database.index.trie.Entry;
 import com.nucleodb.library.database.tables.table.DataEntry;
+import com.nucleodb.library.database.utils.exceptions.InvalidIndexTypeException;
 
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
@@ -90,33 +92,36 @@ public abstract class IndexWrapper<T> implements Serializable{
   }
 
 
-  public void add(T dataEntry) throws JsonProcessingException {
-    System.out.println("Add ERROR");
+  public void add(T dataEntry) throws JsonProcessingException, InvalidIndexTypeException {
+    throw new InvalidIndexTypeException("index selected does not implement add.");
   }
 
-  public void delete(T dataEntry) {
-    System.out.println("Delete ERROR");
+  public void delete(T dataEntry) throws InvalidIndexTypeException {
+    throw new InvalidIndexTypeException("index selected does not implement delete.");
   }
 
-  public void modify(T dataEntry) throws JsonProcessingException {
-    System.out.println("Modify ERROR");
+  public void modify(T dataEntry) throws JsonProcessingException, InvalidIndexTypeException {
+    throw new InvalidIndexTypeException("index selected does not implement modify.");
   }
 
-  public Set<T> get(Object search){
-    return null;
+  public Set<T> get(Object search) throws InvalidIndexTypeException {
+    throw new InvalidIndexTypeException("index selected does not implement get.");
   }
 
-  public Set<T> getNotEqual(Object notEqualVal) {
-    return null;
-  }
-
-
-  public Set<T> contains(Object searchObj) {
-    return null;
+  public Set<T> contains(Object searchObj) throws InvalidIndexTypeException {
+    throw new InvalidIndexTypeException("index selected does not implement contains.");
   }
 
   public String getIndexedKey() {
     return indexedKeyStr;
+  }
+
+  public List<Entry> endsWith(String findString) throws InvalidIndexTypeException {
+    throw new InvalidIndexTypeException("index selected does not implement endsWith.");
+  }
+
+  public List<Entry> startsWith(String findString) throws InvalidIndexTypeException {
+    throw new InvalidIndexTypeException("index selected does not implement startsWith.");
   }
 
 }

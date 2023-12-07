@@ -7,11 +7,10 @@ import java.util.Stack;
 public class Entry<T>{
   T data;
 
-  Stack<Node> lastNodes;
+  Stack<Node> lastNodes = new Stack<>();
 
-  public Entry(T data, Stack<Node> nodes) {
+  public Entry(T data) {
     this.data = data;
-    this.lastNodes = nodes;
   }
 
   public T getData() {

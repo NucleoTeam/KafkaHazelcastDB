@@ -45,9 +45,14 @@ public class TrieIndex<T> extends IndexWrapper<T>{
 
   @Override
   public void add(T obj) throws JsonProcessingException {
+    String key = getKey(obj);
+    Entry entry = entries.get(key);
+    if(entry==null){
+      entry = new Entry(obj);
+    }
     for (Object o : getIndexValue(obj)) {
       if(o instanceof String){
-        insert(obj, (String) o);
+        insert(entry, (String) o);
       }
     }
   }
@@ -126,7 +131,7 @@ public class TrieIndex<T> extends IndexWrapper<T>{
   }
 
   public void insert(T obj, String val) {
-    Entry entry = new Entry(obj, new Stack<>());
+    Entry entry = new Entry(obj);
     insert(entry, val);
   }
 
@@ -134,7 +139,6 @@ public class TrieIndex<T> extends IndexWrapper<T>{
     String key = getKey((T)entry.getData());
     PrimitiveIterator.OfInt iterator = val.chars().iterator();
     Node tmp = this.root;
-    Stack<Node> nodePath = entry.getLastNodes();
     while (iterator.hasNext()) {
       int character = iterator.next();
       Node nodeTraversal = getNodeFromIntBuffer(tmp.getNodes(), character);
@@ -148,7 +152,7 @@ public class TrieIndex<T> extends IndexWrapper<T>{
       tmp = nodeTraversal;
       tmp.getPartialEntries().add(entry);
     }
-    nodePath.add(tmp); // add leaf
+    entry.getLastNodes().add(tmp); // add leaf
     entries.put(key, entry);
     tmp.getEntries().add(entry);
   }

@@ -5,6 +5,7 @@ import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.nucleodb.library.database.index.trie.Entry;
 import com.nucleodb.library.database.tables.table.DataEntry;
+import com.nucleodb.library.database.utils.Serializer;
 import com.nucleodb.library.database.utils.exceptions.InvalidIndexTypeException;
 import org.jetbrains.annotations.NotNull;
 
@@ -33,7 +34,7 @@ public abstract class IndexWrapper<T> implements Serializable, Comparable{
     }else{
       obj = object;
     }
-    return getValues(Queues.newConcurrentLinkedQueue(Arrays.asList(this.indexedKeyStr.split("\\."))), object);
+    return getValues(Queues.newConcurrentLinkedQueue(Arrays.asList(this.indexedKeyStr.split("\\."))), obj);
     /*String json = dataEntry.getReference().toString();
     try (JsonReader reader = Json.createReader(new StringReader(json))) {
       System.out.println(json);
@@ -68,15 +69,12 @@ public abstract class IndexWrapper<T> implements Serializable, Comparable{
     }
     try {
       String name = pointer.poll();
-      //Serializer.log(name);
-      //Serializer.log(current.getClass().getName());
       current = new PropertyDescriptor(name, current.getClass()).getReadMethod().invoke(current);
     } catch (IntrospectionException | InvocationTargetException | IllegalAccessException e) {
       //e.printStackTrace();
       return new LinkedList<>();
     }
     if(current instanceof Collection){
-      //System.out.println(current.getClass().getName());
       return ((Collection<?>) current).stream().map(c-> {
         try {
           return getValues(Queues.newConcurrentLinkedQueue(pointer), c);

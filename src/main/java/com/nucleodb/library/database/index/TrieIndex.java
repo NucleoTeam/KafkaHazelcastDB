@@ -55,8 +55,6 @@ public class TrieIndex<T> extends IndexWrapper<T>{
     for (Object o : getIndexValue(obj)) {
       if(o instanceof String){
         insert(entry, (String) o);
-      }else{
-        Serializer.log(o.getClass().getName());
       }
     }
   }
@@ -165,21 +163,7 @@ public class TrieIndex<T> extends IndexWrapper<T>{
     return search(findString).stream().map(e->(T)e.getData()).collect(Collectors.toSet());
   }
   public List<Entry> search(String findString) {
-    PrimitiveIterator.OfInt iterator = findString.chars().iterator();
-    Node tmp = this.root;
-    while (iterator.hasNext()) {
-      int character = iterator.next();
-      Node nodeTmp = getNodeFromIntBuffer(tmp.getNodes(), character);
-      if (tmp.getNodes() != null && nodeTmp == null) {
-        tmp = null;
-        break;
-      }
-      tmp = nodeTmp;
-    }
-    if (tmp == null) {
-      return Lists.newLinkedList();
-    }
-    return tmp.getEntries().stream().collect(Collectors.toList());
+    return partial(findString);
   }
 
   public Set<T> partialData(String findString) {
@@ -197,7 +181,7 @@ public class TrieIndex<T> extends IndexWrapper<T>{
       Node tmp = (Node) r;
       for (int i = 1; i < charArray.length; i++) {
         int character = charArray[i];
-        Node nodeTmp = getNodeFromIntBuffer(tmp.getNodes(), character);
+        Node nodeTmp = tmp.getNodes().get(character);
         if (nodeTmp == null) {
           tmp = null;
           break;

@@ -1,6 +1,8 @@
 package com.nucleodb.library.database.index;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.nucleodb.library.database.utils.TreeSetExt;
 import org.jetbrains.annotations.NotNull;
 
@@ -21,7 +23,7 @@ public class TreeIndex<T> extends IndexWrapper<T>{
 
 
   private boolean unique;
-  private TreeMap<T, Set<Set<T>>> reverseMap = new TreeMap<>();
+  private TreeMap<T, List<Object>> reverseMap = new TreeMap<>();
   private TreeMap<Object, Set<T>> index = new TreeMap<>();
 
 
@@ -37,24 +39,25 @@ public class TreeIndex<T> extends IndexWrapper<T>{
     List<Object> values = getIndexValue(dataEntry);
     //System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(values));
     values.forEach(val->{
-      Set<T> entries;
+      synchronized (reverseMap) {
+        List<Object> rMap = reverseMap.get(dataEntry);
+        if (rMap == null) {
+          rMap = Lists.newLinkedList();
+          reverseMap.put(dataEntry, rMap);
+        }
+        rMap.add(val);
+      }
       synchronized (index) {
+        Set<T> entries;
         entries = index.get(val);
         if (entries == null) {
           entries = new TreeSetExt<>();
           index.put(val, entries);
+
         }
+        entries.add(dataEntry);
       }
-      entries.add(dataEntry);
-      Set<Set<T>> rMap;
-      synchronized (reverseMap) {
-        rMap = reverseMap.get(dataEntry);
-        if (rMap == null) {
-          rMap = new TreeSetExt<>();
-          reverseMap.put(dataEntry, rMap);
-        }
-      }
-      rMap.add(entries);
+
       //System.out.println("Add, "+ this.getIndexedKey() + " = " +val);
 
     });
@@ -63,9 +66,18 @@ public class TreeIndex<T> extends IndexWrapper<T>{
   @Override
   public void delete(T dataEntry) {
     //System.out.println("Delete "+dataEntry);
-    Set<Set<T>> i = reverseMap.get(dataEntry);
+    List<Object> i = reverseMap.get(dataEntry);
     if(i!=null)
-      i.forEach(c -> c.remove(dataEntry));
+      i.forEach(c -> {
+        Set<T> ts = index.get(c);
+        if(ts!=null) {
+          ts.remove(dataEntry);
+          if(ts.isEmpty()){
+            index.remove(c);
+          }
+        }
+      });
+
     reverseMap.remove(dataEntry);
     //System.out.println(reverseMap.get(dataEntry));
   }
@@ -140,11 +152,11 @@ public class TreeIndex<T> extends IndexWrapper<T>{
   }
 
 
-  public TreeMap<T, Set<Set<T>>> getReverseMap() {
+  public TreeMap<T, List<Object>> getReverseMap() {
     return reverseMap;
   }
 
-  public void setReverseMap(TreeMap<T, Set<Set<T>>> reverseMap) {
+  public void setReverseMap(TreeMap<T, List<Object>> reverseMap) {
     this.reverseMap = reverseMap;
   }
 

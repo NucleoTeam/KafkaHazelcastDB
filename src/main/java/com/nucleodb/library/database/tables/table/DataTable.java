@@ -400,12 +400,15 @@ public class DataTable implements Serializable{
       dataEntryProjection = new DataEntryProjection();
     }
     if (key.equals("id")) {
-      Set<DataEntry>  entrySet = new TreeSet(Arrays.asList(this.keyToEntry.get(value)));
-      Stream<DataEntry> process = dataEntryProjection.process(entrySet.stream());
-      if(dataEntryProjection.isWritable()) {
-        return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+      if(this.keyToEntry.size()>0) {
+        Set<DataEntry> entrySet = new TreeSet(Arrays.asList(this.keyToEntry.get(value)));
+        Stream<DataEntry> process = dataEntryProjection.process(entrySet.stream());
+        if (dataEntryProjection.isWritable()) {
+          return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+        }
+        return process.collect(Collectors.toSet());
       }
-      return process.collect(Collectors.toSet());
+      return new TreeSet<>();
     }
     IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
     return handleIndexOperation(value, dataEntryProjection, dataEntryIndexWrapper::get);

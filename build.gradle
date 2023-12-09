@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.nucleodb'
-version = '1.13.10'
+version = '1.13.11'
 
 repositories {
     mavenCentral()

@@ -28,10 +28,13 @@ import org.reflections.Reflections;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Logger;
 
+import static com.nucleodb.library.utils.EnvReplace.replaceEnvVariables;
 import static com.nucleodb.library.utils.field.FieldFinder.getAllAnnotatedFields;
 
 public class NucleoDB{
@@ -47,6 +50,7 @@ public class NucleoDB{
 
   public enum DBType{
     NO_LOCAL,
+    READ_ONLY,
     EXPORT,
     ALL;
   }
@@ -56,12 +60,15 @@ public class NucleoDB{
   }
 
   public NucleoDB(String bootstrap, DBType dbType, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
-    startTables(bootstrap, packagesToScan, dbType);
-    startConnections(bootstrap, packagesToScan, dbType);
+    this(bootstrap, dbType, null, packagesToScan);
   }
-  private void startConnections(String bootstrap, String[] packagesToScan, DBType dbType){
+  public NucleoDB(String bootstrap, DBType dbType, String upToTime, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
+    startTables(replaceEnvVariables(bootstrap), packagesToScan, dbType, upToTime);
+    startConnections(replaceEnvVariables(bootstrap), packagesToScan, dbType, upToTime);
+  }
+  private void startConnections(String bootstrap, String[] packagesToScan, DBType dbType, String readToTime){
     logger.info("NucleoDB Connections Starting");
-    Optional<Set<Class<?>>> connectionTypesOptional = Arrays.stream(packagesToScan).map(packageToScan->new Reflections(packageToScan).getTypesAnnotatedWith(Conn.class)).reduce((a, b)->{
+    Optional<Set<Class<?>>> connectionTypesOptional = Arrays.stream(packagesToScan).map(packageToScan->new Reflections(replaceEnvVariables(packageToScan)).getTypesAnnotatedWith(Conn.class)).reduce((a, b)->{
       a.addAll(b);
       return a;
     });
@@ -93,6 +100,13 @@ public class NucleoDB{
         }
       }
       config.setConnectionClass(type);
+      if(readToTime!=null) {
+        try {
+          config.setReadToTime(Instant.parse(readToTime));
+        }catch (DateTimeParseException e){
+          e.printStackTrace();
+        }
+      }
       config.setLabel(connectionType.value().toUpperCase());
       config.setStartupRun(new StartupRun(){
         public void run(ConnectionHandler connectionHandler) {
@@ -103,6 +117,9 @@ public class NucleoDB{
         case NO_LOCAL -> {
           config.setSaveChanges(false);
           config.setLoadSaved(false);
+        }
+        case READ_ONLY -> {
+          config.setWrite(false);
         }
         case EXPORT -> config.setJsonExport(true);
       }
@@ -117,15 +134,16 @@ public class NucleoDB{
       throw new RuntimeException(e);
     }
   }
-  private void startTables(String bootstrap, String[] packagesToScan, DBType dbType) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
+  private void startTables(String bootstrap, String[] packagesToScan, DBType dbType, String readToTime) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
     logger.info("NucleoDB Tables Starting");
-    Optional<Set<Class<?>>> tableTypesOptional = Arrays.stream(packagesToScan).map(packageToScan->new Reflections(packageToScan).getTypesAnnotatedWith(Table.class)).reduce((a, b)->{
+    Optional<Set<Class<?>>> tableTypesOptional = Arrays.stream(packagesToScan).map(packageToScan->new Reflections(replaceEnvVariables(packageToScan)).getTypesAnnotatedWith(Table.class)).reduce((a, b)->{
       a.addAll(b);
       return a;
     });
     if(!tableTypesOptional.isPresent()){
       return;
     }
+
     Set<Class<?>> tableTypes = tableTypesOptional.get();
     CountDownLatch latch = new CountDownLatch(tableTypes.size());
     Set<DataTableBuilder> tables = new TreeSetExt<>();
@@ -141,8 +159,9 @@ public class NucleoDB{
         throw new IncorrectDataEntryClassException(String.format("%s does not extend DataEntry", dataEntryClass.getName()));
       }
       try {
-        if(dataEntryClass!= DataEntry.class)
+        if(dataEntryClass != DataEntry.class) {
           dataEntryClass.getDeclaredConstructor(type);
+        }
         dataEntryClass.getDeclaredConstructor(Create.class);
         dataEntryClass.getDeclaredConstructor();
         dataEntryClass.getDeclaredConstructor(String.class);
@@ -163,6 +182,11 @@ public class NucleoDB{
             latch.countDown();
           }
         }));
+        case READ_ONLY -> tables.add(launchReadOnlyTable(bootstrap, tableName, dataEntryClass, type, new StartupRun(){
+          public void run(DataTable table) {
+            latch.countDown();
+          }
+        }));
         case EXPORT -> tables.add(launchExportOnlyTable(bootstrap, tableName, dataEntryClass, type, new StartupRun(){
           public void run(DataTable table) {
             latch.countDown();
@@ -171,6 +195,13 @@ public class NucleoDB{
       }
     }
     tables.stream().forEach(table -> {
+      if(readToTime!=null) {
+        try {
+          table.getConfig().setReadToTime(Instant.parse(readToTime));
+        }catch (DateTimeParseException e){
+          e.printStackTrace();
+        }
+      }
       table.addIndexes(indexes.get(table.getConfig().getTable()));
       table.build();
     });

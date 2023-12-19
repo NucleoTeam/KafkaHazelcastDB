@@ -11,5 +11,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface Table {
   String tableName();
-  Class dataEntryClass() default DataEntry.class;
+  Class<? extends DataEntry> dataEntryClass() default DataEntry.class;
 }

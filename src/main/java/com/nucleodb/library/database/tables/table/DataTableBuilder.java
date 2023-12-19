@@ -2,8 +2,11 @@ package com.nucleodb.library.database.tables.table;
 
 import com.nucleodb.library.NucleoDB;
 import com.nucleodb.library.database.utils.StartupRun;
+import com.nucleodb.library.mqs.config.MQSConfiguration;
 import org.jetbrains.annotations.NotNull;
 
+import java.beans.IntrospectionException;
+import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 import java.util.Set;
 
@@ -11,10 +14,9 @@ public class DataTableBuilder implements Comparable{
   private static final long serialVersionUID = 1;
   DataTableConfig config = new DataTableConfig();
   NucleoDB db = null;
-  public static DataTableBuilder createReadOnly(String bootstrap, String table, Class clazz){
+  public static DataTableBuilder createReadOnly(String table, Class clazz){
     return new DataTableBuilder(){{
       this.config.setTable(table);
-      this.config.setBootstrap(bootstrap);
       this.config.setRead(true);
       this.config.setWrite(false);
       this.config.setLoadSave(true);
@@ -22,10 +24,9 @@ public class DataTableBuilder implements Comparable{
       this.config.setClazz(clazz);
     }};
   }
-  public static DataTableBuilder createWriteOnly(String bootstrap, String table, Class clazz){
+  public static DataTableBuilder createWriteOnly(String table, Class clazz){
     return new DataTableBuilder(){{
       this.config.setTable(table);
-      this.config.setBootstrap(bootstrap);
       this.config.setRead(false);
       this.config.setWrite(true);
       this.config.setLoadSave(true);
@@ -33,15 +34,13 @@ public class DataTableBuilder implements Comparable{
       this.config.setClazz(clazz);
     }};
   }
-  public static DataTableBuilder create(String bootstrap, String table, Class clazz){
+  public static DataTableBuilder create(String table, Class clazz){
     return new DataTableBuilder(){{
       this.config.setTable(table);
-      this.config.setBootstrap(bootstrap);
       this.config.setClazz(clazz);
     }};
   }
-  public DataTableBuilder setBootstrap(String bootstrap) {
-    config.setBootstrap(bootstrap);
+  public DataTableBuilder setBootstrap() {
     return this;
   }
 
@@ -50,6 +49,25 @@ public class DataTableBuilder implements Comparable{
     return this;
   }
 
+  public DataTableBuilder putSetting(String key, Object value){
+    this.config.getSettingsMap().put(key, value);
+    return this;
+  }
+
+  public DataTableBuilder setMQSConfiguration(Class<? extends MQSConfiguration> clazz){
+    try {
+      this.config.setMqsConfiguration(clazz.getDeclaredConstructor().newInstance());
+    } catch (InstantiationException e) {
+      throw new RuntimeException(e);
+    } catch (IllegalAccessException e) {
+      throw new RuntimeException(e);
+    } catch (InvocationTargetException e) {
+      throw new RuntimeException(e);
+    } catch (NoSuchMethodException e) {
+      throw new RuntimeException(e);
+    }
+    return this;
+  }
   public DataTableBuilder setJSONExport(boolean jsonExport){
     this.config.setJsonExport(jsonExport);
     return this;
@@ -109,7 +127,7 @@ public class DataTableBuilder implements Comparable{
     return this;
   }
 
-  public DataTable build(){
+  public DataTable build() throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     DataTable table = new DataTable(this.config);
     if(db != null){
       db.getTables().put(config.getTable(), table);

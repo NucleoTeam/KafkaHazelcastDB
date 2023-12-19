@@ -3,13 +3,17 @@ package com.nucleodb.library.database.tables.table;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nucleodb.library.database.index.IndexWrapper;
 import com.nucleodb.library.database.utils.StartupRun;
+import com.nucleodb.library.mqs.config.MQSConfiguration;
+import com.nucleodb.library.mqs.kafka.KafkaConfiguration;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 public class DataTableConfig implements Serializable{
@@ -48,7 +52,6 @@ public class DataTableConfig implements Serializable{
       return 0;
     }
   }
-  String bootstrap = "127.0.0.1:19092";
   String table;
   @JsonIgnore
   transient Class clazz;
@@ -60,6 +63,11 @@ public class DataTableConfig implements Serializable{
   boolean read = true;
   boolean write = true;
   List<IndexConfig> indexes = new LinkedList<>();
+  MQSConfiguration mqsConfiguration = new KafkaConfiguration();
+
+  Map<String, Object> settingsMap = new TreeMap<>();
+
+
   @JsonIgnore
   private transient StartupRun startupRun = null;
 
@@ -68,9 +76,6 @@ public class DataTableConfig implements Serializable{
   public DataTableConfig() {
   }
 
-  public String getBootstrap() {
-    return bootstrap;
-  }
 
   public String getTable() {
 
@@ -109,13 +114,10 @@ public class DataTableConfig implements Serializable{
     return indexes;
   }
 
-  public void setBootstrap(String bootstrap) {
-    this.bootstrap = bootstrap;
-  }
-
   public void setTable(String table) {
     this.tableFileName = "./data/" + table + ".dat";
     this.table = table;
+    this.settingsMap.put("table", table);
   }
 
   public void setTableFileName(String tableFileName) {
@@ -175,5 +177,21 @@ public class DataTableConfig implements Serializable{
 
   public void setDataEntryClass(Class dataEntryClass) {
     this.dataEntryClass = dataEntryClass;
+  }
+
+  public MQSConfiguration getMqsConfiguration() {
+    return mqsConfiguration;
+  }
+
+  public void setMqsConfiguration(MQSConfiguration mqsConfiguration) {
+    this.mqsConfiguration = mqsConfiguration;
+  }
+
+  public Map<String, Object> getSettingsMap() {
+    return settingsMap;
+  }
+
+  public void setSettingsMap(Map<String, Object> settingsMap) {
+    this.settingsMap = settingsMap;
   }
 }

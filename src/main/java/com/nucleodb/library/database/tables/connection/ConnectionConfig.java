@@ -2,9 +2,13 @@ package com.nucleodb.library.database.tables.connection;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nucleodb.library.database.utils.StartupRun;
+import com.nucleodb.library.mqs.config.MQSConfiguration;
+import com.nucleodb.library.mqs.kafka.KafkaConfiguration;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class ConnectionConfig implements Serializable{
   private static final long serialVersionUID = 1;
@@ -16,11 +20,15 @@ public class ConnectionConfig implements Serializable{
   boolean saveChanges = true;
   String topic;
   String label;
-  String bootstrap = "127.0.0.1:19092";
 
   Class connectionClass;
   Class toTable;
   Class fromTable;
+
+  MQSConfiguration mqsConfiguration = new KafkaConfiguration();
+
+  Map<String, Object> settingsMap = new TreeMap<>();
+
   @JsonIgnore
   private transient StartupRun startupRun = null;
 
@@ -41,14 +49,6 @@ public class ConnectionConfig implements Serializable{
 
   public void setWrite(boolean write) {
     this.write = write;
-  }
-
-  public String getBootstrap() {
-    return bootstrap;
-  }
-
-  public void setBootstrap(String bootstrap) {
-    this.bootstrap = bootstrap;
   }
 
   public StartupRun getStartupRun() {
@@ -116,11 +116,13 @@ public class ConnectionConfig implements Serializable{
   }
 
   public String getTopic() {
+
     return topic;
   }
 
   public void setTopic(String topic) {
     this.topic = topic;
+    this.settingsMap.put("table", topic);
   }
 
   public String getLabel() {
@@ -129,5 +131,21 @@ public class ConnectionConfig implements Serializable{
 
   public void setLabel(String label) {
     this.label = label;
+  }
+
+  public MQSConfiguration getMqsConfiguration() {
+    return mqsConfiguration;
+  }
+
+  public void setMqsConfiguration(MQSConfiguration mqsConfiguration) {
+    this.mqsConfiguration = mqsConfiguration;
+  }
+
+  public Map<String, Object> getSettingsMap() {
+    return settingsMap;
+  }
+
+  public void setSettingsMap(Map<String, Object> settingsMap) {
+    this.settingsMap = settingsMap;
   }
 }

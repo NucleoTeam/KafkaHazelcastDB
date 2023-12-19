@@ -20,8 +20,10 @@ import com.nucleodb.library.database.utils.ObjectFileReader;
 import com.nucleodb.library.database.utils.Serializer;
 import com.nucleodb.library.database.utils.TreeSetExt;
 import com.nucleodb.library.database.utils.Utils;
-import com.nucleodb.library.kafkaLedger.ConsumerHandler;
-import com.nucleodb.library.kafkaLedger.ProducerHandler;
+import com.nucleodb.library.mqs.ConsumerHandler;
+import com.nucleodb.library.mqs.ProducerHandler;
+import com.nucleodb.library.mqs.kafka.KafkaConsumerHandler;
+import com.nucleodb.library.mqs.kafka.KafkaProducerHandler;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
@@ -30,9 +32,11 @@ import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.config.TopicConfig;
 
+import java.beans.IntrospectionException;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
@@ -95,24 +99,20 @@ public class ConnectionHandler implements Serializable{
   private transient AtomicBoolean startupPhase = new AtomicBoolean(true);
   private AtomicLong itemsToBeCleaned = new AtomicLong(0L);
 
-  public ConnectionHandler(NucleoDB nucleoDB, ConnectionConfig config) {
+  public ConnectionHandler(NucleoDB nucleoDB, ConnectionConfig config) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     this.nucleoDB = nucleoDB;
     this.config = config;
-    if (config.isWrite()) {
-      createTopics();
-    }
+
     if (config.isLoadSaved()) {
       loadSavedData();
     }
 
     if (config.isRead()) {
-      logger.info("Connecting to " + config.getBootstrap());
       new Thread(new ModQueueHandler(this)).start();
       this.consume();
     }
     if (config.isWrite()) {
-      logger.info("Producing to " + config.getBootstrap());
-      producer = new ProducerHandler(config.getBootstrap(), config.getTopic(), this.consumerId);
+      producer = this.config.getMqsConfiguration().createProducerHandler(this.config.getSettingsMap());
     }
     if (config.isSaveChanges()) {
       new Thread(new SaveHandler(this)).start();
@@ -122,28 +122,20 @@ public class ConnectionHandler implements Serializable{
     }
   }
 
-  public ConnectionHandler(NucleoDB nucleoDB, String bootstrap) {
+  public ConnectionHandler(NucleoDB nucleoDB, String bootstrap) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     this.nucleoDB = nucleoDB;
     this.config = new ConnectionConfig();
-    this.config.setBootstrap(bootstrap);
-    // startup
-
-    if (config.isWrite()) {
-      createTopics();
-    }
 
     if (config.isLoadSaved()) {
       loadSavedData();
     }
 
     if (config.isRead()) {
-      System.out.println("Connecting to " + config.getBootstrap());
       new Thread(new ModQueueHandler(this)).start();
       this.consume();
     }
     if (config.isWrite()) {
-      System.out.println("Producing to " + config.getBootstrap());
-      producer = new ProducerHandler(config.getBootstrap(), config.getTopic(), this.consumerId);
+      producer = this.config.getMqsConfiguration().createProducerHandler(this.config.getSettingsMap());
     }
     if (config.isSaveChanges()) {
       new Thread(new SaveHandler(this)).start();
@@ -156,9 +148,9 @@ public class ConnectionHandler implements Serializable{
 
 
   public void loadSavedData() {
-    if (new File("./data/"+ getConfig().getTopic()+".dat").exists()) {
+    if (new File("./data/" + getConfig().getTopic() + ".dat").exists()) {
       try {
-        ConnectionHandler tmpConnections = (ConnectionHandler) new ObjectFileReader().readObjectFromFile("./data/"+getConfig().getTopic()+".dat");
+        ConnectionHandler tmpConnections = (ConnectionHandler) new ObjectFileReader().readObjectFromFile("./data/" + getConfig().getTopic() + ".dat");
         tmpConnections.allConnections.forEach(c -> this.addConnection(c));
         this.changed = tmpConnections.changed;
         this.consumerId = tmpConnections.getConsumerId();
@@ -169,65 +161,6 @@ public class ConnectionHandler implements Serializable{
         throw new RuntimeException(e);
       }
     }
-  }
-
-  public void createTopics() {
-    Properties props = new Properties();
-    props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.getBootstrap());
-    AdminClient client = KafkaAdminClient.create(props);
-
-    String topic = config.getTopic();
-    CountDownLatch countDownLatch = new CountDownLatch(1);
-    try {
-      ListTopicsResult listTopicsResult = client.listTopics();
-      listTopicsResult.names().whenComplete((names, f)->{
-        if(f!=null){
-          f.printStackTrace();
-        }
-        if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
-          logger.info(String.format("kafka topic not found for %s", topic));
-          final NewTopic newTopic = new NewTopic(topic, 36, (short) 3);
-          newTopic.configs(new TreeMap<>(){{
-            put(TopicConfig.RETENTION_MS_CONFIG, "-1");
-            put(TopicConfig.RETENTION_MS_CONFIG, "-1");
-            put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
-          }});
-          CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
-          createTopicsResult.all().whenComplete((c, e) -> {
-            if (e != null) {
-              e.printStackTrace();
-            }
-            countDownLatch.countDown();
-          });
-        }else{
-          countDownLatch.countDown();
-        }
-      });
-    } catch (Exception e) {
-      e.printStackTrace();
-      System.exit(-1);
-    }
-
-    try {
-      countDownLatch.await(60, TimeUnit.SECONDS);
-      CountDownLatch countDownLatchCreatedCheck = new CountDownLatch(1);
-      ListTopicsResult listTopicsResult = client.listTopics();
-      listTopicsResult.names().whenComplete((names, f)->{
-        if(f!=null){
-          f.printStackTrace();
-        }
-        if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
-          logger.info("topic not created");
-          System.exit(-1);
-        }
-        countDownLatchCreatedCheck.countDown();
-      });
-      countDownLatchCreatedCheck.await();
-    } catch (Exception e) {
-      e.printStackTrace();
-      System.exit(-1);
-    }
-    client.close();
   }
 
   public Set<Connection> getByFrom(DataEntry de, ConnectionProjection connectionProjection) {
@@ -336,10 +269,14 @@ public class ConnectionHandler implements Serializable{
     }
   }
 
-  public void consume() {
-    if (this.config.getBootstrap() != null) {
-      System.out.println(this.consumerId + " connecting to: " + this.config.getBootstrap());
-      this.consumer = new ConsumerHandler(this.config.getBootstrap(), this.consumerId, this, getConfig().getTopic());
+  public void consume() throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    if (this.config.getSettingsMap() != null) {
+      this.consumer = this.config
+          .getMqsConfiguration()
+          .createConsumerHandler(this.config.getSettingsMap());
+      this.consumer.setConnectionHandler(this);
+      this.consumer.start();
+      this.config.getSettingsMap().put("consumerHandler", this.consumer);
     }
   }
 

@@ -8,8 +8,6 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.collect.Queues;
-import com.google.common.collect.Sets;
-import com.nucleodb.library.database.index.TrieIndex;
 import com.nucleodb.library.database.modifications.Create;
 import com.nucleodb.library.database.modifications.Delete;
 import com.nucleodb.library.database.modifications.Update;
@@ -21,21 +19,16 @@ import com.nucleodb.library.database.utils.TreeSetExt;
 import com.nucleodb.library.database.utils.Utils;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleodb.library.database.index.IndexWrapper;
-import com.nucleodb.library.database.index.TreeIndex;
 import com.nucleodb.library.database.utils.exceptions.InvalidIndexTypeException;
-import com.nucleodb.library.kafkaLedger.ConsumerHandler;
-import com.nucleodb.library.kafkaLedger.ProducerHandler;
-import org.apache.kafka.clients.admin.*;
-import org.apache.kafka.common.config.TopicConfig;
+import com.nucleodb.library.mqs.ConsumerHandler;
+import com.nucleodb.library.mqs.ProducerHandler;
 import com.github.fge.jsonpatch.JsonPatch;
-
-import javax.xml.crypto.Data;
+import java.beans.IntrospectionException;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -61,7 +54,6 @@ public class DataTable implements Serializable{
   private Set<DataEntry> dataEntries = new TreeSetExt<>();
   private Map<String, DataEntry> keyToEntry = new TreeMap<>();
   private Map<Integer, Long> partitionOffsets = new TreeMap<>();
-  private String consumerId = UUID.randomUUID().toString();
   private long changed = new Date().getTime();
   private transient AtomicInteger leftInModQueue = new AtomicInteger(0);
   private Set<String> deletedEntries = new TreeSetExt<>();
@@ -117,7 +109,6 @@ public class DataTable implements Serializable{
           this.config.merge(tmpTable.config);
         this.changed = tmpTable.changed;
         this.entries = tmpTable.entries;
-        this.consumerId = tmpTable.consumerId;
         this.partitionOffsets = tmpTable.partitionOffsets;
         this.keyToEntry = tmpTable.keyToEntry;
         this.entries.forEach(e -> {
@@ -139,66 +130,8 @@ public class DataTable implements Serializable{
       }
     }
   }
-  public void createTopics() {
-    Properties props = new Properties();
-    props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.getBootstrap());
-    AdminClient client = KafkaAdminClient.create(props);
 
-    String topic = config.getTable();
-    CountDownLatch countDownLatch = new CountDownLatch(1);
-    try {
-      ListTopicsResult listTopicsResult = client.listTopics();
-      listTopicsResult.names().whenComplete((names, f)->{
-        if(f!=null){
-          f.printStackTrace();
-        }
-        if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
-          logger.info(String.format("kafka topic not found for %s", topic));
-          final NewTopic newTopic = new NewTopic(topic, 36, (short) 3);
-          newTopic.configs(new TreeMap<>(){{
-            put(TopicConfig.RETENTION_MS_CONFIG, "-1");
-            put(TopicConfig.RETENTION_MS_CONFIG, "-1");
-            put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
-          }});
-          CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
-          createTopicsResult.all().whenComplete((c, e) -> {
-            if (e != null) {
-              e.printStackTrace();
-            }
-            countDownLatch.countDown();
-          });
-        }else{
-          countDownLatch.countDown();
-        }
-      });
-    } catch (Exception e) {
-      e.printStackTrace();
-      System.exit(-1);
-    }
-
-    try {
-      countDownLatch.await();
-      CountDownLatch countDownLatchCreatedCheck = new CountDownLatch(1);
-      ListTopicsResult listTopicsResult = client.listTopics();
-      listTopicsResult.names().whenComplete((names, f)->{
-        if(f!=null){
-          f.printStackTrace();
-        }
-        if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
-          logger.info("topic not created");
-          System.exit(-1);
-        }
-        countDownLatchCreatedCheck.countDown();
-      });
-      countDownLatchCreatedCheck.await();
-    } catch (Exception e) {
-      e.printStackTrace();
-      System.exit(-1);
-    }
-    client.close();
-  }
-
-  public DataTable(DataTableConfig config) {
+  public DataTable(DataTableConfig config) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     this.config = config;
 
     config.getIndexes().forEach(i -> {
@@ -222,10 +155,6 @@ public class DataTable implements Serializable{
       loadSavedData();
     }
 
-    if (config.isWrite()) {
-      createTopics();
-    }
-
     this.fields = new ArrayList<>(){{
       addAll(Arrays.asList(config.getClazz().getDeclaredFields()));
       addAll(Arrays.asList(config.getClazz().getSuperclass().getFields()));
@@ -233,15 +162,15 @@ public class DataTable implements Serializable{
 
 
     if (config.isRead()) {
-      logger.info("Connecting to " + config.getBootstrap());
       new Thread(new ModQueueHandler(this)).start();
       this.consume();
-      logger.info("Connected to  " + config.getBootstrap());
     }
 
     if (config.isWrite()) {
-      logger.info("Producing to " + config.getBootstrap());
-      producer = new ProducerHandler(config.getBootstrap(), config.getTable(), this.consumerId);
+
+      producer = this.config
+          .getMqsConfiguration()
+          .createProducerHandler(this.config.getSettingsMap());
     }
 
     if (config.isSaveChanges()) {
@@ -252,11 +181,13 @@ public class DataTable implements Serializable{
     }
   }
 
-  public void consume() {
-    if (this.config.getBootstrap() != null) {
-      logger.info(this.config.getTable() + " with " + this.consumerId + " connecting to: " + this.config.getBootstrap());
-      this.consumer = new ConsumerHandler(this.config.getBootstrap(), this.consumerId, this, this.config.getTable());
-    }
+  public void consume() throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    this.consumer = this.getConfig()
+        .getMqsConfiguration()
+        .createConsumerHandler(this.config.getSettingsMap());
+    this.consumer.setDatabase(this);
+    this.consumer.start();
+    this.config.getSettingsMap().put("consumerHandler", this.consumer);
   }
 
   public void exportTo(DataTable tb) throws IncorrectDataEntryObjectException {
@@ -1009,14 +940,6 @@ public class DataTable implements Serializable{
 
   public void setConfig(DataTableConfig config) {
     this.config = config;
-  }
-
-  public String getConsumerId() {
-    return consumerId;
-  }
-
-  public void setConsumerId(String consumerId) {
-    this.consumerId = consumerId;
   }
 
   public AtomicInteger getLeftInModQueue() {

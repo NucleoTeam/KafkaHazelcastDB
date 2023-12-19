@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.nucleodb'
-version = '1.13.13'
+version = '1.13.14'
 
 repositories {
     mavenCentral()
@@ -29,6 +29,7 @@ compileJava {
 
 test {
     useJUnitPlatform()
+    environment "TEST2", "CHECK"
 }
 
 dependencies {

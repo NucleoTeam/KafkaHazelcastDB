@@ -1,5 +1,8 @@
 package com.nucleodb.library.database.index.helpers;
 
+import com.nucleodb.library.database.tables.annotation.Table;
+
+
 public class TestClass {
     String name = "test";
 

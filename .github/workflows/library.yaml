@@ -2,7 +2,7 @@ name: Publish library
 on:
   push
 permissions:
-  checks: write
+  publish: write
 jobs:
   publish:
     runs-on: ubuntu-latest

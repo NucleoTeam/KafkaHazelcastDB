@@ -625,6 +625,7 @@ public class ConnectionHandler implements Serializable{
                     config.getConnectionClass()
                 );
                 conn.setVersion(u.getVersion());
+                conn.setModified(u.getTime());
                 conn.setMetadata(connectionTmp.getMetadata());
                 this.changed = new Date().getTime();
                 consumerResponse(conn, u.getChangeUUID());

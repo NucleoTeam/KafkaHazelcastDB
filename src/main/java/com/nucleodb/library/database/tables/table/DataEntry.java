@@ -18,7 +18,7 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
     @SkipCopy
     private static final long serialVersionUID = 1;
     public String key;
-    public long version = -1;
+    public long version = 0;
     private JsonNode reference;
     public T data;
     private transient String tableName;
@@ -136,5 +136,13 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
     }
     public Object cast(Class<?> clazz) throws JsonProcessingException {
         return new ObjectMapper().readValue(new ObjectMapper().writeValueAsString(this), clazz);
+    }
+
+    public void setCreated(Instant created) {
+        this.created = created;
+    }
+
+    public void setModified(Instant modified) {
+        this.modified = modified;
     }
 }

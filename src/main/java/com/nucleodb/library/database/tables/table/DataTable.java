@@ -671,6 +671,7 @@ public class DataTable implements Serializable{
               } else {
                 de.setReference(u.getChangesPatch().apply(de.getReference()));
                 de.setVersion(u.getVersion());
+                de.setModified(u.getTime());
                 de.setData(Serializer.getObjectMapper().getOm().readValue(de.getReference().toString(), de.getData().getClass()));
                 //System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(de.getData()));
                 u.getOperations().forEach(op -> {

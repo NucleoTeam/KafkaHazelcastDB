@@ -203,7 +203,7 @@ public class SQLHandler{
     Expression where = plainSelect.getWhere();
     Set<DataEntry> foundEntries;
     if (where == null) {
-      foundEntries = table.getDataEntries();
+      foundEntries = table.getEntries();
     } else {
       foundEntries = evaluateWhere(where, table);
     }
@@ -686,7 +686,7 @@ public class SQLHandler{
         CountDownLatch countDownLatch = new CountDownLatch(dataEntries.size());
         dataEntries.forEach(x -> {
           new Thread(() -> {
-            if (table.getDataEntries().contains(x)) {
+            if (table.getEntries().contains(x)) {
               table.deleteAsync(x, (d) -> {
                 //Serializer.log("DELETED ");
                 //Serializer.log(d);

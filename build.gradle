@@ -2,10 +2,11 @@ plugins {
     id 'java'
     id 'java-library'
     id 'maven-publish'
+    id 'jacoco'
 }
 
 group = 'com.nucleodb'
-version = '1.13.14'
+version = '1.13.15'
 
 repositories {
     mavenCentral()
@@ -29,7 +30,12 @@ compileJava {
 
 test {
     useJUnitPlatform()
+    finalizedBy jacocoTestReport
     environment "TEST2", "CHECK"
+}
+
+jacocoTestReport {
+    dependsOn test // tests are required to run before generating the report
 }
 
 dependencies {
@@ -46,6 +52,7 @@ dependencies {
     api 'org.dizitart:nitrite:3.4.3'
     api group: 'com.fasterxml.jackson.datatype', name:'jackson-datatype-jsr310', version:'2.15.2'
     api 'com.github.jsqlparser:jsqlparser:4.6'
+
     dependencies {
         testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
         testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'

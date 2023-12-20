@@ -48,10 +48,9 @@ public class DataTable implements Serializable{
   private transient static Logger logger = Logger.getLogger(DataTable.class.getName());
 
   private Set<DataEntry> entries = new TreeSetExt<>();
-  private DataTableConfig config;
+  private transient DataTableConfig config;
   @JsonIgnore
   private transient Map<String, IndexWrapper<DataEntry>> indexes = new TreeMap<>();
-  private Set<DataEntry> dataEntries = new TreeSetExt<>();
   private Map<String, DataEntry> keyToEntry = new TreeMap<>();
   private Map<Integer, Long> partitionOffsets = new TreeMap<>();
   private long changed = new Date().getTime();
@@ -104,7 +103,6 @@ public class DataTable implements Serializable{
       logger.info("reading " + config.getTableFileName());
       try {
         DataTable tmpTable = (DataTable) new ObjectFileReader().readObjectFromFile(config.getTableFileName());
-        this.dataEntries = tmpTable.dataEntries;
         if (tmpTable.config != null)
           this.config.merge(tmpTable.config);
         this.changed = tmpTable.changed;
@@ -487,7 +485,7 @@ public class DataTable implements Serializable{
   }
 
   private boolean saveInternal(DataEntry entry, String changeUUID) {
-    if (!dataEntries.contains(entry)) {
+    if (!entries.contains(entry)) {
       try {
         Create createEntry = new Create(changeUUID, entry);
         producer.push(createEntry.key, createEntry.version, createEntry, null);
@@ -540,7 +538,8 @@ public class DataTable implements Serializable{
           try {
             itemProcessed();
             if (this.config.getReadToTime() != null && c.getTime().isAfter(this.config.getReadToTime())) {
-              logger.info("Create after target db date");
+              consumerResponse(null, c.getChangeUUID());
+              fireListeners(Modification.CREATE, null);
               return;
             }
 
@@ -556,7 +555,6 @@ public class DataTable implements Serializable{
 
             synchronized (entries) {
               entries.add(dataEntry);
-              dataEntries.add(dataEntry);
               keyToEntry.put(dataEntry.getKey(), dataEntry);
               for (IndexWrapper i : this.indexes.values()) {
                 try {
@@ -581,7 +579,8 @@ public class DataTable implements Serializable{
           try {
             itemProcessed();
             if (this.config.getReadToTime() != null && d.getTime().isAfter(this.config.getReadToTime())) {
-              //logger.info("Delete after target db date");
+              consumerResponse(null, d.getChangeUUID());
+              fireListeners(Modification.DELETE, null);
               return;
             }
 
@@ -607,7 +606,6 @@ public class DataTable implements Serializable{
                 synchronized (entries) {
                   entries.remove(de);
                   keyToEntry.remove(de.getKey());
-                  dataEntries.remove(de);
                   this.indexes.values().forEach(i -> {
                     try {
                       i.delete(de);
@@ -652,6 +650,8 @@ public class DataTable implements Serializable{
             itemProcessed();
             if (this.config.getReadToTime() != null && u.getTime().isAfter(this.config.getReadToTime())) {
               //System.out.println("Update after target db date");
+              consumerResponse(null, u.getChangeUUID());
+              fireListeners(Modification.UPDATE, null);
               return;
             }
             DataEntry de = keyToEntry.get(u.getKey());
@@ -812,14 +812,6 @@ public class DataTable implements Serializable{
 
   public void setIndexes(Map<String, IndexWrapper<DataEntry>> indexes) {
     this.indexes = indexes;
-  }
-
-  public Set<DataEntry> getDataEntries() {
-    return dataEntries;
-  }
-
-  public void setDataEntries(Set<DataEntry> dataEntries) {
-    this.dataEntries = dataEntries;
   }
 
   public Map<String, DataEntry> getKeyToEntry() {

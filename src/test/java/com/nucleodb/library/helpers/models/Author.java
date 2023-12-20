@@ -7,7 +7,7 @@ import com.nucleodb.library.database.tables.annotation.Table;
 import java.io.Serializable;
 
 @Table(tableName = "author", dataEntryClass = AuthorDE.class)
-public class Author {
+public class Author implements Serializable {
   private static final long serialVersionUID = 1;
   @Index(type = TrieIndex.class)
   String name;

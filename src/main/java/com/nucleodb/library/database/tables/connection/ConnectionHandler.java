@@ -6,6 +6,7 @@ import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.diff.JsonDiff;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.nucleodb.library.NucleoDB;
@@ -48,6 +49,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -485,7 +487,21 @@ public class ConnectionHandler implements Serializable{
     if (this.startupPhase.get()) this.startupLoadCount.incrementAndGet();
   }
 
-  public void modify(Modification mod, Object modification) {
+  private void consumerResponse(Connection connection, String changeUUID) throws ExecutionException {
+    try {
+      if(changeUUID!=null) {
+        Consumer<Connection> connectionConsumer = consumers.getIfPresent(changeUUID);
+        if (connectionConsumer != null) {
+          new Thread(() -> connectionConsumer.accept(connection)).start();
+          consumers.invalidate(changeUUID);
+        }
+      }
+    } catch (CacheLoader.InvalidCacheLoadException e) {
+    }
+    this.changed = new Date().getTime();
+  }
+
+  public void modify(Modification mod, Object modification) throws ExecutionException {
     switch (mod) {
       case CONNECTIONCREATE:
         ConnectionCreate c = (ConnectionCreate) modification;
@@ -495,6 +511,7 @@ public class ConnectionHandler implements Serializable{
           itemProcessed();
           if (this.config.getReadToTime() != null && c.getDate().isAfter(this.config.getReadToTime())) {
             //logger.info("Create after target db date");
+            consumerResponse(null, c.getChangeUUID());
             return;
           }
           try {
@@ -510,15 +527,7 @@ public class ConnectionHandler implements Serializable{
             //Serializer.log("Connection added to db");
             //Serializer.log(consumers.asMap().keySet());
             this.changed = new Date().getTime();
-            if (c.getChangeUUID() != null) {
-              Consumer<Connection> consumer = consumers.getIfPresent(c.getChangeUUID());
-              if (consumer != null) {
-                new Thread(() -> {
-                  consumers.invalidate(c.getChangeUUID());
-                  consumer.accept(connection);
-                }).start();
-              }
-            }
+            consumerResponse(connection, c.getChangeUUID());
 
           } catch (Exception e) {
             e.printStackTrace();
@@ -532,6 +541,7 @@ public class ConnectionHandler implements Serializable{
           if (d != null) {
             itemProcessed();
             if (this.config.getReadToTime() != null && d.getTime().isAfter(this.config.getReadToTime())) {
+              consumerResponse(null, d.getChangeUUID());
               //logger.info("Delete after target db date");
               //System.exit(1);
               return;
@@ -558,15 +568,7 @@ public class ConnectionHandler implements Serializable{
                 deletedEntries.add(d.getUuid());
                 //logger.info("Added to deleted entries");
                 this.changed = new Date().getTime();
-                if (d.getChangeUUID() != null) {
-                  Consumer<Connection> consumer = consumers.getIfPresent(d.getChangeUUID());
-                  if (consumer != null) {
-                    new Thread(() -> {
-                      consumers.invalidate(d.getChangeUUID());
-                      consumer.accept(conn);
-                    }).start();
-                  }
-                }
+                consumerResponse(conn, d.getChangeUUID());
                 long items = itemsToBeCleaned.incrementAndGet();
                 if (!startupPhase.get() && items > 100) {
                   itemsToBeCleaned.set(0L);
@@ -598,7 +600,7 @@ public class ConnectionHandler implements Serializable{
         if (u != null) {
           itemProcessed();
           if (this.config.getReadToTime() != null && u.getTime().isAfter(this.config.getReadToTime())) {
-            //System.out.println("Update after target db date");
+            consumerResponse(null, u.getChangeUUID());
             return;
           }
           try {
@@ -625,15 +627,7 @@ public class ConnectionHandler implements Serializable{
                 conn.setVersion(u.getVersion());
                 conn.setMetadata(connectionTmp.getMetadata());
                 this.changed = new Date().getTime();
-                if (u.getChangeUUID() != null) {
-                  Consumer<Connection> consumer = consumers.getIfPresent(u.getChangeUUID());
-                  if (consumer != null) {
-                    new Thread(() -> {
-                      consumers.invalidate(u.getChangeUUID());
-                      consumer.accept(conn);
-                    }).start();
-                  }
-                }
+                consumerResponse(conn, u.getChangeUUID());
                 long items = itemsToBeCleaned.incrementAndGet();
                 if (!startupPhase.get() && items > 100) {
                   itemsToBeCleaned.set(0L);

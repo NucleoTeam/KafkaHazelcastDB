@@ -30,8 +30,8 @@ public class NucleoDBReadToTime{
     NucleoDB nucleoDB = new NucleoDB(
         NucleoDB.DBType.NO_LOCAL,
         instant.toString(),
-        c -> c.setMqsConfiguration(new LocalConfiguration()),
-        c -> c.setMqsConfiguration(new LocalConfiguration()),
+        c -> c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration()),
+        c -> c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration()),
         "com.nucleodb.library.helpers.models"
     );
     Serializer.log(instant.toString());
@@ -46,8 +46,8 @@ public class NucleoDBReadToTime{
   public void readOnlyDB() throws IncorrectDataEntryObjectException, InterruptedException, IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     NucleoDB nucleoDB = new NucleoDB(
         NucleoDB.DBType.READ_ONLY,
-        c -> c.setMqsConfiguration(new LocalConfiguration()),
-        c -> c.setMqsConfiguration(new LocalConfiguration()),
+        c -> c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration()),
+        c -> c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration()),
         "com.nucleodb.library.helpers.models"
     );
     DataTable table = nucleoDB.getTable(Author.class);
@@ -58,8 +58,8 @@ public class NucleoDBReadToTime{
   public void exportTest() throws IncorrectDataEntryObjectException, InterruptedException, IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     NucleoDB nucleoDB = new NucleoDB(
         NucleoDB.DBType.EXPORT,
-        c -> c.setMqsConfiguration(new LocalConfiguration()),
-        c -> c.setMqsConfiguration(new LocalConfiguration()),
+        c -> c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration()),
+        c -> c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration()),
         "com.nucleodb.library.helpers.models"
     );
     DataTable table = nucleoDB.getTable(Author.class);
@@ -74,8 +74,8 @@ public class NucleoDBReadToTime{
   public void saveTest() throws IncorrectDataEntryObjectException, InterruptedException, IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     NucleoDB nucleoDB = new NucleoDB(
         NucleoDB.DBType.ALL,
-        c -> c.setMqsConfiguration(new LocalConfiguration()),
-        c -> c.setMqsConfiguration(new LocalConfiguration()),
+        c -> c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration()),
+        c -> c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration()),
         "com.nucleodb.library.helpers.models"
     );
     DataTable table = nucleoDB.getTable(Author.class);
@@ -91,8 +91,8 @@ public class NucleoDBReadToTime{
   public void modifyDateCheck() throws IncorrectDataEntryObjectException, InterruptedException, IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     NucleoDB nucleoDB = new NucleoDB(
         NucleoDB.DBType.NO_LOCAL,
-        c -> c.setMqsConfiguration(new LocalConfiguration()),
-        c -> c.setMqsConfiguration(new LocalConfiguration()),
+        c -> c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration()),
+        c -> c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration()),
         "com.nucleodb.library.helpers.models"
     );
     DataTable table = nucleoDB.getTable(Author.class);

@@ -30,10 +30,10 @@ class NucleoDBTest{
     nucleoDB = new NucleoDB(
         NucleoDB.DBType.NO_LOCAL,
         c -> {
-          c.setMqsConfiguration(new LocalConfiguration());
+          c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration());
         },
         c -> {
-          c.setMqsConfiguration(new LocalConfiguration());
+          c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration());
         },
         "com.nucleodb.library.helpers.models"
     );

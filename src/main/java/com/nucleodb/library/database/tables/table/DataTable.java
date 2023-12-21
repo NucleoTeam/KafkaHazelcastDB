@@ -8,9 +8,14 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.collect.Queues;
+import com.nucleodb.library.database.modifications.ConnectionCreate;
+import com.nucleodb.library.database.modifications.ConnectionDelete;
+import com.nucleodb.library.database.modifications.ConnectionUpdate;
 import com.nucleodb.library.database.modifications.Create;
 import com.nucleodb.library.database.modifications.Delete;
+import com.nucleodb.library.database.modifications.Modify;
 import com.nucleodb.library.database.modifications.Update;
+import com.nucleodb.library.database.tables.connection.Connection;
 import com.nucleodb.library.database.utils.JsonOperations;
 import com.nucleodb.library.database.modifications.Modification;
 import com.nucleodb.library.database.utils.ObjectFileReader;
@@ -20,6 +25,8 @@ import com.nucleodb.library.database.utils.Utils;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleodb.library.database.index.IndexWrapper;
 import com.nucleodb.library.database.utils.exceptions.InvalidIndexTypeException;
+import com.nucleodb.library.event.ConnectionEventListener;
+import com.nucleodb.library.event.DataTableEventListener;
 import com.nucleodb.library.mqs.ConsumerHandler;
 import com.nucleodb.library.mqs.ProducerHandler;
 import com.github.fge.jsonpatch.JsonPatch;
@@ -524,7 +531,18 @@ public class DataTable implements Serializable{
       }
     }
   }
-
+  private void triggerEvent(Modify modify, DataEntry dataEntry) {
+    DataTableEventListener eventListener = config.getEventListener();
+    if(eventListener!=null) {
+      if(modify instanceof Create){
+        new Thread(()->eventListener.create((Create)modify, dataEntry)).start();
+      }else if(modify instanceof Delete){
+        new Thread(()->eventListener.delete((Delete)modify, dataEntry)).start();
+      }else if(modify instanceof Update){
+        new Thread(()->eventListener.update((Update)modify, dataEntry)).start();
+      }
+    }
+  }
   private void itemRequeue() {
     if (this.startupPhase.get()) this.startupLoadCount.incrementAndGet();
   }
@@ -567,6 +585,7 @@ public class DataTable implements Serializable{
             size++;
             consumerResponse(dataEntry, c.getChangeUUID());
             fireListeners(Modification.CREATE, dataEntry);
+            triggerEvent(c, dataEntry);
           } catch (Exception e) {
             e.printStackTrace();
           }
@@ -617,6 +636,7 @@ public class DataTable implements Serializable{
                 size--;
                 consumerResponse(de, d.getChangeUUID());
                 fireListeners(Modification.DELETE, de);
+                triggerEvent(d, de);
                 long items = itemsToBeCleaned.incrementAndGet();
                 if (!startupPhase.get() && items>100){
                   itemsToBeCleaned.set(0L);
@@ -711,6 +731,7 @@ public class DataTable implements Serializable{
                 this.changed = new Date().getTime();
                 consumerResponse(de, u.getChangeUUID());
                 fireListeners(Modification.UPDATE, de);
+                triggerEvent(u, de);
                 long items = itemsToBeCleaned.incrementAndGet();
                 if (!startupPhase.get() && items>100){
                   itemsToBeCleaned.set(0L);

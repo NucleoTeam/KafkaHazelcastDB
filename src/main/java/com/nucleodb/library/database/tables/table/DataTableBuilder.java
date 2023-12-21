@@ -2,6 +2,7 @@ package com.nucleodb.library.database.tables.table;
 
 import com.nucleodb.library.NucleoDB;
 import com.nucleodb.library.database.utils.StartupRun;
+import com.nucleodb.library.event.DataTableEventListener;
 import com.nucleodb.library.mqs.config.MQSConfiguration;
 import org.jetbrains.annotations.NotNull;
 
@@ -119,6 +120,10 @@ public class DataTableBuilder implements Comparable{
   }
   public DataTableBuilder setStartupRun(StartupRun startupRun) {
     this.config.setStartupRun(startupRun);
+    return this;
+  }
+  public DataTableBuilder setEventListener(DataTableEventListener<? extends DataEntry> eventListener){
+    this.config.setEventListener(eventListener);
     return this;
   }
   public DataTableBuilder setReadWrite(){

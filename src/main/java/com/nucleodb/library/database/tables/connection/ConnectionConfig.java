@@ -1,7 +1,10 @@
 package com.nucleodb.library.database.tables.connection;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.utils.StartupRun;
+import com.nucleodb.library.event.ConnectionEventListener;
+import com.nucleodb.library.event.DataTableEventListener;
 import com.nucleodb.library.mqs.config.MQSConfiguration;
 import com.nucleodb.library.mqs.kafka.KafkaConfiguration;
 
@@ -24,6 +27,8 @@ public class ConnectionConfig implements Serializable{
   Class connectionClass;
   Class toTable;
   Class fromTable;
+
+  ConnectionEventListener<Connection> eventListener = null;
 
   MQSConfiguration mqsConfiguration = new KafkaConfiguration();
 
@@ -147,5 +152,13 @@ public class ConnectionConfig implements Serializable{
 
   public void setSettingsMap(Map<String, Object> settingsMap) {
     this.settingsMap = settingsMap;
+  }
+
+  public ConnectionEventListener<Connection> getEventListener() {
+    return eventListener;
+  }
+
+  public void setEventListener(ConnectionEventListener<Connection> eventListener) {
+    this.eventListener = eventListener;
   }
 }

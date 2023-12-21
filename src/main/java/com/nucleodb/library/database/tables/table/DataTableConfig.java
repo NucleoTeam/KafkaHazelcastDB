@@ -3,6 +3,7 @@ package com.nucleodb.library.database.tables.table;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nucleodb.library.database.index.IndexWrapper;
 import com.nucleodb.library.database.utils.StartupRun;
+import com.nucleodb.library.event.DataTableEventListener;
 import com.nucleodb.library.mqs.config.MQSConfiguration;
 import com.nucleodb.library.mqs.kafka.KafkaConfiguration;
 import org.jetbrains.annotations.NotNull;
@@ -62,6 +63,7 @@ public class DataTableConfig implements Serializable{
   Class dataEntryClass;
   boolean read = true;
   boolean write = true;
+  DataTableEventListener<? extends DataEntry> eventListener = null;
   List<IndexConfig> indexes = new LinkedList<>();
   MQSConfiguration mqsConfiguration = new KafkaConfiguration();
 
@@ -193,5 +195,13 @@ public class DataTableConfig implements Serializable{
 
   public void setSettingsMap(Map<String, Object> settingsMap) {
     this.settingsMap = settingsMap;
+  }
+
+  public DataTableEventListener<? extends DataEntry> getEventListener() {
+    return eventListener;
+  }
+
+  public void setEventListener(DataTableEventListener<? extends DataEntry> eventListener) {
+    this.eventListener = eventListener;
   }
 }

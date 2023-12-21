@@ -13,6 +13,7 @@ import com.nucleodb.library.NucleoDB;
 import com.nucleodb.library.database.modifications.ConnectionCreate;
 import com.nucleodb.library.database.modifications.ConnectionDelete;
 import com.nucleodb.library.database.modifications.ConnectionUpdate;
+import com.nucleodb.library.database.modifications.Modify;
 import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.modifications.Modification;
 import com.nucleodb.library.database.utils.InvalidConnectionException;
@@ -21,6 +22,7 @@ import com.nucleodb.library.database.utils.ObjectFileReader;
 import com.nucleodb.library.database.utils.Serializer;
 import com.nucleodb.library.database.utils.TreeSetExt;
 import com.nucleodb.library.database.utils.Utils;
+import com.nucleodb.library.event.ConnectionEventListener;
 import com.nucleodb.library.mqs.ConsumerHandler;
 import com.nucleodb.library.mqs.ProducerHandler;
 import com.nucleodb.library.mqs.kafka.KafkaConsumerHandler;
@@ -501,6 +503,19 @@ public class ConnectionHandler implements Serializable{
     this.changed = new Date().getTime();
   }
 
+  private void triggerEvent(Modify modify, Connection connection) {
+    ConnectionEventListener eventListener = config.getEventListener();
+    if(eventListener!=null) {
+      if(modify instanceof ConnectionCreate){
+        new Thread(()->eventListener.create((ConnectionCreate)modify, connection)).start();
+      }else if(modify instanceof ConnectionDelete){
+        new Thread(()->eventListener.delete((ConnectionDelete)modify, connection)).start();
+      }else if(modify instanceof ConnectionUpdate){
+        new Thread(()->eventListener.update((ConnectionUpdate)modify, connection)).start();
+      }
+    }
+  }
+
   public void modify(Modification mod, Object modification) throws ExecutionException {
     switch (mod) {
       case CONNECTIONCREATE:
@@ -528,7 +543,7 @@ public class ConnectionHandler implements Serializable{
             //Serializer.log(consumers.asMap().keySet());
             this.changed = new Date().getTime();
             consumerResponse(connection, c.getChangeUUID());
-
+            triggerEvent(c, connection);
           } catch (Exception e) {
             e.printStackTrace();
           }
@@ -569,6 +584,7 @@ public class ConnectionHandler implements Serializable{
                 //logger.info("Added to deleted entries");
                 this.changed = new Date().getTime();
                 consumerResponse(conn, d.getChangeUUID());
+                triggerEvent(d, conn);
                 long items = itemsToBeCleaned.incrementAndGet();
                 if (!startupPhase.get() && items > 100) {
                   itemsToBeCleaned.set(0L);
@@ -629,6 +645,7 @@ public class ConnectionHandler implements Serializable{
                 conn.setMetadata(connectionTmp.getMetadata());
                 this.changed = new Date().getTime();
                 consumerResponse(conn, u.getChangeUUID());
+                triggerEvent(u, conn);
                 long items = itemsToBeCleaned.incrementAndGet();
                 if (!startupPhase.get() && items > 100) {
                   itemsToBeCleaned.set(0L);

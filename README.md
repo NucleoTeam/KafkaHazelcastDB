@@ -1,6 +1,9 @@
 ## Overview
 NucleoDB is an innovative in-memory, embedded database system designed to provide high-speed data management and processing. Its in-memory architecture ensures rapid access and manipulation of data, making it ideal for applications where performance and quick response times are critical. Being embedded, NucleoDB seamlessly integrates into various applications, offering a streamlined and efficient way to handle data within the application's own environment. This design approach not only simplifies the application architecture but also enhances overall system performance by reducing the need for external data calls.
 
+ * Spring Repository
+   * https://github.com/NucleoTeam/NucleoDB-Spring
+
 ### Installation
 
 ##### Dependencies

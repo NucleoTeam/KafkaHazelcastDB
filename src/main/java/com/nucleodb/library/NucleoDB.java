@@ -58,14 +58,22 @@ public class NucleoDB{
     ALL;
   }
 
-
+  public NucleoDB(String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    this(DBType.ALL, null, null, packagesToScan);
+  }
 
   public NucleoDB(Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     this(DBType.ALL, connectionCustomizer, dataTableCustomizer, packagesToScan);
   }
-
+  public NucleoDB(DBType dbType, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    this(dbType, null, null, null, packagesToScan);
+  }
   public NucleoDB(DBType dbType, Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     this(dbType, null, connectionCustomizer, dataTableCustomizer, packagesToScan);
+  }
+  public NucleoDB(DBType dbType, String readToTime, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    startTables(packagesToScan, dbType, readToTime, null);
+    startConnections(packagesToScan, dbType, readToTime, null);
   }
   public NucleoDB(DBType dbType, String readToTime, Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     startTables(packagesToScan, dbType, readToTime, dataTableCustomizer);
@@ -114,7 +122,7 @@ public class NucleoDB{
         }
       }
       config.setLabel(connectionType.value().toUpperCase());
-      customizer.accept(new ConnectionConsumer(toTableTypeArguments[0], fromTableTypeArguments[0], config));
+      if(customizer!=null) customizer.accept(new ConnectionConsumer(toTableTypeArguments[0], fromTableTypeArguments[0], config));
       config.setStartupRun(new StartupRun(){
         public void run(ConnectionHandler connectionHandler) {
           latch.countDown();
@@ -338,60 +346,60 @@ public class NucleoDB{
 
   public DataTableBuilder launchTable(String table, Class dataEntryClass, Class clazz, Consumer<DataTableConsumer> customizer) {
     DataTableBuilder dataTableBuilder = DataTableBuilder.create(table, clazz).setDataEntryClass(dataEntryClass).setDb(this);
-    customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
+    if(customizer!=null) customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
     return dataTableBuilder;
   }
 
   public DataTableBuilder launchTable(String table, Class dataEntryClass, Class clazz, StartupRun runnable, Consumer<DataTableConsumer> customizer) {
     DataTableBuilder dataTableBuilder = DataTableBuilder.create(table, clazz).setDataEntryClass(dataEntryClass).setDb(this).setStartupRun(runnable);
-    customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
+    if(customizer!=null) customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
     return dataTableBuilder;
   }
 
   public DataTableBuilder launchReadOnlyTable(String table, Class dataEntryClass, Class clazz, Consumer<DataTableConsumer> customizer) {
     DataTableBuilder dataTableBuilder = DataTableBuilder.createReadOnly(table, clazz).setDataEntryClass(dataEntryClass).setDb(this);
-    customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
+    if(customizer!=null) customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
     return dataTableBuilder;
   }
 
   public DataTableBuilder launchReadOnlyTable(String table, Class dataEntryClass, Class clazz, StartupRun startupRun, Consumer<DataTableConsumer> customizer) {
     DataTableBuilder dataTableBuilder = DataTableBuilder.createReadOnly(table, clazz).setDataEntryClass(dataEntryClass).setDb(this).setStartupRun(startupRun);
-    customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
+    if(customizer!=null) customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
     return dataTableBuilder;
   }
 
   public DataTableBuilder launchLocalOnlyTable(String table, Class dataEntryClass, Class clazz, Consumer<DataTableConsumer> customizer) {
     DataTableBuilder dataTableBuilder = DataTableBuilder.create(table, clazz).setDataEntryClass(dataEntryClass).setLoadSave(false).setSaveChanges(false).setDb(this);
-    customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
+    if(customizer!=null) customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
     return dataTableBuilder;
   }
 
   public DataTableBuilder launchLocalOnlyTable(String table, Class dataEntryClass, Class clazz, StartupRun startupRun, Consumer<DataTableConsumer> customizer) {
     DataTableBuilder dataTableBuilder = DataTableBuilder.create(table, clazz).setDataEntryClass(dataEntryClass).setLoadSave(false).setSaveChanges(false).setDb(this).setStartupRun(startupRun);
-    customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
+    if(customizer!=null) customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
     return dataTableBuilder;
   }
 
   public DataTableBuilder launchExportOnlyTable(String table, Class dataEntryClass, Class clazz, Consumer<DataTableConsumer> customizer) {
     DataTableBuilder dataTableBuilder = DataTableBuilder.create(table, clazz).setDataEntryClass(dataEntryClass).setJSONExport(true).setDb(this);
-    customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
+    if(customizer!=null) customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
     return dataTableBuilder;
   }
   public DataTableBuilder launchExportOnlyTable(String table, Class dataEntryClass, Class clazz, StartupRun startupRun, Consumer<DataTableConsumer> customizer) {
     DataTableBuilder dataTableBuilder = DataTableBuilder.create(table, clazz).setDataEntryClass(dataEntryClass).setJSONExport(true).setDb(this).setStartupRun(startupRun);
-    customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
+    if(customizer!=null) customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
     return dataTableBuilder;
   }
 
   public DataTableBuilder launchWriteOnlyTable(String table, Class dataEntryClass, Class clazz, Consumer<DataTableConsumer> customizer) {
     DataTableBuilder dataTableBuilder = DataTableBuilder.createWriteOnly(table, clazz).setDataEntryClass(dataEntryClass).setLoadSave(false).setDb(this);
-    customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
+    if(customizer!=null) customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
     return dataTableBuilder;
   }
 
   public DataTableBuilder launchWriteOnlyTable(String table, Class dataEntryClass, Class clazz, StartupRun startupRun, Consumer<DataTableConsumer> customizer) {
     DataTableBuilder dataTableBuilder = DataTableBuilder.createWriteOnly(table, clazz).setDataEntryClass(dataEntryClass).setLoadSave(false).setDb(this).setStartupRun(startupRun);
-    customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
+    if(customizer!=null) customizer.accept(new DataTableConsumer(clazz, dataTableBuilder.getConfig()));
     return dataTableBuilder;
   }
 

@@ -5,6 +5,7 @@ import com.nucleodb.library.database.modifications.Delete;
 import com.nucleodb.library.database.modifications.Update;
 import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.tables.table.DataEntryProjection;
+import com.nucleodb.library.database.tables.table.DataTable;
 import com.nucleodb.library.database.utils.Serializer;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryClassException;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryObjectException;

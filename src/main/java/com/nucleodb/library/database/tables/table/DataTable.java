@@ -30,6 +30,7 @@ import com.nucleodb.library.event.DataTableEventListener;
 import com.nucleodb.library.mqs.ConsumerHandler;
 import com.nucleodb.library.mqs.ProducerHandler;
 import com.github.fge.jsonpatch.JsonPatch;
+
 import java.beans.IntrospectionException;
 import java.io.File;
 import java.io.IOException;
@@ -218,7 +219,7 @@ public class DataTable implements Serializable{
   }
 
   public Set<DataEntry> in(String key, List<Object> values, DataEntryProjection dataEntryProjection) {
-    if(dataEntryProjection==null){
+    if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
     Set<DataEntry> tmp = new TreeSet<>();
@@ -276,23 +277,23 @@ public class DataTable implements Serializable{
     return null;
   }
 
-  public Set<DataEntry> handleIndexOperation(Object obj, DataEntryProjection dataEntryProjection, Function<Object, Set<DataEntry>> func){
-    if(dataEntryProjection==null){
+  public Set<DataEntry> handleIndexOperation(Object obj, DataEntryProjection dataEntryProjection, Function<Object, Set<DataEntry>> func) {
+    if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
     Stream<DataEntry> process = dataEntryProjection.process(func.apply(obj).stream());
-    if(dataEntryProjection.isWritable()) {
+    if (dataEntryProjection.isWritable()) {
       return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
     }
     return process.collect(Collectors.toSet());
   }
 
-  public Set<DataEntry> handleIndexStringOperation(String obj, DataEntryProjection dataEntryProjection, Function<String, Set<DataEntry>> func){
-    if(dataEntryProjection==null){
+  public Set<DataEntry> handleIndexStringOperation(String obj, DataEntryProjection dataEntryProjection, Function<String, Set<DataEntry>> func) {
+    if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
     Stream<DataEntry> process = dataEntryProjection.process(func.apply(obj).stream());
-    if(dataEntryProjection.isWritable()) {
+    if (dataEntryProjection.isWritable()) {
       return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
     }
     return process.collect(Collectors.toSet());
@@ -318,27 +319,34 @@ public class DataTable implements Serializable{
     IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
     return handleIndexOperation(obj, dataEntryProjection, dataEntryIndexWrapper::greaterThan);
   }
+
   public Set<DataEntry> greaterThanEqual(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
     IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
     return handleIndexOperation(obj, dataEntryProjection, dataEntryIndexWrapper::greaterThanEqual);
   }
+
   public Set<DataEntry> lessThan(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
     IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
     return handleIndexOperation(obj, dataEntryProjection, dataEntryIndexWrapper::lessThan);
   }
+
   public Set<DataEntry> lessThanEqual(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
     IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
     return handleIndexOperation(obj, dataEntryProjection, dataEntryIndexWrapper::lessThanEqual);
   }
 
+  public Set<DataEntry> get(String key, Object value) {
+    return get(key, value, null);
+  }
+
   public Set<DataEntry> get(String key, Object value, DataEntryProjection dataEntryProjection) {
-    if(dataEntryProjection==null){
+    if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
     if (key.equals("id")) {
-      if(value !=null && this.keyToEntry.size()>0) {
+      if (value != null && this.keyToEntry.size() > 0) {
         DataEntry dataEntry = this.keyToEntry.get(value);
-        if(dataEntry!=null) {
+        if (dataEntry != null) {
           Set<DataEntry> entrySet = new TreeSet(Arrays.asList(dataEntry));
           Stream<DataEntry> process = dataEntryProjection.process(entrySet.stream());
           if (dataEntryProjection.isWritable()) {
@@ -354,7 +362,7 @@ public class DataTable implements Serializable{
   }
 
   public Set<DataEntry> getNotEqual(String key, Object value, DataEntryProjection dataEntryProjection) {
-    if(dataEntryProjection==null){
+    if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
     try {
@@ -368,9 +376,9 @@ public class DataTable implements Serializable{
       negation.removeAll(foundEntries);
       if (entries != null) {
         Stream<DataEntry> process = dataEntryProjection.process(negation.stream());
-        if(dataEntryProjection.isWritable()) {
+        if (dataEntryProjection.isWritable()) {
           return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
-        }else{
+        } else {
           return process.collect(Collectors.toSet());
         }
       }
@@ -382,7 +390,7 @@ public class DataTable implements Serializable{
 
 
   public DataEntry searchOne(String key, Object obj, DataEntryProjection dataEntryProjection) {
-    if(dataEntryProjection==null){
+    if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
     Set<DataEntry> entries = search(key, obj, dataEntryProjection);
@@ -433,8 +441,8 @@ public class DataTable implements Serializable{
 
 
   public boolean saveSync(DataEntry entry) throws InterruptedException, IncorrectDataEntryObjectException {
-    if(entry.getClass() != getConfig().getDataEntryClass() ){
-      throw new IncorrectDataEntryObjectException("Entry "+entry.getKey()+" using incorrect data entry class for this table.");
+    if (entry.getClass() != getConfig().getDataEntryClass()) {
+      throw new IncorrectDataEntryObjectException("Entry " + entry.getKey() + " using incorrect data entry class for this table.");
     }
     CountDownLatch countDownLatch = new CountDownLatch(1);
     boolean v = saveInternalConsumer(entry, (de) -> {
@@ -445,33 +453,33 @@ public class DataTable implements Serializable{
   }
 
   public boolean saveAndForget(DataEntry entry) throws IncorrectDataEntryObjectException {
-    if(entry.getClass() != getConfig().getDataEntryClass() ){
-      throw new IncorrectDataEntryObjectException("Entry "+entry.getKey()+" using incorrect data entry class for this table.");
+    if (entry.getClass() != getConfig().getDataEntryClass()) {
+      throw new IncorrectDataEntryObjectException("Entry " + entry.getKey() + " using incorrect data entry class for this table.");
     }
     return saveInternalConsumer(entry, null);
   }
 
   public boolean saveAsync(DataEntry entry, Consumer<DataEntry> consumer) throws IncorrectDataEntryObjectException {
-    if(entry.getClass() != getConfig().getDataEntryClass() ){
-      throw new IncorrectDataEntryObjectException("Entry "+entry.getKey()+" using incorrect data entry class for this table.");
+    if (entry.getClass() != getConfig().getDataEntryClass()) {
+      throw new IncorrectDataEntryObjectException("Entry " + entry.getKey() + " using incorrect data entry class for this table.");
     }
     return saveInternalConsumer(entry, consumer);
   }
 
   public boolean saveSync(Object data) throws InterruptedException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException {
-    if(getConfig().getDataEntryClass()== DataEntry.class)
+    if (getConfig().getDataEntryClass() == DataEntry.class)
       return saveSync((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(Object.class).newInstance(data));
     return saveSync((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(data.getClass()).newInstance(data));
   }
 
   public boolean saveAndForget(Object data) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException {
-    if(getConfig().getDataEntryClass()== DataEntry.class)
+    if (getConfig().getDataEntryClass() == DataEntry.class)
       return saveAndForget((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(Object.class).newInstance(data));
     return saveAndForget((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(data.getClass()).newInstance(data));
   }
 
   public boolean saveAsync(Object data, Consumer<DataEntry> consumer) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException {
-    if(getConfig().getDataEntryClass()== DataEntry.class)
+    if (getConfig().getDataEntryClass() == DataEntry.class)
       return saveAsync((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(Object.class).newInstance(data), consumer);
     return saveAsync((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(data.getClass()).newInstance(data), consumer);
   }
@@ -523,7 +531,8 @@ public class DataTable implements Serializable{
   private void itemProcessed() {
     if (this.startupPhase.get()) {
       int left = this.startupLoadCount.decrementAndGet();
-      if(left!=0 && left%10000==0) logger.info("startup " + this.getConfig().getTable() + " items waiting to process: " + left);
+      if (left != 0 && left % 10000 == 0)
+        logger.info("startup " + this.getConfig().getTable() + " items waiting to process: " + left);
       if (!this.getConsumer().getStartupPhaseConsume().get() && left <= 0) {
         this.startupPhase.set(false);
         System.gc();
@@ -531,18 +540,20 @@ public class DataTable implements Serializable{
       }
     }
   }
+
   private void triggerEvent(Modify modify, DataEntry dataEntry) {
     DataTableEventListener eventListener = config.getEventListener();
-    if(eventListener!=null) {
-      if(modify instanceof Create){
-        new Thread(()->eventListener.create((Create)modify, dataEntry)).start();
-      }else if(modify instanceof Delete){
-        new Thread(()->eventListener.delete((Delete)modify, dataEntry)).start();
-      }else if(modify instanceof Update){
-        new Thread(()->eventListener.update((Update)modify, dataEntry)).start();
+    if (eventListener != null) {
+      if (modify instanceof Create) {
+        new Thread(() -> eventListener.create((Create) modify, dataEntry)).start();
+      } else if (modify instanceof Delete) {
+        new Thread(() -> eventListener.delete((Delete) modify, dataEntry)).start();
+      } else if (modify instanceof Update) {
+        new Thread(() -> eventListener.update((Update) modify, dataEntry)).start();
       }
     }
   }
+
   private void itemRequeue() {
     if (this.startupPhase.get()) this.startupLoadCount.incrementAndGet();
   }
@@ -638,7 +649,7 @@ public class DataTable implements Serializable{
                 fireListeners(Modification.DELETE, de);
                 triggerEvent(d, de);
                 long items = itemsToBeCleaned.incrementAndGet();
-                if (!startupPhase.get() && items>100){
+                if (!startupPhase.get() && items > 100) {
                   itemsToBeCleaned.set(0L);
                   System.gc();
                 }
@@ -733,7 +744,7 @@ public class DataTable implements Serializable{
                 fireListeners(Modification.UPDATE, de);
                 triggerEvent(u, de);
                 long items = itemsToBeCleaned.incrementAndGet();
-                if (!startupPhase.get() && items>100){
+                if (!startupPhase.get() && items > 100) {
                   itemsToBeCleaned.set(0L);
                   System.gc();
                 }
@@ -756,7 +767,7 @@ public class DataTable implements Serializable{
 
   private void consumerResponse(DataEntry dataEntry, String changeUUID) throws ExecutionException {
     try {
-      if(changeUUID!=null) {
+      if (changeUUID != null) {
         Consumer<DataEntry> dataEntryConsumer = consumers.getIfPresent(changeUUID);
         if (dataEntryConsumer != null) {
           new Thread(() -> dataEntryConsumer.accept(dataEntry)).start();

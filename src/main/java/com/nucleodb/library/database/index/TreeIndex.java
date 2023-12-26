@@ -20,8 +20,6 @@ public class TreeIndex<T> extends IndexWrapper<T>{
     super(null);
   }
 
-
-
   private boolean unique;
   private TreeMap<T, List<Object>> reverseMap = new TreeMap<>();
   private TreeMap<Object, Set<T>> index = new TreeMap<>();

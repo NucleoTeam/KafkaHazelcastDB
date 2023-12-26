@@ -47,7 +47,11 @@ public class NucleoDBReadToTime{
     NucleoDB nucleoDB = new NucleoDB(
         NucleoDB.DBType.READ_ONLY,
         c -> c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration()),
-        c -> c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration()),
+        c -> {
+          if(c.getClazz() == Author.class){
+            c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration());
+          }
+        },
         "com.nucleodb.library.helpers.models"
     );
     DataTable table = nucleoDB.getTable(Author.class);

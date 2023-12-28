@@ -8,6 +8,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.collect.Queues;
+import com.google.common.collect.Sets;
 import com.nucleodb.library.database.modifications.ConnectionCreate;
 import com.nucleodb.library.database.modifications.ConnectionDelete;
 import com.nucleodb.library.database.modifications.ConnectionUpdate;
@@ -281,22 +282,31 @@ public class DataTable implements Serializable{
     if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
-    Stream<DataEntry> process = dataEntryProjection.process(func.apply(obj).stream());
-    if (dataEntryProjection.isWritable()) {
-      return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+    Set<DataEntry> apply = func.apply(obj);
+    if(apply!=null) {
+      Stream<DataEntry> process = dataEntryProjection.process(apply.stream());
+
+      if (dataEntryProjection.isWritable()) {
+        return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+      }
+      return process.collect(Collectors.toSet());
     }
-    return process.collect(Collectors.toSet());
+    return Sets.newTreeSet();
   }
 
   public Set<DataEntry> handleIndexStringOperation(String obj, DataEntryProjection dataEntryProjection, Function<String, Set<DataEntry>> func) {
     if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
-    Stream<DataEntry> process = dataEntryProjection.process(func.apply(obj).stream());
-    if (dataEntryProjection.isWritable()) {
-      return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+    Set<DataEntry> apply = func.apply(obj);
+    if(apply!=null) {
+      Stream<DataEntry> process = dataEntryProjection.process(apply.stream());
+      if (dataEntryProjection.isWritable()) {
+        return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
+      }
+      return process.collect(Collectors.toSet());
     }
-    return process.collect(Collectors.toSet());
+    return Sets.newTreeSet();
   }
 
   public Set<DataEntry> search(String key, Object searchObject, DataEntryProjection dataEntryProjection) {

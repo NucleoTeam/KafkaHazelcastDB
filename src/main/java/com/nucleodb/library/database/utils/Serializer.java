@@ -11,6 +11,7 @@ public class Serializer{
   public Serializer() {
     om = new ObjectMapper();
     om.findAndRegisterModules();
+    om.enableDefaultTyping(ObjectMapper.DefaultTyping.JAVA_LANG_OBJECT);
     om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
   }
 

@@ -439,10 +439,9 @@ public class DataTable implements Serializable{
       if (consumer != null) consumer.accept(null);
       return false;
     }
-    DataEntry entryDelete = createNewObject(entry);
     String changeUUID = UUID.randomUUID().toString();
-    entryDelete.versionIncrease();
-    Delete delete = new Delete(changeUUID, entryDelete);
+    entry.versionIncrease();
+    Delete delete = new Delete(changeUUID, entry);
     if (consumer != null) {
       consumers.put(changeUUID, consumer);
     }
@@ -723,7 +722,7 @@ public class DataTable implements Serializable{
           try {
             itemProcessed();
             if (this.config.getReadToTime() != null && u.getTime().isAfter(this.config.getReadToTime())) {
-              //System.out.println("Update after target db date");
+              logger.info("Update after target db date");
               consumerResponse(null, u.getChangeUUID());
               fireListeners(Modification.UPDATE, null);
               return;
@@ -731,11 +730,11 @@ public class DataTable implements Serializable{
             DataEntry de = keyToEntry.get(u.getKey());
             if (de != null) {
               if (de.getVersion() >= u.getVersion()) {
-                //logger.info("Ignore already saved change. " + de.getKey()+" table: "+ getConfig().table);
+                logger.info("Ignore already saved change. " + de.getKey()+" table: "+ getConfig().table);
                 return; // ignore change
               }
               if (de.getVersion() + 1 != u.getVersion()) {
-                //logger.info("Version not ready!" + de.getKey()+" table: "+ getConfig().table);
+                logger.info("Version not ready!" + de.getKey()+" table: "+ getConfig().table);
                 itemRequeue();
                 modqueue.add(new ModificationQueueItem(mod, modification));
                 leftInModQueue.incrementAndGet();

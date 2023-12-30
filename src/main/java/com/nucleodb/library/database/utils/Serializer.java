@@ -8,11 +8,16 @@ public class Serializer{
   private static Serializer objectMapper = new Serializer();
 
   ObjectMapper om;
+  ObjectMapper omNonType;
+
   public Serializer() {
     om = new ObjectMapper();
     om.findAndRegisterModules();
-    om.enableDefaultTyping(ObjectMapper.DefaultTyping.JAVA_LANG_OBJECT);
+    om.enableDefaultTyping(ObjectMapper.DefaultTyping.EVERYTHING);
     om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    omNonType = new ObjectMapper();
+    omNonType.findAndRegisterModules();
+    omNonType.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
   }
 
   public static void log(Object o){
@@ -25,6 +30,14 @@ public class Serializer{
 
   public ObjectMapper getOm() {
     return om;
+  }
+
+  public ObjectMapper getOmNonType() {
+    return omNonType;
+  }
+
+  public void setOmNonType(ObjectMapper omNonType) {
+    this.omNonType = omNonType;
   }
 
   public void setOm(ObjectMapper om) {

@@ -19,7 +19,6 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
     private static final long serialVersionUID = 1;
     public String key;
     public long version = 0;
-    private JsonNode reference;
     public T data;
     private transient String tableName;
     private Instant created;
@@ -27,7 +26,6 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
 
     public DataEntry(T obj) {
         this.data = obj;
-        this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = UUID.randomUUID().toString();
         this.created = Instant.now();
     }
@@ -35,7 +33,6 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
     public DataEntry(Create create) throws ClassNotFoundException, JsonProcessingException {
         this.data = (T) Serializer.getObjectMapper().getOm().readValue(create.getData(), Class.forName(create.getMasterClass()));
         this.version = create.getVersion();
-        this.reference = Serializer.getObjectMapper().getOm().valueToTree(data);
         this.key = create.getKey();
         this.created = create.getTime();
     }
@@ -82,16 +79,8 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
         this.version = version;
     }
 
-    public JsonNode getReference() {
-        return reference;
-    }
-
     public T getData() {
         return data;
-    }
-
-    public void setReference(JsonNode reference) {
-        this.reference = reference;
     }
 
     public void setData(T data) {

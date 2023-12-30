@@ -22,14 +22,10 @@ public class Update extends Modify{
 
     }
 
-    public Update(String changeUUID, DataEntry entry, JsonPatch changes) {
+    public Update(String changeUUID, DataEntry entry, String changes) {
         this.changeUUID = changeUUID;
         this.key = entry.getKey();
-        try {
-            this.changes = Serializer.getObjectMapper().getOm().writeValueAsString(changes);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        this.changes = changes;
         this.version = entry.getVersion();
         this.time = Instant.now();
     }
@@ -44,7 +40,7 @@ public class Update extends Modify{
     @JsonIgnore
     public JsonPatch getChangesPatch() {
         try {
-            return Serializer.getObjectMapper().getOm().readValue(changes, JsonPatch.class);
+            return Serializer.getObjectMapper().getOmNonType().readValue(changes, JsonPatch.class);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -53,7 +49,7 @@ public class Update extends Modify{
     @JsonIgnore
     public List<JsonOperations> getOperations() {
         try {
-            return Serializer.getObjectMapper().getOm().readValue(changes, new TypeReference<List<JsonOperations>>(){});
+            return Serializer.getObjectMapper().getOmNonType().readValue(changes, new TypeReference<List<JsonOperations>>(){});
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

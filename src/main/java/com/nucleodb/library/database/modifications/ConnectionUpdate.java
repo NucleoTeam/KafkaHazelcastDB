@@ -42,7 +42,7 @@ public class ConnectionUpdate extends Modify{
   @JsonIgnore
   public JsonPatch getChangesPatch() {
     try {
-      return Serializer.getObjectMapper().getOm().readValue(changes, JsonPatch.class);
+      return Serializer.getObjectMapper().getOmNonType().readValue(changes, JsonPatch.class);
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
@@ -51,7 +51,7 @@ public class ConnectionUpdate extends Modify{
   @JsonIgnore
   public List<JsonOperations> getOperations() {
     try {
-      return Serializer.getObjectMapper().getOm().readValue(changes, new TypeReference<List<JsonOperations>>(){});
+      return Serializer.getObjectMapper().getOmNonType().readValue(changes, new TypeReference<List<JsonOperations>>(){});
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }

@@ -2,6 +2,7 @@ package com.nucleodb.library.database.tables.connection;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.diff.JsonDiff;
 import com.google.common.cache.Cache;
@@ -36,10 +37,12 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.config.TopicConfig;
 
 import java.beans.IntrospectionException;
+import java.beans.PropertyDescriptor;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
@@ -67,6 +70,7 @@ public class ConnectionHandler implements Serializable{
   private transient Map<String, Set<Connection>> connections = new TreeMap<>();
   @JsonIgnore
   private transient Map<String, Set<Connection>> connectionsReverse = new TreeMap<>();
+  private transient Set<String> connectionFields = Arrays.stream(Connection.class.getDeclaredFields()).map(f -> f.getName()).collect(Collectors.toSet());
   @JsonIgnore
   private transient Map<String, Connection> connectionByUUID = new TreeMap<>();
   private Map<Integer, Long> partitionOffsets = new TreeMap<>();
@@ -418,6 +422,31 @@ public class ConnectionHandler implements Serializable{
     return false;
   }
 
+  JsonNode fromObject(Object o){
+    try {
+      System.out.println( Serializer.getObjectMapper().getOm().writeValueAsString(o));
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+    try {
+      return Serializer.getObjectMapper().getOmNonType().readTree(
+          Serializer.getObjectMapper().getOm().writeValueAsString(o)
+      );
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+  Object fromJsonNode(JsonNode o, Class type){
+    try {
+      return Serializer.getObjectMapper().getOm().readValue(
+          Serializer.getObjectMapper().getOmNonType().writeValueAsString(o),
+          type
+      );
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private boolean saveInternal(Connection connection, String changeUUID) {
     if (!allConnections.contains(connection)) {
       ConnectionCreate createEntry = new ConnectionCreate(changeUUID, connection);
@@ -427,7 +456,7 @@ public class ConnectionHandler implements Serializable{
       connection.versionIncrease();
       List<JsonOperations> changes = null;
       Connection oldConnection = connectionByUUID.get(connection.getUuid());
-      JsonPatch patch = JsonDiff.asJsonPatch(Serializer.getObjectMapper().getOm().valueToTree(oldConnection), Serializer.getObjectMapper().getOm().valueToTree(connection));
+      JsonPatch patch = JsonDiff.asJsonPatch(fromObject(oldConnection), fromObject(connection));
       try {
         String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
         changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
@@ -453,11 +482,11 @@ public class ConnectionHandler implements Serializable{
       connection.versionIncrease();
       List<JsonOperations> changes = null;
       Connection oldConnection = connectionByUUID.get(connection.getUuid());
-      JsonPatch patch = JsonDiff.asJsonPatch(Serializer.getObjectMapper().getOm().valueToTree(oldConnection), Serializer.getObjectMapper().getOm().valueToTree(connection));
+      JsonPatch patch = JsonDiff.asJsonPatch(fromObject(oldConnection), fromObject(connection));
       try {
-        String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
+        String json = Serializer.getObjectMapper().getOmNonType().writeValueAsString(patch);
         //Serializer.log(json);
-        changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
+        changes = Serializer.getObjectMapper().getOmNonType().readValue(json, List.class);
         if (changes != null && changes.size() > 0) {
           ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());
           CountDownLatch countDownLatch = new CountDownLatch(1);
@@ -636,13 +665,29 @@ public class ConnectionHandler implements Serializable{
                 }
               } else {
 
-                Connection connectionTmp = (Connection) Utils.getOm().readValue(
-                    u.getChangesPatch().apply(Utils.getOm().valueToTree(conn)).toString(),
-                    config.getConnectionClass()
+                Connection connectionTmp = (Connection) fromJsonNode(
+                  u.getChangesPatch().apply(fromObject(conn)),
+                  config.getConnectionClass()
                 );
                 conn.setVersion(u.getVersion());
                 conn.setModified(u.getTime());
                 conn.setMetadata(connectionTmp.getMetadata());
+
+                Arrays.stream(config.getConnectionClass().getDeclaredFields()).map(f->f.getName()).filter(fName->!connectionFields.contains(fName)).forEach(
+                    fName-> {
+                      try {
+                        PropertyDescriptor propertyDescriptor = new PropertyDescriptor(fName, config.getConnectionClass());
+                        Object obj = propertyDescriptor.getReadMethod().invoke(connectionTmp);
+                        propertyDescriptor.getWriteMethod().invoke(conn, obj);
+                      } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                      } catch (InvocationTargetException e) {
+                        throw new RuntimeException(e);
+                      } catch (IntrospectionException e) {
+                        throw new RuntimeException(e);
+                      }
+                    }
+                );
                 this.changed = new Date().getTime();
                 consumerResponse(conn, u.getChangeUUID());
                 triggerEvent(u, conn);

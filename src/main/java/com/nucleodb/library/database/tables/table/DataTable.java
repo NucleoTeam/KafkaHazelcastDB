@@ -3,6 +3,7 @@ package com.nucleodb.library.database.tables.table;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.github.fge.jsonpatch.diff.JsonDiff;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -509,6 +510,32 @@ public class DataTable implements Serializable{
     return false;
   }
 
+  // convert object to jsonnode without changing types
+  JsonNode fromObject(Object o){
+    try {
+      System.out.println( Serializer.getObjectMapper().getOm().writeValueAsString(o));
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+    try {
+      return Serializer.getObjectMapper().getOmNonType().readTree(
+          Serializer.getObjectMapper().getOm().writeValueAsString(o)
+      );
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+  Object fromJsonNode(JsonNode o, Class type){
+    try {
+      return Serializer.getObjectMapper().getOm().readValue(
+          Serializer.getObjectMapper().getOmNonType().writeValueAsString(o),
+          type
+      );
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private boolean saveInternal(DataEntry entry, String changeUUID) {
     if (!entries.contains(entry)) {
       try {
@@ -521,17 +548,28 @@ public class DataTable implements Serializable{
     } else {
       entry.versionIncrease();
       List<JsonOperations> changes = null;
-      JsonPatch patch = JsonDiff.asJsonPatch(entry.getReference(), Serializer.getObjectMapper().getOm().valueToTree(entry.getData()));
+      Set<DataEntry> dataEntrySet = get("id", entry.getKey());
+      if(dataEntrySet==null || dataEntrySet.isEmpty()){
+        try {
+          consumerResponse(null, changeUUID);
+        } catch (ExecutionException e) {
+          throw new RuntimeException(e);
+        }
+        return false;
+      }
+      DataEntry dataEntry = dataEntrySet.stream().findFirst().get();
+      JsonPatch patch = JsonDiff.asJsonPatch(fromObject(dataEntry.getData()), fromObject(entry.getData()));
       try {
-        String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
-        changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
+        String json = Serializer.getObjectMapper().getOmNonType().writeValueAsString(patch);
+        changes = Serializer.getObjectMapper().getOmNonType().readValue(json, List.class);
+
+        if (changes != null && changes.size() > 0) {
+          Update updateEntry = new Update(changeUUID, entry, json);
+          producer.push(updateEntry.getKey(), updateEntry.getVersion(), updateEntry, null);
+          return true;
+        }
       } catch (JsonProcessingException e) {
         e.printStackTrace();
-      }
-      if (changes != null && changes.size() > 0) {
-        Update updateEntry = new Update(changeUUID, entry, patch);
-        producer.push(updateEntry.getKey(), updateEntry.getVersion(), updateEntry, null);
-        return true;
       }
 
     }
@@ -710,11 +748,9 @@ public class DataTable implements Serializable{
                   modqueue.notifyAll();
                 }
               } else {
-                de.setReference(u.getChangesPatch().apply(de.getReference()));
+                de.setData(fromJsonNode(u.getChangesPatch().apply(fromObject(de.getData())), de.getData().getClass()));
                 de.setVersion(u.getVersion());
                 de.setModified(u.getTime());
-                de.setData(Serializer.getObjectMapper().getOm().readValue(de.getReference().toString(), de.getData().getClass()));
-                //System.out.println(Serializer.getObjectMapper().getOm().writeValueAsString(de.getData()));
                 u.getOperations().forEach(op -> {
                   switch (op.getOp()) {
                     case "replace":

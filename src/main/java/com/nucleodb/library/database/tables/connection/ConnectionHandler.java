@@ -424,11 +424,6 @@ public class ConnectionHandler implements Serializable{
 
   JsonNode fromObject(Object o){
     try {
-      System.out.println( Serializer.getObjectMapper().getOm().writeValueAsString(o));
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-    try {
       return Serializer.getObjectMapper().getOmNonType().readTree(
           Serializer.getObjectMapper().getOm().writeValueAsString(o)
       );

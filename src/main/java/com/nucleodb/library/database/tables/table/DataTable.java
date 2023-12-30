@@ -513,11 +513,6 @@ public class DataTable implements Serializable{
   // convert object to jsonnode without changing types
   JsonNode fromObject(Object o){
     try {
-      System.out.println( Serializer.getObjectMapper().getOm().writeValueAsString(o));
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-    try {
       return Serializer.getObjectMapper().getOmNonType().readTree(
           Serializer.getObjectMapper().getOm().writeValueAsString(o)
       );

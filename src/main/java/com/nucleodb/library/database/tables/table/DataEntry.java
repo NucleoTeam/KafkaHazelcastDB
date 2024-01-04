@@ -39,7 +39,7 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
 
     public <T> T copy(Class<T> clazz) {
         try {
-            T obj =  Utils.getOm().readValue(Utils.getOm().writeValueAsString(this), clazz);
+            T obj =  Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(this), clazz);
             return obj;
         } catch (JsonProcessingException e) {
             e.printStackTrace();

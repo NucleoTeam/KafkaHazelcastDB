@@ -731,6 +731,7 @@ public class DataTable implements Serializable{
             if (de != null) {
               if (de.getVersion() >= u.getVersion()) {
                 logger.info("Ignore already saved change. " + de.getKey()+" table: "+ getConfig().table);
+                consumerResponse(null, u.getChangeUUID());
                 return; // ignore change
               }
               if (de.getVersion() + 1 != u.getVersion()) {

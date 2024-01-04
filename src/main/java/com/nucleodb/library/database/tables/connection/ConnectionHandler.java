@@ -398,7 +398,7 @@ public class ConnectionHandler implements Serializable{
     String changeUUID = UUID.randomUUID().toString();
     CountDownLatch countDownLatch = new CountDownLatch(1);
     consumers.put(changeUUID, (conn) -> countDownLatch.countDown());
-    if (saveInternalSync(connection, changeUUID)) {
+    if (saveInternal(connection, changeUUID)) {
       countDownLatch.await();
       return true;
     }
@@ -453,46 +453,16 @@ public class ConnectionHandler implements Serializable{
       Connection oldConnection = connectionByUUID.get(connection.getUuid());
       JsonPatch patch = JsonDiff.asJsonPatch(fromObject(oldConnection), fromObject(connection));
       try {
-        String json = Serializer.getObjectMapper().getOm().writeValueAsString(patch);
-        changes = Serializer.getObjectMapper().getOm().readValue(json, List.class);
-        //Serializer.log(json);
-        if (changes != null && changes.size() > 0) {
-          ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());
-          producer.push(updateEntry.getUuid(), updateEntry.getVersion(), updateEntry, null);
-          return true;
-        }
-      } catch (JsonProcessingException e) {
-        throw new RuntimeException(e);
-      }
-    }
-    return false;
-  }
-
-  private boolean saveInternalSync(Connection connection, String changeUUID) throws InterruptedException {
-    if (!allConnections.contains(connection)) {
-      ConnectionCreate createEntry = new ConnectionCreate(changeUUID, connection);
-      producer.push(createEntry.getUuid(), createEntry.getVersion(), createEntry, null);
-      return true;
-    } else {
-      connection.versionIncrease();
-      List<JsonOperations> changes = null;
-      Connection oldConnection = connectionByUUID.get(connection.getUuid());
-      JsonPatch patch = JsonDiff.asJsonPatch(fromObject(oldConnection), fromObject(connection));
-      try {
         String json = Serializer.getObjectMapper().getOmNonType().writeValueAsString(patch);
-        //Serializer.log(json);
         changes = Serializer.getObjectMapper().getOmNonType().readValue(json, List.class);
         if (changes != null && changes.size() > 0) {
           ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());
-          CountDownLatch countDownLatch = new CountDownLatch(1);
           producer.push(updateEntry.getUuid(), updateEntry.getVersion(), updateEntry, null);
-          countDownLatch.await();
           return true;
         }
       } catch (JsonProcessingException e) {
         throw new RuntimeException(e);
       }
-
     }
     return false;
   }

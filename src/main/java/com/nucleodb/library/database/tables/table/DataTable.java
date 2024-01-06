@@ -557,7 +557,7 @@ public class DataTable implements Serializable{
           return true;
         }else{
           try {
-            consumerResponse(null, changeUUID);
+            consumerResponse(dataEntry, changeUUID);
           } catch (ExecutionException e) {
             throw new RuntimeException(e);
           }

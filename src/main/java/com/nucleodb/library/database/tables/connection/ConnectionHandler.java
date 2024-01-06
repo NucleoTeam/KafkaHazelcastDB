@@ -468,7 +468,7 @@ public class ConnectionHandler implements Serializable{
           return true;
         }else{
           try {
-            consumerResponse(null, changeUUID);
+            consumerResponse(oldConnection, changeUUID);
           } catch (ExecutionException e) {
             throw new RuntimeException(e);
           }

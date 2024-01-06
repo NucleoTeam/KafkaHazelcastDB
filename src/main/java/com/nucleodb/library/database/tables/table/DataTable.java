@@ -555,6 +555,12 @@ public class DataTable implements Serializable{
           Update updateEntry = new Update(changeUUID, entry, json);
           producer.push(updateEntry.getKey(), updateEntry.getVersion(), updateEntry, null);
           return true;
+        }else{
+          try {
+            consumerResponse(null, changeUUID);
+          } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+          }
         }
       } catch (JsonProcessingException e) {
         e.printStackTrace();

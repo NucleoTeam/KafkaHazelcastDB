@@ -451,6 +451,13 @@ public class ConnectionHandler implements Serializable{
       connection.versionIncrease();
       List<JsonOperations> changes = null;
       Connection oldConnection = connectionByUUID.get(connection.getUuid());
+      if(oldConnection==null){
+        try {
+          consumerResponse(null, changeUUID);
+        } catch (ExecutionException e) {
+          throw new RuntimeException(e);
+        }
+      }
       JsonPatch patch = JsonDiff.asJsonPatch(fromObject(oldConnection), fromObject(connection));
       try {
         String json = Serializer.getObjectMapper().getOmNonType().writeValueAsString(patch);
@@ -459,6 +466,12 @@ public class ConnectionHandler implements Serializable{
           ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());
           producer.push(updateEntry.getUuid(), updateEntry.getVersion(), updateEntry, null);
           return true;
+        }else{
+          try {
+            consumerResponse(null, changeUUID);
+          } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+          }
         }
       } catch (JsonProcessingException e) {
         throw new RuntimeException(e);

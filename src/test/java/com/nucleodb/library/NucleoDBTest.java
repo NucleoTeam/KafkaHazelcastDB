@@ -1,5 +1,6 @@
 package com.nucleodb.library;
 
+import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.tables.table.DataEntryProjection;
 import com.nucleodb.library.database.tables.table.DataTable;
 import com.nucleodb.library.database.utils.Serializer;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import java.beans.IntrospectionException;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 
@@ -62,6 +64,19 @@ class NucleoDBTest{
             null
         ).size()
     );
+  }
+
+  @Test
+  public void checkSavingWithoutChanges() throws IncorrectDataEntryObjectException, InterruptedException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    AuthorDE edgarAllenPoe = new AuthorDE(new Author("Edgar Allen Poe", "fiction"));
+    table.saveSync(edgarAllenPoe);
+    Set<DataEntry> dataEntrySet = table.get("id", edgarAllenPoe.getKey());
+    assertEquals(1, dataEntrySet.size());
+    if(dataEntrySet.size()>0){
+      DataEntry dataEntry = dataEntrySet.stream().findFirst().get();
+      dataEntry.copy(AuthorDE.class);
+      assertTrue(true);
+    }
   }
 
   @Test

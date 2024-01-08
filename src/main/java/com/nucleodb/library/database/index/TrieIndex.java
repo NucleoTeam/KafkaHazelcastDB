@@ -138,6 +138,7 @@ public class TrieIndex<T> extends IndexWrapper<T>{
   }
 
   public void insert(Entry entry, String val) {
+    val = val.toLowerCase();
     String key = getKey((T)entry.getData());
     PrimitiveIterator.OfInt iterator = val.chars().iterator();
     Node tmp = this.root;
@@ -170,6 +171,7 @@ public class TrieIndex<T> extends IndexWrapper<T>{
     return partial(findString).stream().map(e->(T)e.getData()).collect(Collectors.toSet());
   }
   public List<Entry> partial(String findString) {
+    findString = findString.toLowerCase();
     LinkedList<Entry> objects = Lists.newLinkedList();
     Root partialRoot = null;
     int start = findString.charAt(0);
@@ -200,6 +202,7 @@ public class TrieIndex<T> extends IndexWrapper<T>{
   }
 
   public List<Entry> endsWithInternal(String findString) {
+    findString = findString.toLowerCase();
     LinkedList<Entry> objects = Lists.newLinkedList();
     Root partialRoot = null;
     int start = findString.charAt(0);
@@ -229,6 +232,7 @@ public class TrieIndex<T> extends IndexWrapper<T>{
     return startsWithInternal(findString).stream().map(e->(T)e.getData()).collect(Collectors.toSet());
   }
   public List<Entry> startsWithInternal(String findString) {
+    findString = findString.toLowerCase();
     char[] charArray = findString.toCharArray();
     Node tmp = this.root;
     for (int i = 0; i < charArray.length; i++) {

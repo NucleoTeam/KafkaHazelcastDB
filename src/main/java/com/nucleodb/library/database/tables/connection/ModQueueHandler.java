@@ -38,7 +38,7 @@ public class ModQueueHandler implements Runnable{
       }
       try {
         if(overkillCheck) {
-          Thread.sleep(100);
+          Thread.sleep(5L);
           overkillCheck = false;
         } else {
           synchronized (modqueue) {

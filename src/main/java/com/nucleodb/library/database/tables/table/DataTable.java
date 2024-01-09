@@ -279,12 +279,7 @@ public class DataTable implements Serializable{
     }
     Set<DataEntry> apply = func.apply(obj);
     if(apply!=null) {
-      Stream<DataEntry> process = dataEntryProjection.process(apply.stream());
-
-      if (dataEntryProjection.isWritable()) {
-        return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
-      }
-      return process.collect(Collectors.toSet());
+      return dataEntryProjection.process(apply.stream(), this.getConfig().getDataEntryClass());
     }
     return Sets.newTreeSet();
   }
@@ -295,11 +290,7 @@ public class DataTable implements Serializable{
     }
     Set<DataEntry> apply = func.apply(obj);
     if(apply!=null) {
-      Stream<DataEntry> process = dataEntryProjection.process(apply.stream());
-      if (dataEntryProjection.isWritable()) {
-        return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
-      }
-      return process.collect(Collectors.toSet());
+      return dataEntryProjection.process(apply.stream(), this.getConfig().getDataEntryClass());
     }
     return Sets.newTreeSet();
   }
@@ -353,11 +344,7 @@ public class DataTable implements Serializable{
         DataEntry dataEntry = this.keyToEntry.get(value);
         if (dataEntry != null) {
           Set<DataEntry> entrySet = new TreeSet(Arrays.asList(dataEntry));
-          Stream<DataEntry> process = dataEntryProjection.process(entrySet.stream());
-          if (dataEntryProjection.isWritable()) {
-            return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
-          }
-          return process.collect(Collectors.toSet());
+          return dataEntryProjection.process(entrySet.stream(), this.getConfig().getDataEntryClass());
         }
       }
       return new TreeSet<>();
@@ -380,12 +367,7 @@ public class DataTable implements Serializable{
       Set<DataEntry> negation = new TreeSet<>(entries);
       negation.removeAll(foundEntries);
       if (entries != null) {
-        Stream<DataEntry> process = dataEntryProjection.process(negation.stream());
-        if (dataEntryProjection.isWritable()) {
-          return process.map(de -> (DataEntry) de.copy(this.getConfig().getDataEntryClass())).collect(Collectors.toSet());
-        } else {
-          return process.collect(Collectors.toSet());
-        }
+        return dataEntryProjection.process(negation.stream(), this.getConfig().getDataEntryClass());
       }
     } catch (Exception e) {
       e.printStackTrace();
@@ -400,9 +382,9 @@ public class DataTable implements Serializable{
     }
     Set<DataEntry> entries = search(key, obj, dataEntryProjection);
     if (entries != null && entries.size() > 0) {
-      Optional<DataEntry> d = dataEntryProjection.process(entries.stream()).findFirst();
-      if (d.isPresent())
-        return d.get();
+      Set<DataEntry> d = dataEntryProjection.process(entries.stream(), this.getConfig().getDataEntryClass());
+      if (d.size()>0)
+        return d.stream().findFirst().get();
     }
     return null;
   }

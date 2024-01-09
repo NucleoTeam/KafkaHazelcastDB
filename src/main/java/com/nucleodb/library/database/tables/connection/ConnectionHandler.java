@@ -15,6 +15,7 @@ import com.nucleodb.library.database.modifications.ConnectionCreate;
 import com.nucleodb.library.database.modifications.ConnectionDelete;
 import com.nucleodb.library.database.modifications.ConnectionUpdate;
 import com.nucleodb.library.database.modifications.Modify;
+import com.nucleodb.library.database.tables.annotation.Conn;
 import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.modifications.Modification;
 import com.nucleodb.library.database.utils.InvalidConnectionException;
@@ -36,6 +37,7 @@ import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.config.TopicConfig;
 
+import javax.xml.crypto.Data;
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.io.File;
@@ -177,18 +179,18 @@ public class ConnectionHandler implements Serializable{
     }
     Set<Connection> tmp = connections.get(de.getKey());
     if (tmp != null) {
-      return connectionProjection.process(tmp.stream()).map(c->c.copy(config.getConnectionClass())).map(Connection.class::cast).collect(Collectors.toSet());
+      return connectionProjection.process(tmp.stream(), this.getConfig().getConnectionClass());
     }
     return new TreeSetExt<>();
   }
 
   public Set<Connection> getByFromAndTo(DataEntry from, DataEntry to, ConnectionProjection connectionProjection) {
-    if(connectionProjection ==null){
+    if(connectionProjection == null){
       connectionProjection = new ConnectionProjection();
     }
     Set<Connection> tmp = connections.get(from.getKey() + to.getKey());
     if (tmp != null) {
-      return connectionProjection.process(tmp.stream()).map(c->c.copy(config.getConnectionClass())).map(Connection.class::cast).collect(Collectors.toSet());
+      return connectionProjection.process(tmp.stream(), this.getConfig().getConnectionClass());
     }
     return new TreeSetExt<>();
   }
@@ -197,7 +199,7 @@ public class ConnectionHandler implements Serializable{
     if(connectionProjection ==null){
       connectionProjection = new ConnectionProjection();
     }
-    return connectionProjection.process(allConnections.stream()).map(c->c.copy(config.getConnectionClass())).map(Connection.class::cast).collect(Collectors.toSet());
+    return connectionProjection.process(allConnections.stream(), this.getConfig().getConnectionClass());
   }
 
   public Set<Connection> getReverseByTo(DataEntry to, ConnectionProjection connectionProjection) {
@@ -206,7 +208,7 @@ public class ConnectionHandler implements Serializable{
     }
     Set<Connection> tmp = connectionsReverse.get(to.getKey());
     if (tmp != null) {
-      return connectionProjection.process(tmp.stream()).map(c->c.copy(config.getConnectionClass())).map(Connection.class::cast).collect(Collectors.toSet());
+      return connectionProjection.process(tmp.stream(), this.getConfig().getConnectionClass());
     }
     return new TreeSetExt<>();
   }
@@ -217,7 +219,7 @@ public class ConnectionHandler implements Serializable{
     }
     Set<Connection> tmp = connectionsReverse.get(de.getKey() + toDe.getKey());
     if (tmp != null) {
-      return connectionProjection.process(tmp.stream()).map(c->c.copy(config.getConnectionClass())).map(Connection.class::cast).collect(Collectors.toSet());
+      return connectionProjection.process(tmp.stream(), this.getConfig().getConnectionClass());
     }
     return new TreeSetExt<>();
   }

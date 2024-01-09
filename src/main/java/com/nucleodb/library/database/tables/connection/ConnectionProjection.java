@@ -3,23 +3,25 @@ package com.nucleodb.library.database.tables.connection;
 import com.nucleodb.library.database.utils.Pagination;
 
 import java.util.Comparator;
+import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class ConnectionProjection<T extends Connection> {
+public class ConnectionProjection {
   Pagination pagination = null;
 
-  Predicate<T> filter = null;
+  Predicate<Connection> filter = null;
 
-  Comparator<T> sort = null;
+  Comparator<Connection> sort = null;
   boolean write = false;
 
-  public ConnectionProjection(Pagination pagination, Predicate<T> filter) {
+  public ConnectionProjection(Pagination pagination, Predicate<Connection> filter) {
     this.pagination = pagination;
     this.filter = filter;
   }
 
-  public ConnectionProjection(Pagination pagination, Predicate<T> filter, Comparator<T> sort) {
+  public ConnectionProjection(Pagination pagination, Predicate<Connection> filter, Comparator<Connection> sort) {
     this.pagination = pagination;
     this.filter = filter;
     this.sort = sort;
@@ -29,14 +31,14 @@ public class ConnectionProjection<T extends Connection> {
     this.pagination = pagination;
   }
 
-  public ConnectionProjection(Predicate<T> filter) {
+  public ConnectionProjection(Predicate<Connection> filter) {
     this.filter = filter;
   }
 
   public ConnectionProjection() {
   }
 
-  public ConnectionProjection(Pagination pagination, Predicate<T> filter, boolean write) {
+  public ConnectionProjection(Pagination pagination, Predicate<Connection> filter, boolean write) {
     this.pagination = pagination;
     this.filter = filter;
     this.write = write;
@@ -47,13 +49,13 @@ public class ConnectionProjection<T extends Connection> {
     this.write = write;
   }
 
-  public ConnectionProjection(Predicate<T> filter, boolean write) {
+  public ConnectionProjection(Predicate<Connection> filter, boolean write) {
     this.filter = filter;
     this.write = write;
   }
 
-  public Stream<T> process(Stream<T> connectionStream){
-    Stream<T> connectionStreamTmp = connectionStream;
+  public Set<Connection> process(Stream<Connection> connectionStream, Class<? extends Connection> clazz){
+    Stream<Connection> connectionStreamTmp = connectionStream;
     if(this.filter!=null){
       connectionStreamTmp = connectionStreamTmp.filter(this.filter);
     }
@@ -64,14 +66,14 @@ public class ConnectionProjection<T extends Connection> {
       connectionStreamTmp = connectionStreamTmp.skip(this.pagination.getSkip()).limit(this.pagination.getLimit());
     }
     if(this.write){
-      connectionStreamTmp = connectionStreamTmp.skip(this.pagination.getSkip()).limit(this.pagination.getLimit());
+      connectionStreamTmp = connectionStreamTmp.map(c->(Connection)c.copy(clazz));
     }
-    return connectionStreamTmp;
+    return connectionStreamTmp.collect(Collectors.toSet());
   }
   public void setPagination(Pagination pagination) {
     this.pagination = pagination;
   }
-  public void setFilter(Predicate<T> filter) {
+  public void setFilter(Predicate<Connection> filter) {
     this.filter = filter;
   }
 
@@ -79,11 +81,11 @@ public class ConnectionProjection<T extends Connection> {
     this.write = write;
   }
 
-  public Comparator<T> getSort() {
+  public Comparator<Connection> getSort() {
     return sort;
   }
 
-  public void setSort(Comparator<T> sort) {
+  public void setSort(Comparator<Connection> sort) {
     this.sort = sort;
   }
 
@@ -91,7 +93,7 @@ public class ConnectionProjection<T extends Connection> {
     return pagination;
   }
 
-  public Predicate<T> getFilter() {
+  public Predicate<Connection> getFilter() {
     return filter;
   }
 }

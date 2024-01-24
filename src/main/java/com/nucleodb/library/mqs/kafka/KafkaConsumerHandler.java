@@ -85,8 +85,7 @@ public class KafkaConsumerHandler extends ConsumerHandler{
           f.printStackTrace();
         }
         if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
-          logger.info("topic not created");
-          System.exit(-1);
+          logger.severe("topic not created "+topic);
         }
         countDownLatchCreatedCheck.countDown();
       });

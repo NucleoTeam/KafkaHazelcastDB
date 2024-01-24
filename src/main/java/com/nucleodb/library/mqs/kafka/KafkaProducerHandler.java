@@ -77,7 +77,9 @@ public class KafkaProducerHandler extends ProducerHandler{
                     createTopicsResult.all().whenComplete((c, e) -> {
                         if (e != null) {
                             e.printStackTrace();
+                            logger.severe(e.getMessage());
                         }
+
                         countDownLatch.countDown();
                     });
                 }else{
@@ -96,10 +98,10 @@ public class KafkaProducerHandler extends ProducerHandler{
             listTopicsResult.names().whenComplete((names, f)->{
                 if(f!=null){
                     f.printStackTrace();
+                    logger.severe(f.getMessage());
                 }
                 if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
-                    logger.info("topic not created");
-                    System.exit(-1);
+                    logger.severe("topic not created "+topic);
                 }
                 countDownLatchCreatedCheck.countDown();
             });

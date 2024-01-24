@@ -13,6 +13,7 @@ public class LockConfig implements Serializable {
   Map<String, Object> settingsMap = new TreeMap<>(){{
     put("partitions", 1);
     put("replicas", 3);
+    put("table", "locks");
   }};
   String topic = "locks";
 
@@ -37,7 +38,6 @@ public class LockConfig implements Serializable {
 
   public String getTopic() {
     return topic;
-
   }
 
   public void setTopic(String topic) {

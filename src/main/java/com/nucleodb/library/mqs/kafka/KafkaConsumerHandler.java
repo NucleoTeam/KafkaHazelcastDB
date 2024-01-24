@@ -54,7 +54,7 @@ public class KafkaConsumerHandler extends ConsumerHandler{
         }
         if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
           logger.info(String.format("kafka topic not found for %s", topic));
-          final NewTopic newTopic = new NewTopic(topic, 36, (short) 3);
+          final NewTopic newTopic = new NewTopic(topic, ((KafkaSettings)this.getSettings()).getPartitions(), (short) ((KafkaSettings)this.getSettings()).getReplicas());
           newTopic.configs(new TreeMap<>(){{
             put(TopicConfig.RETENTION_MS_CONFIG, "-1");
             put(TopicConfig.RETENTION_MS_CONFIG, "-1");

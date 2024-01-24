@@ -10,15 +10,14 @@ import java.util.TreeMap;
 public class LockConfig implements Serializable {
   private static final long serialVersionUID = 1;
   MQSConfiguration mqsConfiguration = new KafkaConfiguration();
-  Map<String, Object> settingsMap = new TreeMap<>(){{
-    put("partitions", 1);
-    put("replicas", 3);
-    put("table", "locks");
-    put("offsetReset", "latest");
-  }};
+  Map<String, Object> settingsMap = new TreeMap<>();
   String topic = "locks";
 
   public LockConfig() {
+    settingsMap.put("partitions", 1);
+    settingsMap.put("replicas", 3);
+    settingsMap.put("table", "locks");
+    settingsMap.put("offsetReset", "latest");
   }
 
   public MQSConfiguration getMqsConfiguration() {

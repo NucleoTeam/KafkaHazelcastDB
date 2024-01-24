@@ -10,6 +10,7 @@ public class KafkaSettings extends MQSSettings{
   String groupName = System.getenv().getOrDefault("KAFKA_GROUP_ID", UUID.randomUUID().toString());
   int partitions = 36;
   int replicas = 3;
+  String offsetReset = "earliest";
 
 
 
@@ -28,6 +29,12 @@ public class KafkaSettings extends MQSSettings{
     if(objs.containsKey("replicas")) {
       this.replicas = (int) objs.get("replicas");
     }
+
+    if(objs.containsKey("offsetReset")) {
+      this.replicas = (int) objs.get("offsetReset");
+    }
+
+
   }
 
   public String getGroupName() {
@@ -44,5 +51,29 @@ public class KafkaSettings extends MQSSettings{
 
   public void setServers(String servers) {
     this.servers = servers;
+  }
+
+  public int getPartitions() {
+    return partitions;
+  }
+
+  public void setPartitions(int partitions) {
+    this.partitions = partitions;
+  }
+
+  public int getReplicas() {
+    return replicas;
+  }
+
+  public void setReplicas(int replicas) {
+    this.replicas = replicas;
+  }
+
+  public String getOffsetReset() {
+    return offsetReset;
+  }
+
+  public void setOffsetReset(String offsetReset) {
+    this.offsetReset = offsetReset;
   }
 }

@@ -24,7 +24,7 @@ public class ConsumerHandler implements Runnable{
   int startupItems = -1;
   private Queue<String> queue = Queues.newConcurrentLinkedQueue();
   private transient AtomicInteger leftToRead = new AtomicInteger(0);
-  private AtomicInteger startupLoadCount;
+  private AtomicInteger startupLoadCount = new AtomicInteger(0);
   private AtomicBoolean startupPhaseConsume = new AtomicBoolean(true);
 
   private MQSSettings settings;

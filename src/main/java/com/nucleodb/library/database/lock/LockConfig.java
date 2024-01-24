@@ -14,6 +14,7 @@ public class LockConfig implements Serializable {
     put("partitions", 1);
     put("replicas", 3);
     put("table", "locks");
+    put("offsetReset", "latest");
   }};
   String topic = "locks";
 

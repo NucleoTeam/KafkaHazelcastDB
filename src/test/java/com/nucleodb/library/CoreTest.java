@@ -3,13 +3,11 @@ package com.nucleodb.library;
 import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.tables.table.DataEntryProjection;
 import com.nucleodb.library.database.tables.table.DataTable;
-import com.nucleodb.library.database.utils.Serializer;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryClassException;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleodb.library.database.utils.exceptions.MissingDataEntryConstructorsException;
 import com.nucleodb.library.helpers.models.Author;
 import com.nucleodb.library.helpers.models.AuthorDE;
-import com.nucleodb.library.mqs.kafka.KafkaConfiguration;
 import com.nucleodb.library.mqs.local.LocalConfiguration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,14 +15,12 @@ import org.junit.jupiter.api.Test;
 
 import java.beans.IntrospectionException;
 import java.lang.reflect.InvocationTargetException;
-import java.time.Instant;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class NucleoDBTest{
+class CoreTest{
   NucleoDB nucleoDB;
   DataTable table;
   @BeforeEach
@@ -36,6 +32,9 @@ class NucleoDBTest{
         },
         c -> {
           c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration());
+        },
+        c->{
+          c.setMqsConfiguration(new LocalConfiguration());
         },
         "com.nucleodb.library.helpers.models"
     );
@@ -74,7 +73,7 @@ class NucleoDBTest{
     assertEquals(1, dataEntrySet.size());
     if(dataEntrySet.size()>0){
       DataEntry dataEntry = dataEntrySet.stream().findFirst().get();
-      dataEntry.copy(AuthorDE.class);
+      dataEntry.copy(AuthorDE.class, false);
       assertTrue(true);
     }
   }

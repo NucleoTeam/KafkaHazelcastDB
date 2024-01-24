@@ -17,6 +17,7 @@ public class DataEntryProjection{
   Comparator<DataEntry> sort = null;
 
   boolean writable = true;
+  boolean lockUntilWrite = false;
 
   public DataEntryProjection(Pagination pagination, Predicate<DataEntry> filter) {
     this.pagination = pagination;
@@ -32,6 +33,18 @@ public class DataEntryProjection{
   public DataEntryProjection(Pagination pagination, Comparator<DataEntry> sort) {
     this.pagination = pagination;
     this.sort = sort;
+  }
+
+  public DataEntryProjection(Pagination pagination, boolean writable, boolean lockUntilWrite) {
+    this.pagination = pagination;
+    this.writable = writable;
+    this.lockUntilWrite = lockUntilWrite;
+  }
+
+  public DataEntryProjection(Predicate<DataEntry> filter, boolean writable, boolean lockUntilWrite) {
+    this.filter = filter;
+    this.writable = writable;
+    this.lockUntilWrite = lockUntilWrite;
   }
 
   public DataEntryProjection(Pagination pagination) {
@@ -57,7 +70,7 @@ public class DataEntryProjection{
       dataEntryStream = dataEntryStream.skip(this.pagination.getSkip()).limit(this.pagination.getLimit());
     }
     if(isWritable()){
-      dataEntryStream = dataEntryStream.map(de->(DataEntry) de.copy(clazz));
+      dataEntryStream = dataEntryStream.map(de->(DataEntry) de.copy(clazz, lockUntilWrite));
     }
     return dataEntryStream.collect(Collectors.toSet());
   }
@@ -90,5 +103,13 @@ public class DataEntryProjection{
 
   public void setSort(Comparator<DataEntry> sort) {
     this.sort = sort;
+  }
+
+  public boolean isLockUntilWrite() {
+    return lockUntilWrite;
+  }
+
+  public void setLockUntilWrite(boolean lockUntilWrite) {
+    this.lockUntilWrite = lockUntilWrite;
   }
 }

@@ -10,6 +10,7 @@ public class Delete extends Modify{
     public long version;
 
     public Instant time;
+    public String request;
 
     public Delete() {
     }
@@ -19,6 +20,7 @@ public class Delete extends Modify{
         this.changeUUID = changeUUID;
         this.version = dataEntry.getVersion();
         this.time = Instant.now();
+        this.request = dataEntry.getRequest();
     }
 
     public String getKey() {
@@ -51,5 +53,13 @@ public class Delete extends Modify{
 
     public void setChangeUUID(String changeUUID) {
         this.changeUUID = changeUUID;
+    }
+
+    public String getRequest() {
+        return request;
+    }
+
+    public void setRequest(String request) {
+        this.request = request;
     }
 }

@@ -465,7 +465,7 @@ public class ConnectionHandler implements Serializable{
         String json = Serializer.getObjectMapper().getOmNonType().writeValueAsString(patch);
         changes = Serializer.getObjectMapper().getOmNonType().readValue(json, List.class);
         if (changes != null && changes.size() > 0) {
-          ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid());
+          ConnectionUpdate updateEntry = new ConnectionUpdate(connection.getVersion(), json, changeUUID, connection.getUuid(), connection.getRequest());
           producer.push(updateEntry.getUuid(), updateEntry.getVersion(), updateEntry, null);
           return true;
         }else{
@@ -500,6 +500,7 @@ public class ConnectionHandler implements Serializable{
 
   private void consumerResponse(Connection connection, String changeUUID) throws ExecutionException {
     try {
+      getNucleoDB().getLockManager().releaseLock(this.config.getLabel(), connection.getUuid(), connection.getRequest());
       if(changeUUID!=null) {
         Consumer<Connection> connectionConsumer = consumers.getIfPresent(changeUUID);
         if (connectionConsumer != null) {
@@ -588,6 +589,7 @@ public class ConnectionHandler implements Serializable{
               } else {
                 //logger.info("Deleted");
                 this.removeConnection(conn);
+                conn.setRequest(d.getRequest());
                 //logger.info("removed from db");
                 deletedEntries.add(d.getUuid());
                 //logger.info("Added to deleted entries");
@@ -669,6 +671,7 @@ public class ConnectionHandler implements Serializable{
                     }
                 );
                 this.changed = new Date().getTime();
+                conn.setRequest(u.getRequest());
                 consumerResponse(conn, u.getChangeUUID());
                 triggerEvent(u, conn);
                 long items = itemsToBeCleaned.incrementAndGet();

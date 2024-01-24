@@ -24,6 +24,15 @@ public class ProducerHandler {
     System.exit(1);
   }
 
+  public void push(String key, String message){
+    try {
+      throw new RequiredMethodNotImplementedException("Consumer Handler not implemented");
+    } catch (RequiredMethodNotImplementedException e) {
+      e.printStackTrace();
+    }
+    System.exit(1);
+  }
+
   public String getTable() {
     return table;
   }

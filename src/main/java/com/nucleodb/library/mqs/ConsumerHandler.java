@@ -1,6 +1,7 @@
 package com.nucleodb.library.mqs;
 
 import com.google.common.collect.Queues;
+import com.nucleodb.library.database.lock.LockManager;
 import com.nucleodb.library.database.tables.connection.ConnectionHandler;
 import com.nucleodb.library.database.tables.table.DataTable;
 import com.nucleodb.library.mqs.config.MQSSettings;
@@ -17,6 +18,8 @@ public class ConsumerHandler implements Runnable{
 
   private DataTable database = null;
   private ConnectionHandler connectionHandler = null;
+
+  private LockManager lockManager = null;
   private String table;
   int startupItems = -1;
   private Queue<String> queue = Queues.newConcurrentLinkedQueue();
@@ -29,7 +32,6 @@ public class ConsumerHandler implements Runnable{
   public ConsumerHandler(MQSSettings settings, String table) {
     this.table = table;
     this.settings = settings;
-
   }
   public void start(){
     for (int x = 0; x < 36; x++)
@@ -124,5 +126,13 @@ public class ConsumerHandler implements Runnable{
 
   public void setSettings(MQSSettings settings) {
     this.settings = settings;
+  }
+
+  public LockManager getLockManager() {
+    return lockManager;
+  }
+
+  public void setLockManager(LockManager lockManager) {
+    this.lockManager = lockManager;
   }
 }

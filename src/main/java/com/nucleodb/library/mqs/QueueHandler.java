@@ -1,5 +1,6 @@
 package com.nucleodb.library.mqs;
 
+import com.nucleodb.library.database.lock.LockReference;
 import com.nucleodb.library.database.modifications.Modification;
 import com.nucleodb.library.database.modifications.Modify;
 import com.nucleodb.library.database.utils.Serializer;
@@ -17,6 +18,7 @@ class QueueHandler implements Runnable{
   public void run() {
     boolean connectionType = this.consumerHandler.getConnectionHandler() != null;
     boolean databaseType = this.consumerHandler.getDatabase() != null;
+    boolean lockdownType = this.consumerHandler.getLockManager() != null;
     while (!Thread.interrupted()) {
       String entry = null;
       while (!this.consumerHandler.getQueue().isEmpty() && (entry = this.consumerHandler.getQueue().poll()) != null) {
@@ -41,6 +43,10 @@ class QueueHandler implements Runnable{
                 e.printStackTrace();
               }
             }
+          }else if(lockdownType){
+            this.consumerHandler.getLockManager().lockAction(
+                Serializer.getObjectMapper().getOm().readValue(entry, LockReference.class)
+            );
           }else{
             Serializer.log(entry);
           }

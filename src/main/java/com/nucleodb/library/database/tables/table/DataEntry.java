@@ -1,10 +1,13 @@
 package com.nucleodb.library.database.tables.table;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nucleodb.library.database.lock.LockReference;
 import com.nucleodb.library.database.modifications.Create;
+import com.nucleodb.library.database.tables.connection.ConnectionHandler;
 import com.nucleodb.library.database.utils.Serializer;
 import com.nucleodb.library.database.utils.SkipCopy;
 import com.nucleodb.library.database.utils.Utils;
@@ -24,6 +27,10 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
     private Instant created;
     private Instant modified;
 
+    private String request;
+    @JsonIgnore
+    public transient DataTable dataTable;
+
     public DataEntry(T obj) {
         this.data = obj;
         this.key = UUID.randomUUID().toString();
@@ -37,12 +44,31 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
         this.created = create.getTime();
     }
 
-    public <T> T copy(Class<T> clazz) {
-        try {
-            T obj =  Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(this), clazz);
-            return obj;
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
+    public <T extends DataEntry> T copy(Class<T> clazz, boolean lock) {
+        if (lock){
+            // get lock
+            try {
+                LockReference lockReference = this.dataTable.getNucleoDB().getLockManager().waitForLock(
+                    this.tableName,
+                    key
+                );
+                try {
+                    T obj =  Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(this), clazz);
+                    obj.setRequest(lockReference.getRequest());
+                    return obj;
+                } catch (JsonProcessingException e) {
+                    e.printStackTrace();
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }else{
+            try {
+                T obj =  Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(this), clazz);
+                return obj;
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
         }
         return null;
     }
@@ -133,5 +159,13 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
 
     public void setModified(Instant modified) {
         this.modified = modified;
+    }
+
+    public String getRequest() {
+        return request;
+    }
+
+    public void setRequest(String request) {
+        this.request = request;
     }
 }

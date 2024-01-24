@@ -10,6 +10,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
+import com.nucleodb.library.NucleoDB;
 import com.nucleodb.library.database.modifications.Create;
 import com.nucleodb.library.database.modifications.Delete;
 import com.nucleodb.library.database.modifications.Modify;
@@ -60,6 +61,8 @@ public class DataTable implements Serializable{
   private long changed = new Date().getTime();
   private transient AtomicInteger leftInModQueue = new AtomicInteger(0);
   private Set<String> deletedEntries = new TreeSetExt<>();
+  @JsonIgnore
+  private transient NucleoDB nucleoDB;
   @JsonIgnore
   private transient Queue<Object[]> indexQueue = Queues.newLinkedBlockingQueue();
   @JsonIgnore
@@ -605,6 +608,7 @@ public class DataTable implements Serializable{
             DataEntry dataEntry = (DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(Create.class).newInstance(c);
 
             dataEntry.setTableName(this.config.getTable());
+            dataEntry.dataTable = this;
 
             synchronized (entries) {
               entries.add(dataEntry);
@@ -669,6 +673,7 @@ public class DataTable implements Serializable{
                   });
                 }
                 size--;
+                de.setRequest(d.getRequest());
                 consumerResponse(de, d.getChangeUUID());
                 fireListeners(Modification.DELETE, de);
                 triggerEvent(d, de);
@@ -728,6 +733,7 @@ public class DataTable implements Serializable{
                 de.setData(fromJsonNode(u.getChangesPatch().apply(fromObject(de.getData())), de.getData().getClass()));
                 de.setVersion(u.getVersion());
                 de.setModified(u.getTime());
+                de.setRequest(u.getRequest());
                 u.getOperations().forEach(op -> {
                   switch (op.getOp()) {
                     case "replace":
@@ -790,7 +796,9 @@ public class DataTable implements Serializable{
 
   private void consumerResponse(DataEntry dataEntry, String changeUUID) throws ExecutionException {
     try {
+      if(dataEntry!=null) getNucleoDB().getLockManager().releaseLock(this.config.getTable(), dataEntry.getKey(), dataEntry.getRequest());
       if (changeUUID != null) {
+
         Consumer<DataEntry> dataEntryConsumer = consumers.getIfPresent(changeUUID);
         if (dataEntryConsumer != null) {
           new Thread(() -> dataEntryConsumer.accept(dataEntry)).start();
@@ -1012,5 +1020,13 @@ public class DataTable implements Serializable{
 
   public void setStartupPhase(AtomicBoolean startupPhase) {
     this.startupPhase = startupPhase;
+  }
+
+  public NucleoDB getNucleoDB() {
+    return nucleoDB;
+  }
+
+  public void setNucleoDB(NucleoDB nucleoDB) {
+    this.nucleoDB = nucleoDB;
   }
 }

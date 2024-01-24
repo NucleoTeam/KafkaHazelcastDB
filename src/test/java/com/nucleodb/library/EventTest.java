@@ -5,8 +5,6 @@ import com.nucleodb.library.database.modifications.Delete;
 import com.nucleodb.library.database.modifications.Update;
 import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.tables.table.DataEntryProjection;
-import com.nucleodb.library.database.tables.table.DataTable;
-import com.nucleodb.library.database.utils.Serializer;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryClassException;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleodb.library.database.utils.exceptions.MissingDataEntryConstructorsException;
@@ -18,12 +16,11 @@ import org.junit.jupiter.api.Test;
 
 import java.beans.IntrospectionException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class NucleoDBEventTest{
+public class EventTest{
   @Test
   public void createTest() throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     AtomicLong saved = new AtomicLong(0);
@@ -62,6 +59,9 @@ public class NucleoDBEventTest{
               }
             });
           }
+        },
+        c->{
+          c.setMqsConfiguration(new LocalConfiguration());
         },
         "com.nucleodb.library.helpers.models"
     );

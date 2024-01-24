@@ -17,12 +17,11 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class NucleoDBReadToTime{
+public class ReadToTime{
 
   @Test
   public void readToTimeTest() throws IncorrectDataEntryObjectException, InterruptedException, IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
@@ -32,6 +31,9 @@ public class NucleoDBReadToTime{
         instant.toString(),
         c -> c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration()),
         c -> c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration()),
+        c->{
+          c.setMqsConfiguration(new LocalConfiguration());
+        },
         "com.nucleodb.library.helpers.models"
     );
     Serializer.log(instant.toString());
@@ -52,6 +54,9 @@ public class NucleoDBReadToTime{
             c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration());
           }
         },
+        c->{
+          c.setMqsConfiguration(new LocalConfiguration());
+        },
         "com.nucleodb.library.helpers.models"
     );
     DataTable table = nucleoDB.getTable(Author.class);
@@ -64,6 +69,9 @@ public class NucleoDBReadToTime{
         NucleoDB.DBType.EXPORT,
         c -> c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration()),
         c -> c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration()),
+        c->{
+          c.setMqsConfiguration(new LocalConfiguration());
+        },
         "com.nucleodb.library.helpers.models"
     );
     DataTable table = nucleoDB.getTable(Author.class);
@@ -80,6 +88,9 @@ public class NucleoDBReadToTime{
         NucleoDB.DBType.ALL,
         c -> c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration()),
         c -> c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration()),
+        c->{
+          c.setMqsConfiguration(new LocalConfiguration());
+        },
         "com.nucleodb.library.helpers.models"
     );
     DataTable table = nucleoDB.getTable(Author.class);
@@ -97,6 +108,9 @@ public class NucleoDBReadToTime{
         NucleoDB.DBType.NO_LOCAL,
         c -> c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration()),
         c -> c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration()),
+        c->{
+          c.setMqsConfiguration(new LocalConfiguration());
+        },
         "com.nucleodb.library.helpers.models"
     );
     DataTable table = nucleoDB.getTable(Author.class);

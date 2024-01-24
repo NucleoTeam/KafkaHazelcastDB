@@ -66,7 +66,8 @@ public class KafkaProducerHandler extends ProducerHandler{
                 }
                 if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
                     logger.info(String.format("kafka topic not found for %s", topic));
-                    final NewTopic newTopic = new NewTopic(topic, 36, (short) 3);
+
+                    final NewTopic newTopic = new NewTopic(topic, settings.partitions, (short) settings.replicas);
                     newTopic.configs(new TreeMap<>(){{
                         put(TopicConfig.RETENTION_MS_CONFIG, "-1");
                         put(TopicConfig.RETENTION_MS_CONFIG, "-1");
@@ -135,5 +136,26 @@ public class KafkaProducerHandler extends ProducerHandler{
                 e.printStackTrace();
             }
         }).start();
+    }
+    @Override
+    public void push(String key, String message){
+        try {
+            ProducerRecord record = new ProducerRecord(
+                getTable().toLowerCase(),
+                key,
+                message
+            );
+
+            getProducer().send(record, (e, ex) -> {
+                //logger.info("Published");
+                if (ex != null) {
+                    ex.printStackTrace();
+                    System.exit(1);
+                }
+            });
+            //logger.info("produced");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

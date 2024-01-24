@@ -31,6 +31,14 @@ public class LocalProducerHandler extends ProducerHandler{
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+  }
 
+  @Override
+  public void push(String key, String message) {
+    localConsumerHandler.getQueue().add(message);
+    localConsumerHandler.getLeftToRead().incrementAndGet();
+    synchronized (localConsumerHandler.getQueue()) {
+      localConsumerHandler.getQueue().notifyAll();
+    }
   }
 }

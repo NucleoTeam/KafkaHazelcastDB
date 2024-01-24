@@ -1,5 +1,7 @@
 package com.nucleodb.library;
 
+import com.nucleodb.library.database.lock.LockConfig;
+import com.nucleodb.library.database.lock.LockManager;
 import com.nucleodb.library.database.modifications.Create;
 import com.nucleodb.library.database.tables.annotation.Conn;
 import com.nucleodb.library.database.tables.connection.ConnectionConfig;
@@ -34,8 +36,8 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.logging.Logger;
 
 import static com.nucleodb.library.utils.EnvReplace.replaceEnvVariables;
@@ -48,6 +50,8 @@ public class NucleoDB{
 
   private TreeMap<String, ConnectionHandler> connections = new TreeMap<>();
 
+  private LockManager lockManager;
+
   public NucleoDB() {
   }
 
@@ -59,25 +63,32 @@ public class NucleoDB{
   }
 
   public NucleoDB(String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-    this(DBType.ALL, null, null, packagesToScan);
+    this(DBType.ALL, null, null, null, packagesToScan);
   }
 
-  public NucleoDB(Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-    this(DBType.ALL, connectionCustomizer, dataTableCustomizer, packagesToScan);
+  public NucleoDB(Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, Consumer<LockConfig> lockCustomizer, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    this(DBType.ALL, connectionCustomizer, dataTableCustomizer, lockCustomizer, packagesToScan);
   }
   public NucleoDB(DBType dbType, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-    this(dbType, null, null, null, packagesToScan);
+    this(dbType, null, null, null, null, packagesToScan);
   }
-  public NucleoDB(DBType dbType, Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-    this(dbType, null, connectionCustomizer, dataTableCustomizer, packagesToScan);
+  public NucleoDB(DBType dbType, Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, Consumer<LockConfig> lockCustomizer, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    this(dbType, null, connectionCustomizer, dataTableCustomizer, lockCustomizer, packagesToScan);
   }
   public NucleoDB(DBType dbType, String readToTime, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     startTables(packagesToScan, dbType, readToTime, null);
     startConnections(packagesToScan, dbType, readToTime, null);
   }
-  public NucleoDB(DBType dbType, String readToTime, Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+  public NucleoDB(DBType dbType, String readToTime, Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, Consumer<LockConfig> lockCustomizer, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    startLockManager(lockCustomizer);
     startTables(packagesToScan, dbType, readToTime, dataTableCustomizer);
     startConnections(packagesToScan, dbType, readToTime, connectionCustomizer);
+  }
+  private void startLockManager(Consumer<LockConfig> customizer) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    LockConfig config = new LockConfig();
+    if(customizer!=null) customizer.accept(config);
+    lockManager = new LockManager(config);
+    new Thread(lockManager).start();
   }
   private void startConnections(String[] packagesToScan, DBType dbType, String readToTime, Consumer<ConnectionConsumer> customizer) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     logger.info("NucleoDB Connections Starting");
@@ -213,13 +224,14 @@ public class NucleoDB{
       if(readToTime!=null) {
         try {
           table.getConfig().setReadToTime(Instant.parse(readToTime));
+
         }catch (DateTimeParseException e){
           e.printStackTrace();
         }
       }
       table.addIndexes(indexes.get(table.getConfig().getTable()));
       try {
-        table.build();
+        table.build().setNucleoDB(this);
       } catch (IntrospectionException e) {
         throw new RuntimeException(e);
       } catch (InvocationTargetException e) {
@@ -415,4 +427,12 @@ public class NucleoDB{
     return connections;
   }
 
+  public LockManager getLockManager() {
+
+    return lockManager;
+  }
+
+  public void setLockManager(LockManager lockManager) {
+    this.lockManager = lockManager;
+  }
 }

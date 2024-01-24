@@ -17,6 +17,7 @@ public class ConnectionUpdate extends Modify{
   public Instant time;
   public String changes;
   public String uuid;
+  public String request;
   public String changeUUID = UUID.randomUUID().toString();
 
   public ConnectionUpdate() throws IOException {
@@ -24,19 +25,21 @@ public class ConnectionUpdate extends Modify{
 
   }
 
-  public ConnectionUpdate(long version, String changes, String changeUUID, String uuid) {
+  public ConnectionUpdate(long version, String changes, String changeUUID, String uuid, String request) {
     this.version = version;
     this.changes = changes;
     this.changeUUID = changeUUID;
     this.uuid = uuid;
     this.time = Instant.now();
+    this.request = request;
   }
 
-  public ConnectionUpdate(long version, Instant time, String changes, String uuid) {
+  public ConnectionUpdate(long version, Instant time, String changes, String uuid, String request) {
     this.version = version;
     this.time = time;
     this.changes = changes;
     this.uuid = uuid;
+    this.request = request;
   }
 
   @JsonIgnore
@@ -95,5 +98,13 @@ public class ConnectionUpdate extends Modify{
 
   public void setChangeUUID(String changeUUID) {
     this.changeUUID = changeUUID;
+  }
+
+  public String getRequest() {
+    return request;
+  }
+
+  public void setRequest(String request) {
+    this.request = request;
   }
 }

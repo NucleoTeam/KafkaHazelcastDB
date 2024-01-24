@@ -4,8 +4,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nucleodb.library.database.lock.LockReference;
 import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.tables.table.DataTable;
+import com.nucleodb.library.database.utils.Serializer;
 import com.nucleodb.library.database.utils.SkipCopy;
 import org.jetbrains.annotations.NotNull;
 
@@ -24,6 +26,8 @@ public class Connection<T extends DataEntry, F extends DataEntry> implements Ser
   private String uuid;
   private String fromKey;
   private String toKey;
+
+  private String request;
   private Instant date;
   private Instant modified;
   public long version = 0;
@@ -48,17 +52,36 @@ public class Connection<T extends DataEntry, F extends DataEntry> implements Ser
     this.modified = Instant.now();
   }
 
-  public <T> T copy(Class<T> clazz)  {
-    ObjectMapper om = new ObjectMapper()
-        .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
-        .findAndRegisterModules();
-    try {
-      T obj =  om.readValue(om.writeValueAsString(this), clazz);
-      ((Connection)obj).connectionHandler = this.connectionHandler;
-      return obj;
-    } catch (JsonProcessingException e) {
-      e.printStackTrace();
+  public <T extends Connection> T copy(Class<T> clazz, boolean lock) {
+    if (lock){
+      // get lock
+      try {
+        LockReference lockReference = this.connectionHandler.getNucleoDB().getLockManager().waitForLock(
+            this.connectionHandler.getConfig().getLabel(),
+            uuid
+        );
+        System.out.println("unlocked "+lockReference.getRequest());
+        try {
+          T obj =  Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(this), clazz);
+          obj.setRequest(lockReference.getRequest());
+          ((Connection)obj).connectionHandler = this.connectionHandler;
+          return obj;
+        } catch (JsonProcessingException e) {
+          e.printStackTrace();
+        }
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }else{
+      try {
+        T obj =  Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(this), clazz);
+        ((Connection)obj).connectionHandler = this.connectionHandler;
+        return obj;
+      } catch (JsonProcessingException e) {
+        e.printStackTrace();
+      }
     }
+
     return null;
   }
 
@@ -158,7 +181,7 @@ public class Connection<T extends DataEntry, F extends DataEntry> implements Ser
       DataTable table = this.connectionHandler.getNucleoDB().getTable(this.connectionHandler.getConfig().getToTable());
       Set<DataEntry> tmp = table.get("id", this.getToKey(), null);
       if (tmp != null) {
-        Optional<DataEntry> tmpOp = tmp.stream().findFirst().map(c->c.copy(table.getConfig().getDataEntryClass())).map(DataEntry.class::cast);
+        Optional<DataEntry> tmpOp = tmp.stream().findFirst().map(c->c.copy(table.getConfig().getDataEntryClass(), false)).map(DataEntry.class::cast);
         if (tmpOp.isPresent()) {
           return (T)tmpOp.get();
         }
@@ -172,12 +195,20 @@ public class Connection<T extends DataEntry, F extends DataEntry> implements Ser
       DataTable table = this.connectionHandler.getNucleoDB().getTable(this.connectionHandler.getConfig().getFromTable());
       Set<DataEntry> tmp = table.get("id", this.getFromKey(), null);
       if (tmp != null) {
-        Optional<DataEntry> tmpOp = tmp.stream().findFirst().map(c->c.copy(table.getConfig().getDataEntryClass())).map(DataEntry.class::cast);
+        Optional<DataEntry> tmpOp = tmp.stream().findFirst().map(c->c.copy(table.getConfig().getDataEntryClass(), false)).map(DataEntry.class::cast);
         if (tmpOp.isPresent()) {
           return (F)tmpOp.get();
         }
       }
     }
     return null;
+  }
+
+  public String getRequest() {
+    return request;
+  }
+
+  public void setRequest(String request) {
+    this.request = request;
   }
 }

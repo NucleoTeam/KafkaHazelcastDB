@@ -9,6 +9,7 @@ public class ConnectionDelete extends Modify {
   public long version;
   public Instant time;
   public String uuid;
+  public String request;
   public String changeUUID = UUID.randomUUID().toString();
 
   public ConnectionDelete() {
@@ -19,6 +20,7 @@ public class ConnectionDelete extends Modify {
     this.uuid = connection.getUuid();
     this.version = connection.getVersion();
     this.time = Instant.now();
+    this.request = connection.getRequest();
   }
   public ConnectionDelete(String changeUUID, Connection connection)  {
     this.uuid = connection.getUuid();
@@ -62,5 +64,13 @@ public class ConnectionDelete extends Modify {
 
   public void setChangeUUID(String changeUUID) {
     this.changeUUID = changeUUID;
+  }
+
+  public String getRequest() {
+    return request;
+  }
+
+  public void setRequest(String request) {
+    this.request = request;
   }
 }

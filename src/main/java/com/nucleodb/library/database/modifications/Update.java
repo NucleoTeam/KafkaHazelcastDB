@@ -17,6 +17,7 @@ public class Update extends Modify{
     public String changes;
     public long version;
     public Instant time;
+    public String request;
 
     public Update() {
 
@@ -26,6 +27,7 @@ public class Update extends Modify{
         this.changeUUID = changeUUID;
         this.key = entry.getKey();
         this.changes = changes;
+        this.request = entry.getRequest();
         this.version = entry.getVersion();
         this.time = Instant.now();
     }
@@ -49,7 +51,7 @@ public class Update extends Modify{
     @JsonIgnore
     public List<JsonOperations> getOperations() {
         try {
-            return Serializer.getObjectMapper().getOmNonType().readValue(changes, new TypeReference<List<JsonOperations>>(){});
+            return Serializer.getObjectMapper().getOmNonType().readValue(changes, new TypeReference<>(){});
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -89,5 +91,13 @@ public class Update extends Modify{
 
     public void setChanges(String changes) {
         this.changes = changes;
+    }
+
+    public String getRequest() {
+        return request;
+    }
+
+    public void setRequest(String request) {
+        this.request = request;
     }
 }

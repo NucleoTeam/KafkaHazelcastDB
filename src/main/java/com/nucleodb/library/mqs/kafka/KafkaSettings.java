@@ -22,19 +22,15 @@ public class KafkaSettings extends MQSSettings{
     if(objs.containsKey("groupName")) {
       this.groupName = (String) objs.get("groupName");
     }
-
     if(objs.containsKey("partitions")) {
       this.partitions = (int) objs.get("partitions");
     }
     if(objs.containsKey("replicas")) {
       this.replicas = (int) objs.get("replicas");
     }
-
     if(objs.containsKey("offsetReset")) {
-      this.replicas = (int) objs.get("offsetReset");
+      this.offsetReset = (String) objs.get("offsetReset");
     }
-
-
   }
 
   public String getGroupName() {

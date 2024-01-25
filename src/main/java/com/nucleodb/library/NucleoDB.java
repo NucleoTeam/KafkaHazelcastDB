@@ -76,6 +76,7 @@ public class NucleoDB{
     this(dbType, null, connectionCustomizer, dataTableCustomizer, lockCustomizer, packagesToScan);
   }
   public NucleoDB(DBType dbType, String readToTime, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    startLockManager(null);
     startTables(packagesToScan, dbType, readToTime, null);
     startConnections(packagesToScan, dbType, readToTime, null);
   }
@@ -231,7 +232,8 @@ public class NucleoDB{
       }
       table.addIndexes(indexes.get(table.getConfig().getTable()));
       try {
-        table.build().setNucleoDB(this);
+        DataTable build = table.build();
+        build.setNucleoDB(this);
       } catch (IntrospectionException e) {
         throw new RuntimeException(e);
       } catch (InvocationTargetException e) {

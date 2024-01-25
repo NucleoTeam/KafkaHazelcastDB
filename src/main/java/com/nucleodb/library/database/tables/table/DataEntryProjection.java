@@ -16,7 +16,7 @@ public class DataEntryProjection{
 
   Comparator<DataEntry> sort = null;
 
-  boolean writable = true;
+  boolean writable = false;
   boolean lockUntilWrite = false;
 
   public DataEntryProjection(Pagination pagination, Predicate<DataEntry> filter) {

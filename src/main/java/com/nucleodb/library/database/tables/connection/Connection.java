@@ -181,7 +181,7 @@ public class Connection<T extends DataEntry, F extends DataEntry> implements Ser
       DataTable table = this.connectionHandler.getNucleoDB().getTable(this.connectionHandler.getConfig().getToTable());
       Set<DataEntry> tmp = table.get("id", this.getToKey(), null);
       if (tmp != null) {
-        Optional<DataEntry> tmpOp = tmp.stream().findFirst().map(c->c.copy(table.getConfig().getDataEntryClass(), false)).map(DataEntry.class::cast);
+        Optional<DataEntry> tmpOp = tmp.stream().findFirst();
         if (tmpOp.isPresent()) {
           return (T)tmpOp.get();
         }
@@ -195,7 +195,7 @@ public class Connection<T extends DataEntry, F extends DataEntry> implements Ser
       DataTable table = this.connectionHandler.getNucleoDB().getTable(this.connectionHandler.getConfig().getFromTable());
       Set<DataEntry> tmp = table.get("id", this.getFromKey(), null);
       if (tmp != null) {
-        Optional<DataEntry> tmpOp = tmp.stream().findFirst().map(c->c.copy(table.getConfig().getDataEntryClass(), false)).map(DataEntry.class::cast);
+        Optional<DataEntry> tmpOp = tmp.stream().findFirst();
         if (tmpOp.isPresent()) {
           return (F)tmpOp.get();
         }

@@ -101,19 +101,19 @@ public class LockManager implements Runnable{
     @Override
     public Object put(@NotNull Object key, @NotNull Object value) {
       executorPool.schedule(()->{
-//        LockReference lockReference = (LockReference)this.get(key);
-//        if(lockReference!=null && value instanceof LockReference && lockReference.getRequest().equals(((LockReference)value).getRequest())) {
-//          logger.info( "EXPIRED");
-//          logger.info((String) key);
-//          try {
-//            LockReference activeLock = Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(value), LockReference.class);
-//            activeLock.setLock(false);
-//            lockAction(activeLock);
-//          } catch (JsonProcessingException e) {
-//            e.printStackTrace();
-//          }
-//        }
-      }, 10000, TimeUnit.MILLISECONDS);
+        LockReference lockReference = (LockReference)this.get(key);
+        if(lockReference!=null && value instanceof LockReference && lockReference.getRequest().equals(((LockReference)value).getRequest())) {
+          logger.info( "EXPIRED");
+          logger.info((String) key);
+          try {
+            LockReference activeLock = Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(value), LockReference.class);
+            activeLock.setLock(false);
+            lockAction(activeLock);
+          } catch (JsonProcessingException e) {
+            e.printStackTrace();
+          }
+        }
+      }, 1000, TimeUnit.MILLISECONDS);
       return super.put(key, value);
     }
   };

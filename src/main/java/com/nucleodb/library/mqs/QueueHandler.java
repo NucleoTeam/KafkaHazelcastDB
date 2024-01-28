@@ -4,10 +4,14 @@ import com.nucleodb.library.database.lock.LockReference;
 import com.nucleodb.library.database.modifications.Modification;
 import com.nucleodb.library.database.modifications.Modify;
 import com.nucleodb.library.database.utils.Serializer;
+import com.nucleodb.library.mqs.kafka.KafkaConsumerHandler;
 
 import java.io.Serial;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 class QueueHandler implements Runnable{
+  private static Logger logger = Logger.getLogger(QueueHandler.class.getName());
   private ConsumerHandler consumerHandler;
 
   public QueueHandler(ConsumerHandler consumerHandler) {
@@ -22,6 +26,7 @@ class QueueHandler implements Runnable{
     while (!Thread.interrupted()) {
       String entry = null;
       while (!this.consumerHandler.getQueue().isEmpty() && (entry = this.consumerHandler.getQueue().poll()) != null) {
+        //logger.info("message received");
         this.consumerHandler.getLeftToRead().decrementAndGet();
         try {
           if (databaseType) {
@@ -44,6 +49,7 @@ class QueueHandler implements Runnable{
               }
             }
           }else if(lockdownType){
+            //logger.info("processing lockdown");
             this.consumerHandler.getLockManager().lockAction(
                 Serializer.getObjectMapper().getOm().readValue(entry, LockReference.class)
             );
@@ -57,7 +63,7 @@ class QueueHandler implements Runnable{
       if (this.consumerHandler.getQueue().isEmpty()) {
         try {
           synchronized (this.consumerHandler.getQueue()) {
-            if (this.consumerHandler.getLeftToRead().get() == 0) this.consumerHandler.getQueue().wait();
+            if (this.consumerHandler.getLeftToRead().get() == 0) this.consumerHandler.getQueue().wait(100);
           }
         } catch (Exception e) {
           e.printStackTrace();

@@ -1,7 +1,9 @@
 package com.nucleodb.library.mqs.kafka;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nucleodb.library.database.tables.connection.ConnectionHandler;
 import com.nucleodb.library.database.tables.table.DataTable;
+import com.nucleodb.library.database.utils.Serializer;
 import com.nucleodb.library.mqs.ConsumerHandler;
 import com.nucleodb.library.mqs.config.MQSSettings;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -18,6 +20,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 public class KafkaConsumerHandler extends ConsumerHandler{
@@ -26,6 +29,7 @@ public class KafkaConsumerHandler extends ConsumerHandler{
   private ConnectionHandler connectionHandler = null;
 
   private Thread kafkaConsumingThread = null;
+  private int threads = 36;
 
   public KafkaConsumerHandler(MQSSettings settings, String servers, String groupName, String table) {
     super(settings, table);
@@ -98,10 +102,11 @@ public class KafkaConsumerHandler extends ConsumerHandler{
   }
 
   @Override
-  public void start(){
+  public void start(int queueHandlers){
+    this.threads = queueHandlers;
     kafkaConsumingThread = new Thread(this);
     kafkaConsumingThread.start();
-    super.start();
+    super.start(queueHandlers);
   }
 
 
@@ -111,7 +116,7 @@ public class KafkaConsumerHandler extends ConsumerHandler{
     Set<TopicPartition> partitions = getConsumer().assignment();
     if (startupMap == null || partitions.size() > startupMap.size()) {
       if (partitions == null) return false;
-      if (partitions.size() != 36) return false;
+      if (partitions.size() != threads) return false;
       Map<TopicPartition, Long> tmp = getConsumer().endOffsets(partitions);
       startupMap = tmp;
     }
@@ -130,6 +135,7 @@ public class KafkaConsumerHandler extends ConsumerHandler{
   public void run() {
     boolean connectionType = this.getConnectionHandler() != null;
     boolean databaseType = this.getDatabase() != null;
+    boolean lockManagerType = this.getLockManager() != null;
     boolean saveConnection = connectionType && this.getConnectionHandler().getConfig().isSaveChanges();
     boolean saveDatabase = databaseType && this.getDatabase().getConfig().isSaveChanges();
     if (databaseType) {
@@ -138,6 +144,10 @@ public class KafkaConsumerHandler extends ConsumerHandler{
     if (connectionType) {
       super.setStartupLoadCount(getConnectionHandler().getStartupLoadCount());
     }
+    if(lockManagerType){
+      super.setStartupLoadCount(new AtomicInteger(0));
+    }
+
     consumer.commitAsync();
 
     Map<Integer, OffsetAndMetadata> offsetMetaMap = new HashMap<>();
@@ -148,6 +158,7 @@ public class KafkaConsumerHandler extends ConsumerHandler{
           rs.iterator().forEachRemaining(action -> {
             if(getStartupPhaseConsume().get()) getStartupLoadCount().incrementAndGet();
             String pop = action.value();
+            logger.info(pop);
             //System.out.println("Change added to queue.");
             getQueue().add(pop);
             getLeftToRead().incrementAndGet();
@@ -177,6 +188,9 @@ public class KafkaConsumerHandler extends ConsumerHandler{
               getDatabase().getStartupPhase().set(false);
               new Thread(() -> getDatabase().startup()).start();
             }
+            if(lockManagerType){
+              new Thread(() -> getLockManager().startup()).start();
+            }
           }
         }
       } while (!Thread.interrupted());
@@ -186,7 +200,7 @@ public class KafkaConsumerHandler extends ConsumerHandler{
     }
   }
 
-  private org.apache.kafka.clients.consumer.KafkaConsumer createConsumer(String bootstrap, String groupName) {
+  private KafkaConsumer createConsumer(String bootstrap, String groupName) {
     Properties props = new Properties();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
     //System.out.println(groupName);
@@ -196,13 +210,13 @@ public class KafkaConsumerHandler extends ConsumerHandler{
     props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, ((KafkaSettings) getSettings()).getOffsetReset());
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-    org.apache.kafka.clients.consumer.KafkaConsumer consumer = new org.apache.kafka.clients.consumer.KafkaConsumer(props);
+    KafkaConsumer consumer = new KafkaConsumer(props);
 
     return consumer;
   }
 
   public void subscribe(String[] topics) {
-    System.out.println("Subscribed to topic " + Arrays.asList(topics).toString());
+    //System.out.println("Subscribed to topic " + Arrays.asList(topics).toString());
     consumer.subscribe(Arrays.asList(topics));
   }
 

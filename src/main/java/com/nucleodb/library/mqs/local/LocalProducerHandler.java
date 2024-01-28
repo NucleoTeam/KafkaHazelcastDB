@@ -19,7 +19,7 @@ public class LocalProducerHandler extends ProducerHandler{
 
   @Override
   public void push(String key, long version, Modify modify, Callback callback) {
-    logger.info("message pushed to local producer, sending to consumer");
+    //logger.info("message pushed to local producer, sending to consumer");
     try {
       localConsumerHandler.getQueue().add(
           modify.getClass().getSimpleName() + Serializer.getObjectMapper().getOm().writeValueAsString(modify)

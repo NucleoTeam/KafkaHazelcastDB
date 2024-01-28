@@ -17,7 +17,7 @@ public class LocalConsumerHandler extends ConsumerHandler{
   }
 
   @Override
-  public void start() {
+  public void start(int queueHandlers) {
     super.getStartupPhaseConsume().set(false);
     if(getConnectionHandler()!=null){
       logger.info("startup for connection for  "+getTable());
@@ -29,7 +29,10 @@ public class LocalConsumerHandler extends ConsumerHandler{
       getDatabase().getStartupPhase().set(false);
       new Thread(() -> getDatabase().startup()).start();
     }
-    super.start();
+    if(getLockManager()!=null){
+      new Thread(() -> getLockManager().startup()).start();
+    }
+    super.start(queueHandlers);
   }
 
   @Override

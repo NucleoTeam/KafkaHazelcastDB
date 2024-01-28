@@ -285,7 +285,7 @@ public class ConnectionHandler implements Serializable{
           .getMqsConfiguration()
           .createConsumerHandler(this.config.getSettingsMap());
       this.consumer.setConnectionHandler(this);
-      this.consumer.start();
+      this.consumer.start(36);
       this.config.getSettingsMap().put("consumerHandler", this.consumer);
     }
   }

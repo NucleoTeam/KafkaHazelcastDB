@@ -1,5 +1,7 @@
 package com.nucleodb.library.database.lock;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.nucleodb.library.database.utils.StartupRun;
 import com.nucleodb.library.mqs.config.MQSConfiguration;
 import com.nucleodb.library.mqs.kafka.KafkaConfiguration;
 
@@ -12,6 +14,9 @@ public class LockConfig implements Serializable {
   MQSConfiguration mqsConfiguration = new KafkaConfiguration();
   Map<String, Object> settingsMap = new TreeMap<>();
   String topic = "locks";
+
+  @JsonIgnore
+  private transient StartupRun startupRun = null;
 
   public LockConfig() {
     settingsMap.put("partitions", 1);
@@ -43,5 +48,13 @@ public class LockConfig implements Serializable {
   public void setTopic(String topic) {
     this.topic = topic;
     this.settingsMap.put("table", topic);
+  }
+
+  public StartupRun getStartupRun() {
+    return startupRun;
+  }
+
+  public void setStartupRun(StartupRun startupRun) {
+    this.startupRun = startupRun;
   }
 }

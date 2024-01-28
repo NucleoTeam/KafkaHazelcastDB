@@ -195,7 +195,7 @@ public class SQLHandler{
 
     DataTable table = nucleoDB.getTable(tableName);
     if (table == null) {
-      System.out.println("Table not found.");
+      //System.out.println("Table not found.");
       return new LinkedList<>();
     }
 

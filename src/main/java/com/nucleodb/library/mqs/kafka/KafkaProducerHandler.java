@@ -147,7 +147,6 @@ public class KafkaProducerHandler extends ProducerHandler{
                 key,
                 message
             );
-
             getProducer().send(record, (e, ex) -> {
                 //logger.info("Published");
                 if (ex != null) {

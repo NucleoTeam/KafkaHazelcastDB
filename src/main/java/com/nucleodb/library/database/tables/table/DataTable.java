@@ -191,7 +191,7 @@ public class DataTable implements Serializable{
         .getMqsConfiguration()
         .createConsumerHandler(this.config.getSettingsMap());
     this.consumer.setDatabase(this);
-    this.consumer.start();
+    this.consumer.start(36);
     this.config.getSettingsMap().put("consumerHandler", this.consumer);
   }
 
@@ -530,7 +530,7 @@ public class DataTable implements Serializable{
         }
         return false;
       }
-      DataEntry dataEntry = dataEntrySet.stream().findFirst().get();
+      DataEntry dataEntry = dataEntrySet.iterator().next();
       JsonPatch patch = JsonDiff.asJsonPatch(fromObject(dataEntry.getData()), fromObject(entry.getData()));
       try {
         String json = Serializer.getObjectMapper().getOmNonType().writeValueAsString(patch);
@@ -542,6 +542,7 @@ public class DataTable implements Serializable{
           return true;
         }else{
           try {
+            dataEntry.setRequest(entry.getRequest());
             consumerResponse(dataEntry, changeUUID);
           } catch (ExecutionException e) {
             throw new RuntimeException(e);
@@ -796,7 +797,9 @@ public class DataTable implements Serializable{
 
   private void consumerResponse(DataEntry dataEntry, String changeUUID) throws ExecutionException {
     try {
-      if(dataEntry!=null) getNucleoDB().getLockManager().releaseLock(this.config.getTable(), dataEntry.getKey(), dataEntry.getRequest());
+      if(dataEntry!=null){
+        getNucleoDB().getLockManager().releaseLock(this.config.getTable(), dataEntry.getKey(), dataEntry.getRequest());
+      }
       if (changeUUID != null) {
 
         Consumer<DataEntry> dataEntryConsumer = consumers.getIfPresent(changeUUID);

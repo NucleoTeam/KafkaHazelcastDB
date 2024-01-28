@@ -33,8 +33,8 @@ public class ConsumerHandler implements Runnable{
     this.table = table;
     this.settings = settings;
   }
-  public void start(){
-    for (int x = 0; x < 36; x++)
+  public void start(int queues){
+    for (int x = 0; x < queues; x++)
       new Thread(new QueueHandler(this)).start();
   }
 

@@ -3,10 +3,13 @@ package com.nucleodb.library.database.utils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nucleodb.library.database.lock.LockManager;
+
+import java.util.logging.Logger;
 
 public class Serializer{
   private static Serializer objectMapper = new Serializer();
-
+  private static Logger logger = Logger.getLogger(Serializer.class.getName());
   ObjectMapper om;
   ObjectMapper omNonType;
 
@@ -22,7 +25,7 @@ public class Serializer{
 
   public static void log(Object o){
     try {
-      System.out.println(getObjectMapper().getOm().writeValueAsString(o));
+      logger.info(getObjectMapper().getOm().writeValueAsString(o));
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }

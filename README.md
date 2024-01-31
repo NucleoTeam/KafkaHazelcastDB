@@ -61,7 +61,16 @@ public class AuthorDE extends DataEntry<Author>{
 }
 ```
 
-##### Read data
+##### Read data for read only
+```java
+class Application {
+  public static void main(String[] args) {
+    Set<DataEntry> first = nucleoDB.getTable(Author.class).get("name", "test");
+  }
+}
+```
+
+##### Read data for updating or deleting without needing to use .copy()
 ```java
 class Application {
   public static void main(String[] args) {

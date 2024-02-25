@@ -5,6 +5,7 @@ import com.nucleodb.library.database.modifications.Delete;
 import com.nucleodb.library.database.modifications.Update;
 import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.tables.table.DataEntryProjection;
+import com.nucleodb.library.database.tables.table.DataTable;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryClassException;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleodb.library.database.utils.exceptions.MissingDataEntryConstructorsException;
@@ -66,22 +67,23 @@ public class EventTest{
         "com.nucleodb.library.helpers.models"
     );
     try {
+      DataTable<AuthorDE> table = nucleoDB.getTable(Author.class);
       AuthorDE authorDE = new AuthorDE(new Author("test", "testing"));
-      nucleoDB.getTable(Author.class).saveSync(authorDE);
+      table.saveSync(authorDE);
       synchronized (saved) {
         saved.wait(1000);
       }
       assertEquals(1, saved.get());
-      DataEntry first = nucleoDB.getTable(Author.class).get("name", "test", new DataEntryProjection(){{
+      AuthorDE first = table.get("name", "test", new DataEntryProjection(){{
         setWritable(true);
       }}).stream().findFirst().get();
-      ((AuthorDE)first).getData().setName("test2");
-      nucleoDB.getTable(Author.class).saveSync(first);
+      first.getData().setName("test2");
+      table.saveSync(first);
       synchronized (updated) {
         updated.wait(1000);
       }
       assertEquals(1, updated.get());
-      nucleoDB.getTable(Author.class).deleteSync(first);
+      table.deleteSync(first);
       synchronized (deleted) {
         deleted.wait(1000);
       }

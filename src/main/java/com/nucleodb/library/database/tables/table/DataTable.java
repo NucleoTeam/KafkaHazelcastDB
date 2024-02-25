@@ -47,16 +47,16 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class DataTable implements Serializable{
+public class DataTable<T extends DataEntry> implements Serializable{
   private static final long serialVersionUID = 1;
   @JsonIgnore
   private transient static Logger logger = Logger.getLogger(DataTable.class.getName());
 
-  private Set<DataEntry> entries = new TreeSetExt<>();
+  private Set<T> entries = new TreeSetExt<>();
   private transient DataTableConfig config;
   @JsonIgnore
-  private transient Map<String, IndexWrapper<DataEntry>> indexes = new TreeMap<>();
-  private Map<String, DataEntry> keyToEntry = new TreeMap<>();
+  private transient Map<String, IndexWrapper<T>> indexes = new TreeMap<>();
+  private Map<String, T> keyToEntry = new TreeMap<>();
   private Map<Integer, Long> partitionOffsets = new TreeMap<>();
   private long changed = new Date().getTime();
   private transient AtomicInteger leftInModQueue = new AtomicInteger(0);
@@ -72,7 +72,7 @@ public class DataTable implements Serializable{
   private transient AtomicInteger startupLoadCount = new AtomicInteger(0);
   private transient AtomicBoolean startupPhase = new AtomicBoolean(true);
 
-  private transient Cache<String, Consumer<DataEntry>> consumers = CacheBuilder.newBuilder()
+  private transient Cache<String, Consumer<T>> consumers = CacheBuilder.newBuilder()
       .maximumSize(10000)
       .softValues()
       .expireAfterWrite(5, TimeUnit.SECONDS)
@@ -80,12 +80,12 @@ public class DataTable implements Serializable{
         if (e.getCause().name().equals("EXPIRED")) {
           //logger.info("EXPIRED" +e.getKey());
           System.exit(1);
-          new Thread(() -> ((Consumer<DataEntry>) e.getValue()).accept(null)).start();
+          new Thread(() -> ((Consumer<T>) e.getValue()).accept(null)).start();
         }
       })
       .build();
   @JsonIgnore
-  private static Map<Modification, Set<Consumer<DataEntry>>> listeners = new TreeMap<>();
+  private Map<Modification, Set<Consumer<T>>> listeners = new TreeMap<>();
   @JsonIgnore
   private transient boolean unsavedIndexModifications = false;
   @JsonIgnore
@@ -196,7 +196,7 @@ public class DataTable implements Serializable{
   }
 
   public void exportTo(DataTable tb) throws IncorrectDataEntryObjectException {
-    for (DataEntry de : this.entries) {
+    for (T de : this.entries) {
       //Serializer.log("INSERTING " + de.getKey());
       try {
         tb.saveSync(de);
@@ -217,14 +217,14 @@ public class DataTable implements Serializable{
     System.gc();
   }
 
-  public Set<DataEntry> in(String key, List<Object> values, DataEntryProjection dataEntryProjection) {
+  public Set<T> in(String key, List<Object> values, DataEntryProjection dataEntryProjection) {
     if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
-    Set<DataEntry> tmp = new TreeSet<>();
+    Set<T> tmp = new TreeSet<>();
     try {
       for (Object val : values) {
-        Set<DataEntry> de = get(key, val, dataEntryProjection);
+        Set<T> de = get(key, val, dataEntryProjection);
         if (de != null) {
           tmp.addAll(de);
         }
@@ -245,129 +245,98 @@ public class DataTable implements Serializable{
   private long counter = 0;
   private long lastReq = 0;
 
-  public Set<DataEntry> createNewObject(Set<DataEntry> o) {
-    try {
-      Set<DataEntry> set = Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(o), new TypeReference<TreeSet<DataEntry>>(){
-      });
-      for (DataEntry dataEntry : set) {
-        dataEntry.setData(Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(dataEntry.getData()), this.config.getClazz()));
-      }
-      return set;
-    } catch (JsonProcessingException e) {
-      e.printStackTrace();
-    }
-    return new TreeSetExt<>();
-  }
-
-  DataEntry createNewObject(DataEntry o) {
-    try {
-      DataEntry dataEntry = Utils.getOm().readValue(
-          Utils.getOm().writeValueAsString(o),
-          DataEntry.class
-      );
-      dataEntry.setData(Utils.getOm().readValue(
-          Utils.getOm().writeValueAsString(dataEntry.getData()),
-          config.getClazz()
-      ));
-      return dataEntry;
-    } catch (JsonProcessingException e) {
-      e.printStackTrace();
-    }
-    return null;
-  }
-
-  public Set<DataEntry> handleIndexOperation(Object obj, DataEntryProjection dataEntryProjection, Function<Object, Set<DataEntry>> func) {
+  public Set<T> handleIndexOperation(Object obj, DataEntryProjection dataEntryProjection, Function<Object, Set<T>> func) {
     if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
-    Set<DataEntry> apply = func.apply(obj);
+    Set<T> apply = func.apply(obj);
     if(apply!=null) {
       return dataEntryProjection.process(apply.stream(), this.getConfig().getDataEntryClass());
     }
     return Sets.newTreeSet();
   }
 
-  public Set<DataEntry> handleIndexStringOperation(String obj, DataEntryProjection dataEntryProjection, Function<String, Set<DataEntry>> func) {
+  public Set<T> handleIndexStringOperation(String obj, DataEntryProjection dataEntryProjection, Function<String, Set<T>> func) {
     if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
-    Set<DataEntry> apply = func.apply(obj);
+    Set<T> apply = func.apply(obj);
     if(apply!=null) {
       return dataEntryProjection.process(apply.stream(), this.getConfig().getDataEntryClass());
     }
     return Sets.newTreeSet();
   }
 
-  public Set<DataEntry> search(String key, Object searchObject, DataEntryProjection dataEntryProjection) {
-    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
-    return handleIndexOperation(searchObject, dataEntryProjection, dataEntryIndexWrapper::contains);
+  public Set<T> search(String key, Object searchObject, DataEntryProjection dataEntryProjection) {
+    IndexWrapper<T> TIndexWrapper = this.indexes.get(key);
+    return handleIndexOperation(searchObject, dataEntryProjection, TIndexWrapper::contains);
   }
 
-  public Set<DataEntry> startsWith(String key, String str, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
-    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
-    return handleIndexStringOperation(str, dataEntryProjection, dataEntryIndexWrapper::startsWith);
+  public Set<T> startsWith(String key, String str, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
+    IndexWrapper<T> TIndexWrapper = this.indexes.get(key);
+    return handleIndexStringOperation(str, dataEntryProjection, TIndexWrapper::startsWith);
   }
 
 
-  public Set<DataEntry> endsWith(String key, String str, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
-    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
-    return handleIndexStringOperation(str, dataEntryProjection, dataEntryIndexWrapper::endsWith);
+  public Set<T> endsWith(String key, String str, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
+    IndexWrapper<T> TIndexWrapper = this.indexes.get(key);
+    return handleIndexStringOperation(str, dataEntryProjection, TIndexWrapper::endsWith);
   }
 
-  public Set<DataEntry> greaterThan(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
-    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
-    return handleIndexOperation(obj, dataEntryProjection, dataEntryIndexWrapper::greaterThan);
+  public Set<T> greaterThan(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
+    IndexWrapper<T> TIndexWrapper = this.indexes.get(key);
+    return handleIndexOperation(obj, dataEntryProjection, TIndexWrapper::greaterThan);
   }
 
-  public Set<DataEntry> greaterThanEqual(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
-    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
-    return handleIndexOperation(obj, dataEntryProjection, dataEntryIndexWrapper::greaterThanEqual);
+  public Set<T> greaterThanEqual(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
+    IndexWrapper<T> TIndexWrapper = this.indexes.get(key);
+    return handleIndexOperation(obj, dataEntryProjection, TIndexWrapper::greaterThanEqual);
   }
 
-  public Set<DataEntry> lessThan(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
-    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
-    return handleIndexOperation(obj, dataEntryProjection, dataEntryIndexWrapper::lessThan);
+  public Set<T> lessThan(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
+    IndexWrapper<T> TIndexWrapper = this.indexes.get(key);
+    return handleIndexOperation(obj, dataEntryProjection, TIndexWrapper::lessThan);
   }
 
-  public Set<DataEntry> lessThanEqual(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
-    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
-    return handleIndexOperation(obj, dataEntryProjection, dataEntryIndexWrapper::lessThanEqual);
+  public Set<T> lessThanEqual(String key, Object obj, DataEntryProjection dataEntryProjection) throws InvalidIndexTypeException {
+    IndexWrapper<T> TIndexWrapper = this.indexes.get(key);
+    return handleIndexOperation(obj, dataEntryProjection, TIndexWrapper::lessThanEqual);
   }
 
-  public Set<DataEntry> get(String key, Object value) {
+  public Set<T> get(String key, Object value) {
     return get(key, value, null);
   }
 
-  public Set<DataEntry> get(String key, Object value, DataEntryProjection dataEntryProjection) {
+  public Set<T> get(String key, Object value, DataEntryProjection dataEntryProjection) {
     if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
     if (key.equals("id")) {
       if (value != null && this.keyToEntry.size() > 0) {
-        DataEntry dataEntry = this.keyToEntry.get(value);
-        if (dataEntry != null) {
-          Set<DataEntry> entrySet = new TreeSet(Arrays.asList(dataEntry));
+        T T = this.keyToEntry.get(value);
+        if (T != null) {
+          Set<T> entrySet = new TreeSet(Arrays.asList(T));
           return dataEntryProjection.process(entrySet.stream(), this.getConfig().getDataEntryClass());
         }
       }
       return new TreeSet<>();
     }
-    IndexWrapper<DataEntry> dataEntryIndexWrapper = this.indexes.get(key);
-    return handleIndexOperation(value, dataEntryProjection, dataEntryIndexWrapper::get);
+    IndexWrapper<T> TIndexWrapper = this.indexes.get(key);
+    return handleIndexOperation(value, dataEntryProjection, TIndexWrapper::get);
   }
 
-  public Set<DataEntry> getNotEqual(String key, Object value, DataEntryProjection dataEntryProjection) {
+  public Set<T> getNotEqual(String key, Object value, DataEntryProjection dataEntryProjection) {
     if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
     try {
-      Set<DataEntry> foundEntries;
+      Set<T> foundEntries;
       if (key.equals("id")) {
         foundEntries = new TreeSet<>(Arrays.asList(this.keyToEntry.get(value)));
       } else {
         foundEntries = this.indexes.get(key).get(value);
       }
-      Set<DataEntry> negation = new TreeSet<>(entries);
+      Set<T> negation = new TreeSet<>(entries);
       negation.removeAll(foundEntries);
       if (entries != null) {
         return dataEntryProjection.process(negation.stream(), this.getConfig().getDataEntryClass());
@@ -379,13 +348,13 @@ public class DataTable implements Serializable{
   }
 
 
-  public DataEntry searchOne(String key, Object obj, DataEntryProjection dataEntryProjection) {
+  public T searchOne(String key, Object obj, DataEntryProjection dataEntryProjection) {
     if (dataEntryProjection == null) {
       dataEntryProjection = new DataEntryProjection();
     }
-    Set<DataEntry> entries = search(key, obj, dataEntryProjection);
+    Set<T> entries = search(key, obj, dataEntryProjection);
     if (entries != null && entries.size() > 0) {
-      Set<DataEntry> d = dataEntryProjection.process(entries.stream(), this.getConfig().getDataEntryClass());
+      Set<T> d = dataEntryProjection.process(entries.stream(), this.getConfig().getDataEntryClass());
       if (d.size()>0)
         return d.stream().findFirst().get();
     }
@@ -396,7 +365,7 @@ public class DataTable implements Serializable{
     return size;
   }
 
-  public boolean deleteSync(DataEntry obj) throws InterruptedException {
+  public boolean deleteSync(T obj) throws InterruptedException {
     CountDownLatch countDownLatch = new CountDownLatch(1);
     boolean v = deleteInternalConsumer(obj, (de) -> {
       countDownLatch.countDown();
@@ -405,15 +374,15 @@ public class DataTable implements Serializable{
     return v;
   }
 
-  public boolean deleteAsync(DataEntry obj, Consumer<DataEntry> consumer) {
+  public boolean deleteAsync(T obj, Consumer<T> consumer) {
     return deleteInternalConsumer(obj, consumer);
   }
 
-  public boolean delete(DataEntry entry) {
+  public boolean delete(T entry) {
     return deleteInternalConsumer(entry, null);
   }
 
-  private boolean deleteInternalConsumer(DataEntry entry, Consumer<DataEntry> consumer) {
+  private boolean deleteInternalConsumer(T entry, Consumer<T> consumer) {
     if (!this.config.isWrite()) {
       if (consumer != null) consumer.accept(null);
       return false;
@@ -429,7 +398,7 @@ public class DataTable implements Serializable{
   }
 
 
-  public boolean saveSync(DataEntry entry) throws InterruptedException, IncorrectDataEntryObjectException {
+  public boolean saveSync(T entry) throws InterruptedException, IncorrectDataEntryObjectException {
     if (entry.getClass() != getConfig().getDataEntryClass()) {
       throw new IncorrectDataEntryObjectException("Entry " + entry.getKey() + " using incorrect data entry class for this table.");
     }
@@ -441,14 +410,14 @@ public class DataTable implements Serializable{
     return v;
   }
 
-  public boolean saveAndForget(DataEntry entry) throws IncorrectDataEntryObjectException {
+  public boolean saveAndForget(T entry) throws IncorrectDataEntryObjectException {
     if (entry.getClass() != getConfig().getDataEntryClass()) {
       throw new IncorrectDataEntryObjectException("Entry " + entry.getKey() + " using incorrect data entry class for this table.");
     }
     return saveInternalConsumer(entry, null);
   }
 
-  public boolean saveAsync(DataEntry entry, Consumer<DataEntry> consumer) throws IncorrectDataEntryObjectException {
+  public boolean saveAsync(T entry, Consumer<T> consumer) throws IncorrectDataEntryObjectException {
     if (entry.getClass() != getConfig().getDataEntryClass()) {
       throw new IncorrectDataEntryObjectException("Entry " + entry.getKey() + " using incorrect data entry class for this table.");
     }
@@ -456,24 +425,18 @@ public class DataTable implements Serializable{
   }
 
   public boolean saveSync(Object data) throws InterruptedException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException {
-    if (getConfig().getDataEntryClass() == DataEntry.class)
-      return saveSync((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(Object.class).newInstance(data));
-    return saveSync((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(data.getClass()).newInstance(data));
+    return saveSync((T) this.getConfig().getDataEntryClass().getDeclaredConstructor(data.getClass()).newInstance(data));
   }
 
   public boolean saveAndForget(Object data) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException {
-    if (getConfig().getDataEntryClass() == DataEntry.class)
-      return saveAndForget((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(Object.class).newInstance(data));
-    return saveAndForget((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(data.getClass()).newInstance(data));
+    return saveAndForget((T) this.getConfig().getDataEntryClass().getDeclaredConstructor(data.getClass()).newInstance(data));
   }
 
-  public boolean saveAsync(Object data, Consumer<DataEntry> consumer) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException {
-    if (getConfig().getDataEntryClass() == DataEntry.class)
-      return saveAsync((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(Object.class).newInstance(data), consumer);
-    return saveAsync((DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(data.getClass()).newInstance(data), consumer);
+  public boolean saveAsync(Object data, Consumer<T> consumer) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException {
+    return saveAsync((T) this.getConfig().getDataEntryClass().getDeclaredConstructor(data.getClass()).newInstance(data), consumer);
   }
 
-  private boolean saveInternalConsumer(DataEntry entry, Consumer<DataEntry> consumer) {
+  private boolean saveInternalConsumer(T entry, Consumer<T> consumer) {
     if (!this.config.isWrite()) {
       if (consumer != null) consumer.accept(null);
       return false;
@@ -509,7 +472,7 @@ public class DataTable implements Serializable{
     }
   }
 
-  private boolean saveInternal(DataEntry entry, String changeUUID) {
+  private boolean saveInternal(T entry, String changeUUID) {
     if (!entries.contains(entry)) {
       try {
         Create createEntry = new Create(changeUUID, entry);
@@ -521,8 +484,8 @@ public class DataTable implements Serializable{
     } else {
       entry.versionIncrease();
       List<JsonOperations> changes = null;
-      Set<DataEntry> dataEntrySet = get("id", entry.getKey());
-      if(dataEntrySet==null || dataEntrySet.isEmpty()){
+      Set<T> TSet = get("id", entry.getKey());
+      if(TSet==null || TSet.isEmpty()){
         try {
           consumerResponse(null, changeUUID);
         } catch (ExecutionException e) {
@@ -530,8 +493,8 @@ public class DataTable implements Serializable{
         }
         return false;
       }
-      DataEntry dataEntry = dataEntrySet.iterator().next();
-      JsonPatch patch = JsonDiff.asJsonPatch(fromObject(dataEntry.getData()), fromObject(entry.getData()));
+      T T = TSet.iterator().next();
+      JsonPatch patch = JsonDiff.asJsonPatch(fromObject(T.getData()), fromObject(entry.getData()));
       try {
         String json = Serializer.getObjectMapper().getOmNonType().writeValueAsString(patch);
         changes = Serializer.getObjectMapper().getOmNonType().readValue(json, List.class);
@@ -542,8 +505,8 @@ public class DataTable implements Serializable{
           return true;
         }else{
           try {
-            dataEntry.setRequest(entry.getRequest());
-            consumerResponse(dataEntry, changeUUID);
+            T.setRequest(entry.getRequest());
+            consumerResponse(T, changeUUID);
           } catch (ExecutionException e) {
             throw new RuntimeException(e);
           }
@@ -569,15 +532,15 @@ public class DataTable implements Serializable{
     }
   }
 
-  private void triggerEvent(Modify modify, DataEntry dataEntry) {
+  private void triggerEvent(Modify modify, T T) {
     DataTableEventListener eventListener = config.getEventListener();
     if (eventListener != null) {
       if (modify instanceof Create) {
-        new Thread(() -> eventListener.create((Create) modify, dataEntry)).start();
+        new Thread(() -> eventListener.create((Create) modify, T)).start();
       } else if (modify instanceof Delete) {
-        new Thread(() -> eventListener.delete((Delete) modify, dataEntry)).start();
+        new Thread(() -> eventListener.delete((Delete) modify, T)).start();
       } else if (modify instanceof Update) {
-        new Thread(() -> eventListener.update((Update) modify, dataEntry)).start();
+        new Thread(() -> eventListener.update((Update) modify, T)).start();
       }
     }
   }
@@ -606,26 +569,26 @@ public class DataTable implements Serializable{
               return; // ignore this create
             }
 
-            DataEntry dataEntry = (DataEntry) this.getConfig().getDataEntryClass().getDeclaredConstructor(Create.class).newInstance(c);
+            T T = (T) this.getConfig().getDataEntryClass().getDeclaredConstructor(Create.class).newInstance(c);
 
-            dataEntry.setTableName(this.config.getTable());
-            dataEntry.dataTable = this;
+            T.setTableName(this.config.getTable());
+            T.dataTable = this;
 
             synchronized (entries) {
-              entries.add(dataEntry);
-              keyToEntry.put(dataEntry.getKey(), dataEntry);
+              entries.add(T);
+              keyToEntry.put(T.getKey(), T);
               for (IndexWrapper i : this.indexes.values()) {
                 try {
-                  i.add(dataEntry);
+                  i.add(T);
                 } catch (JsonProcessingException e) {
                   throw new RuntimeException(e);
                 }
               }
             }
             size++;
-            consumerResponse(dataEntry, c.getChangeUUID());
-            fireListeners(Modification.CREATE, dataEntry);
-            triggerEvent(c, dataEntry);
+            consumerResponse(T, c.getChangeUUID());
+            fireListeners(Modification.CREATE, T);
+            triggerEvent(c, T);
           } catch (Exception e) {
             e.printStackTrace();
           }
@@ -643,7 +606,7 @@ public class DataTable implements Serializable{
               return;
             }
 
-            DataEntry de = keyToEntry.get(d.getKey());
+            T de = keyToEntry.get(d.getKey());
             if (de != null) {
               if (de.getVersion() >= d.getVersion()) {
                 //logger.info("Ignore already saved change.");
@@ -715,7 +678,7 @@ public class DataTable implements Serializable{
               fireListeners(Modification.UPDATE, null);
               return;
             }
-            DataEntry de = keyToEntry.get(u.getKey());
+            T de = keyToEntry.get(u.getKey());
             if (de != null) {
               if (de.getVersion() >= u.getVersion()) {
                 logger.info("Ignore already saved change. " + de.getKey()+" table: "+ getConfig().table);
@@ -795,16 +758,16 @@ public class DataTable implements Serializable{
     }
   }
 
-  private void consumerResponse(DataEntry dataEntry, String changeUUID) throws ExecutionException {
+  private void consumerResponse(T T, String changeUUID) throws ExecutionException {
     try {
-      if(dataEntry!=null){
-        getNucleoDB().getLockManager().releaseLock(this.config.getTable(), dataEntry.getKey(), dataEntry.getRequest());
+      if(T!=null){
+        getNucleoDB().getLockManager().releaseLock(this.config.getTable(), T.getKey(), T.getRequest());
       }
       if (changeUUID != null) {
 
-        Consumer<DataEntry> dataEntryConsumer = consumers.getIfPresent(changeUUID);
-        if (dataEntryConsumer != null) {
-          new Thread(() -> dataEntryConsumer.accept(dataEntry)).start();
+        Consumer<T> TConsumer = consumers.getIfPresent(changeUUID);
+        if (TConsumer != null) {
+          new Thread(() -> TConsumer.accept(T)).start();
           consumers.invalidate(changeUUID);
         }
       }
@@ -813,7 +776,7 @@ public class DataTable implements Serializable{
     this.changed = new Date().getTime();
   }
 
-  public void fireListeners(Modification m, DataEntry data) {
+  public void fireListeners(Modification m, T data) {
     if (listeners.containsKey(m)) {
       listeners.get(m).forEach(method -> {
         try {
@@ -825,7 +788,7 @@ public class DataTable implements Serializable{
     }
   }
 
-  public void multiImport(DataEntry newEntry) throws InterruptedException, IncorrectDataEntryObjectException {
+  public void multiImport(T newEntry) throws InterruptedException, IncorrectDataEntryObjectException {
     this.saveSync(newEntry);
   }
 
@@ -834,18 +797,18 @@ public class DataTable implements Serializable{
   transient List<Thread> threads = new ArrayList<>();
 
 
-  public void addListener(Modification m, Consumer<DataEntry> method) {
+  public void addListener(Modification m, Consumer<T> method) {
     if (!listeners.containsKey(m)) {
       listeners.put(m, new HashSet<>());
     }
     listeners.get(m).add(method);
   }
 
-  public Set<DataEntry> getEntries() {
+  public Set<T> getEntries() {
     return entries;
   }
 
-  public void setEntries(Set<DataEntry> entries) {
+  public void setEntries(Set<T> entries) {
     this.entries = entries;
   }
 
@@ -873,19 +836,19 @@ public class DataTable implements Serializable{
     this.unsavedIndexModifications = unsavedIndexModifications;
   }
 
-  public Map<String, IndexWrapper<DataEntry>> getIndexes() {
+  public Map<String, IndexWrapper<T>> getIndexes() {
     return indexes;
   }
 
-  public void setIndexes(Map<String, IndexWrapper<DataEntry>> indexes) {
+  public void setIndexes(Map<String, IndexWrapper<T>> indexes) {
     this.indexes = indexes;
   }
 
-  public Map<String, DataEntry> getKeyToEntry() {
+  public Map<String, T> getKeyToEntry() {
     return keyToEntry;
   }
 
-  public void setKeyToEntry(Map<String, DataEntry> keyToEntry) {
+  public void setKeyToEntry(Map<String, T> keyToEntry) {
     this.keyToEntry = keyToEntry;
   }
 
@@ -921,19 +884,19 @@ public class DataTable implements Serializable{
     this.consumer = consumer;
   }
 
-  public Cache<String, Consumer<DataEntry>> getConsumers() {
+  public Cache<String, Consumer<T>> getConsumers() {
     return consumers;
   }
 
-  public void setConsumers(Cache<String, Consumer<DataEntry>> consumers) {
+  public void setConsumers(Cache<String, Consumer<T>> consumers) {
     this.consumers = consumers;
   }
 
-  public Map<Modification, Set<Consumer<DataEntry>>> getListeners() {
+  public Map<Modification, Set<Consumer<T>>> getListeners() {
     return listeners;
   }
 
-  public void setListeners(Map<Modification, Set<Consumer<DataEntry>>> listeners) {
+  public void setListeners(Map<Modification, Set<Consumer<T>>> listeners) {
     this.listeners = listeners;
   }
 

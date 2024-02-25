@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class CoreTest{
   NucleoDB nucleoDB;
-  DataTable table;
+  DataTable<AuthorDE> table;
   @BeforeEach
   public void createLocalDB() throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IncorrectDataEntryObjectException, InterruptedException {
     nucleoDB = new NucleoDB(
@@ -43,7 +43,7 @@ class CoreTest{
   }
   @AfterEach
   public void deleteEntries(){
-    new TreeSet<>(table.getEntries()).stream().forEach(author-> {
+    table.getEntries().forEach(author-> {
       try {
         table.deleteSync(author);
       } catch (InterruptedException e) {
@@ -69,10 +69,10 @@ class CoreTest{
   public void checkSavingWithoutChanges() throws IncorrectDataEntryObjectException, InterruptedException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     AuthorDE edgarAllenPoe = new AuthorDE(new Author("Edgar Allen Poe", "fiction"));
     table.saveSync(edgarAllenPoe);
-    Set<DataEntry> dataEntrySet = table.get("id", edgarAllenPoe.getKey());
+    Set<AuthorDE> dataEntrySet = table.get("id", edgarAllenPoe.getKey());
     assertEquals(1, dataEntrySet.size());
     if(dataEntrySet.size()>0){
-      DataEntry dataEntry = dataEntrySet.stream().findFirst().get();
+      DataEntry dataEntry = dataEntrySet.iterator().next();
       dataEntry.copy(AuthorDE.class, false);
       assertTrue(true);
     }
@@ -90,7 +90,7 @@ class CoreTest{
   public void deleteTest() {
     table.get("name", "George Orwell", new DataEntryProjection(){{
       setWritable(true);
-    }}).stream().forEach(author-> {
+    }}).forEach(author-> {
       try {
         table.deleteSync(author);
       } catch (InterruptedException e) {

@@ -545,7 +545,7 @@ public class SQLHandler{
         CountDownLatch countDownLatch = new CountDownLatch(1);
         dataEntryUnsaved.versionIncrease();
         table.saveAsync(dataEntryUnsaved, dataEntryNew -> {
-          dataEntriesList.get().add(dataEntryNew);
+          dataEntriesList.get().add((DataEntry) dataEntryNew);
           countDownLatch.countDown();
         });
         countDownLatch.await();

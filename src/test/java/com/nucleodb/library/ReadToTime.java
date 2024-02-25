@@ -113,9 +113,9 @@ public class ReadToTime{
         },
         "com.nucleodb.library.helpers.models"
     );
-    DataTable table = nucleoDB.getTable(Author.class);
+    DataTable<AuthorDE> table = nucleoDB.getTable(Author.class);
     table.saveSync( new AuthorDE(new Author("George Orwell", "science-fiction")));
-    Optional<DataEntry> savedAuthor = table.get("name", "George Orwell", new DataEntryProjection(new Pagination(0, 1))).stream().findFirst();
+    Optional<AuthorDE> savedAuthor = table.get("name", "George Orwell", new DataEntryProjection(new Pagination(0, 1))).stream().findFirst();
     Instant created = null;
     if(savedAuthor.isPresent()){
       created = savedAuthor.get().getCreated();
@@ -128,7 +128,7 @@ public class ReadToTime{
       author.getData().setAreaOfInterest("sci-fi");
       table.saveSync(author);
     }
-    Optional<DataEntry> modifiedAuthor = table.get("name", "George Orwell", new DataEntryProjection(new Pagination(0, 1))).stream().findFirst();
+    Optional<AuthorDE> modifiedAuthor = table.get("name", "George Orwell", new DataEntryProjection(new Pagination(0, 1))).stream().findFirst();
     Instant modified = null;
     Instant createdModified = null;
     if(modifiedAuthor.isPresent()){

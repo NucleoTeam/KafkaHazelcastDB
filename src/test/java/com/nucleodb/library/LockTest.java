@@ -6,6 +6,7 @@ import com.nucleodb.library.database.modifications.Delete;
 import com.nucleodb.library.database.modifications.Update;
 import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.tables.table.DataEntryProjection;
+import com.nucleodb.library.database.tables.table.DataTable;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryClassException;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleodb.library.database.utils.exceptions.MissingDataEntryConstructorsException;
@@ -49,34 +50,36 @@ public class LockTest{
     try {
       int x = 1;
       AuthorDE authorDE = new AuthorDE(new Author("test", "testing"));
-      nucleoDB.getTable(Author.class).saveSync(authorDE);
+      DataTable<AuthorDE> table = nucleoDB.getTable(Author.class);
+      table.saveSync(authorDE);
       while(x<25) {
 
-        DataEntry firstSave = nucleoDB.getTable(Author.class).get("name", "test", new DataEntryProjection(){{
+        AuthorDE firstSave = table.get("name", "test", new DataEntryProjection(){{
           setWritable(true);
           setLockUntilWrite(true);
         }}).iterator().next();
 
-        ((AuthorDE) firstSave).getData().setName("test2");
+
+        firstSave.getData().setName("test2");
         logger.info(firstSave.getRequest()+": SENDING TO SAVE");
         //assertEquals(1, nucleoDB.getLockManager().getActiveLocks().size());
-        nucleoDB.getTable(Author.class).saveSync(firstSave);
+        table.saveSync(firstSave);
         //assertEquals(0, nucleoDB.getLockManager().getActiveLocks().size());
         logger.info(firstSave.getRequest()+": SAVED FIRST");
 
         long start = System.currentTimeMillis();
-        AuthorDE secondSave = (AuthorDE) nucleoDB.getTable(Author.class).get("name", "test", new DataEntryProjection(){{
+        AuthorDE secondSave = table.get("name", "test", new DataEntryProjection(){{
           setWritable(true);
           setLockUntilWrite(true);
         }}).iterator().next();
         secondSave.getData().setName("test4");
         //assertEquals(1, nucleoDB.getLockManager().getActiveLocks().size());
         logger.info(secondSave.getRequest()+": SENDING TO SAVE");
-        nucleoDB.getTable(Author.class).saveSync(secondSave);
+        table.saveSync(secondSave);
         //assertEquals(0, nucleoDB.getLockManager().getActiveLocks().size());
         logger.info(secondSave.getRequest()+": SAVED SECOND");
 
-        AuthorDE thirdSave = (AuthorDE) nucleoDB.getTable(Author.class).get("name", "test", new DataEntryProjection(){{
+        AuthorDE thirdSave = table.get("name", "test", new DataEntryProjection(){{
           setWritable(true);
           setLockUntilWrite(true);
         }}).iterator().next();
@@ -87,7 +90,7 @@ public class LockTest{
         thirdSave.getData().setName("test4");
         //assertEquals(1, nucleoDB.getLockManager().getActiveLocks().size());
         logger.info(thirdSave.getRequest()+": SENDING TO SAVE");
-        nucleoDB.getTable(Author.class).saveSync(thirdSave);
+        table.saveSync(thirdSave);
         logger.info(thirdSave.getRequest()+": SAVED THIRD");
         //assertEquals(0, nucleoDB.getLockManager().getActiveLocks().size());
         logger.info("-----------------------------"+x+"-------------------------");

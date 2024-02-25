@@ -26,9 +26,9 @@ public class ExportHandler implements Runnable{
           if (this.dataTable.getChanged() > changedSaved) {
             //System.out.println("Saved " + this.dataTable.getConfig().getTable());
             OutputStream os = new FileOutputStream("./export/"+this.dataTable.getConfig().getTable()+".txt", false);
-            this.dataTable.getEntries().stream().collect(Collectors.toSet()).stream().forEach(de->{
+            this.dataTable.getEntries().stream().forEach(de->{
               try {
-                os.write((Create.class.getSimpleName() + om.writeValueAsString(new Create(de))+"\n").getBytes(StandardCharsets.UTF_8));
+                os.write((Create.class.getSimpleName() + om.writeValueAsString(new Create((DataEntry) de))+"\n").getBytes(StandardCharsets.UTF_8));
               } catch (JsonProcessingException e) {
                 e.printStackTrace();
               } catch (IOException e) {

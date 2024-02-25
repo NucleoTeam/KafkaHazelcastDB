@@ -9,28 +9,28 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class DataEntryProjection{
+public class DataEntryProjection<T extends DataEntry>{
   Pagination pagination = null;
 
-  Predicate<DataEntry> filter = null;
+  Predicate<T> filter = null;
 
-  Comparator<DataEntry> sort = null;
+  Comparator<T> sort = null;
 
   boolean writable = false;
   boolean lockUntilWrite = false;
 
-  public DataEntryProjection(Pagination pagination, Predicate<DataEntry> filter) {
+  public DataEntryProjection(Pagination pagination, Predicate<T> filter) {
     this.pagination = pagination;
     this.filter = filter;
   }
 
-  public DataEntryProjection(Pagination pagination, Predicate<DataEntry> filter, Comparator<DataEntry> sort) {
+  public DataEntryProjection(Pagination pagination, Predicate<T> filter, Comparator<T> sort) {
     this.pagination = pagination;
     this.filter = filter;
     this.sort = sort;
   }
 
-  public DataEntryProjection(Pagination pagination, Comparator<DataEntry> sort) {
+  public DataEntryProjection(Pagination pagination, Comparator<T> sort) {
     this.pagination = pagination;
     this.sort = sort;
   }
@@ -41,7 +41,7 @@ public class DataEntryProjection{
     this.lockUntilWrite = lockUntilWrite;
   }
 
-  public DataEntryProjection(Predicate<DataEntry> filter, boolean writable, boolean lockUntilWrite) {
+  public DataEntryProjection(Predicate<T> filter, boolean writable, boolean lockUntilWrite) {
     this.filter = filter;
     this.writable = writable;
     this.lockUntilWrite = lockUntilWrite;
@@ -51,15 +51,15 @@ public class DataEntryProjection{
     this.pagination = pagination;
   }
 
-  public DataEntryProjection(Predicate<DataEntry> filter) {
+  public DataEntryProjection(Predicate<T> filter) {
     this.filter = filter;
   }
 
   public DataEntryProjection() {
   }
 
-  public Set<DataEntry> process(Stream<DataEntry> DataEntryStream, Class<? extends DataEntry> clazz){
-    Stream<DataEntry> dataEntryStream = DataEntryStream;
+  public Set<T> process(Stream<T> DataEntryStream, Class<? extends DataEntry> clazz){
+    Stream<T> dataEntryStream = DataEntryStream;
     if(this.filter!=null){
       dataEntryStream = dataEntryStream.filter(this.filter);
     }
@@ -70,14 +70,14 @@ public class DataEntryProjection{
       dataEntryStream = dataEntryStream.skip(this.pagination.getSkip()).limit(this.pagination.getLimit());
     }
     if(isWritable()){
-      dataEntryStream = dataEntryStream.map(de->(DataEntry) de.copy(clazz, lockUntilWrite));
+      dataEntryStream = dataEntryStream.map(de->(T) de.copy(clazz, lockUntilWrite));
     }
     return dataEntryStream.collect(Collectors.toSet());
   }
   public void setPagination(Pagination pagination) {
     this.pagination = pagination;
   }
-  public void setFilter(Predicate<DataEntry> filter) {
+  public void setFilter(Predicate<T> filter) {
     this.filter = filter;
   }
 
@@ -85,7 +85,7 @@ public class DataEntryProjection{
     return pagination;
   }
 
-  public Predicate<DataEntry> getFilter() {
+  public Predicate<T> getFilter() {
     return filter;
   }
 
@@ -97,11 +97,11 @@ public class DataEntryProjection{
     this.writable = writable;
   }
 
-  public Comparator<DataEntry> getSort() {
+  public Comparator<T> getSort() {
     return sort;
   }
 
-  public void setSort(Comparator<DataEntry> sort) {
+  public void setSort(Comparator<T> sort) {
     this.sort = sort;
   }
 

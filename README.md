@@ -18,7 +18,7 @@ repositories {
     maven { url "https://nexus.synload.com/repository/maven-repo-releases/" }
 }
 dependencies {
-    implementation 'com.nucleodb:library:1.13.18'
+    implementation 'com.nucleodb:library:1.15.11'
 }
 ```
 
@@ -61,18 +61,28 @@ public class AuthorDE extends DataEntry<Author>{
 }
 ```
 
-##### Read data
+##### Read data for read only
+```java
+class Application {
+  public static void main(String[] args) {
+    Set<DataEntry> first = nucleoDB.getTable(Author.class).get("name", "test");
+  }
+}
+```
+
+##### Read data for updating or deleting without needing to use .copy()
 ```java
 class Application {
   public static void main(String[] args) {
     Set<DataEntry> first = nucleoDB.getTable(Author.class).get("name", "test", new DataEntryProjection(){{
       setWritable(true);
+      setLockUntilWrite(true);
     }});
   }
 }
 ```
 
-##### Write data
+##### Create data entry
 
 ```java
 class Application{
@@ -83,13 +93,28 @@ class Application{
 }
 ```
 
+##### Update data entry
+
+```java
+class Application{
+  public static void main(String[] args) {
+    // read data 
+    // AuthorDE author = AuthorDE()
+    // author.copy(AuthorDE.class, true); // lock entry for updating
+    author.getData().setName("Edgar Allen Poe");
+    nucleoDB.getTable(Author.class).saveSync(author);
+  }
+}
+```
+
 ##### Delete data
 
 ```java
 class Application{
   public static void main(String[] args) { 
     // read data 
-    // var author = AuthorDE()
+    // AuthorDE author = AuthorDE()
+    // author.copy(AuthorDE.class, true); // lock entry for deletion
     nucleoDB.getTable(Author.class).deleteSync(author);
   }
 }

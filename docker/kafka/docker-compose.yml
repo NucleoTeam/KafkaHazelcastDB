@@ -13,6 +13,8 @@ services:
     networks:
       - nucleodb-network
   ui:
+    networks:
+      - nucleodb-network
     image: provectuslabs/kafka-ui
     depends_on:
       - kafka1

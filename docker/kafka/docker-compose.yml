@@ -22,9 +22,9 @@ services:
     ports:
       - 8080:8080
     environment:
-      - KAFKA_CLUSTERS_0_NAME: local
-      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:9092
-      - DYNAMIC_CONFIG_ENABLED: 'true'
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka1:9092
+      - DYNAMIC_CONFIG_ENABLED='true'
   kafka1:
     image: bitnami/kafka:latest
     ports:

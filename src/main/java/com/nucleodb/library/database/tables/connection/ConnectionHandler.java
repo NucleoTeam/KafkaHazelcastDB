@@ -79,6 +79,8 @@ public class ConnectionHandler implements Serializable{
   private String consumerId = UUID.randomUUID().toString();
   private Set<Connection> allConnections = new TreeSetExt<>();
   @JsonIgnore
+  private transient ExportHandler exportHandler;
+  @JsonIgnore
   private transient NucleoDB nucleoDB;
   private ConnectionConfig config;
   @JsonIgnore
@@ -128,7 +130,8 @@ public class ConnectionHandler implements Serializable{
       new Thread(new SaveHandler(this)).start();
     }
     if (config.isJsonExport()) {
-      new Thread(new ExportHandler(this)).start();
+      exportHandler = new ExportHandler(this);
+      new Thread(exportHandler).start();
     }
   }
 
@@ -152,7 +155,8 @@ public class ConnectionHandler implements Serializable{
     }
 
     if (config.isJsonExport()) {
-      new Thread(new ExportHandler(this)).start();
+      exportHandler = new ExportHandler(this);
+      new Thread(exportHandler).start();
     }
   }
 
@@ -798,5 +802,13 @@ public class ConnectionHandler implements Serializable{
 
   public void setStartupPhase(AtomicBoolean startupPhase) {
     this.startupPhase = startupPhase;
+  }
+
+  public ExportHandler getExportHandler() {
+    return exportHandler;
+  }
+
+  public void setExportHandler(ExportHandler exportHandler) {
+    this.exportHandler = exportHandler;
   }
 }

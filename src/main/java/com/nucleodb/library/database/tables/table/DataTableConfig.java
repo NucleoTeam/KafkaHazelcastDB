@@ -18,7 +18,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 public class DataTableConfig implements Serializable{
-  private static final long serialVersionUID = 4416983891804575837L;
+  private static final long serialVersionUID = 1;
 
   public static class IndexConfig implements Comparable {
     String name;
@@ -56,9 +56,11 @@ public class DataTableConfig implements Serializable{
   String table;
   @JsonIgnore
   transient Class clazz;
+  long saveInterval = 5000;
   boolean saveChanges = true;
   boolean loadSave = true;
   boolean jsonExport = false;
+  long exportInterval = 5000;
   Instant readToTime = null;
   Class dataEntryClass;
   boolean read = true;
@@ -66,15 +68,13 @@ public class DataTableConfig implements Serializable{
   DataTableEventListener<? extends DataEntry> eventListener = null;
   List<IndexConfig> indexes = new LinkedList<>();
   MQSConfiguration mqsConfiguration = new KafkaConfiguration();
-
   Map<String, Object> settingsMap = new TreeMap<>();
-
-
+  String tableFileName;
   @JsonIgnore
   private transient StartupRun startupRun = null;
 
 
-  String tableFileName;
+
   public DataTableConfig() {
   }
 
@@ -203,5 +203,21 @@ public class DataTableConfig implements Serializable{
 
   public void setEventListener(DataTableEventListener<? extends DataEntry> eventListener) {
     this.eventListener = eventListener;
+  }
+
+  public long getSaveInterval() {
+    return saveInterval;
+  }
+
+  public void setSaveInterval(long saveInterval) {
+    this.saveInterval = saveInterval;
+  }
+
+  public long getExportInterval() {
+    return exportInterval;
+  }
+
+  public void setExportInterval(long exportInterval) {
+    this.exportInterval = exportInterval;
   }
 }

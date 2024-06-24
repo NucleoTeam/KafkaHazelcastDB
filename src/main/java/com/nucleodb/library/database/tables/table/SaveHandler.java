@@ -16,11 +16,11 @@ public class SaveHandler implements Runnable{
       while (true) {
         try {
           if (this.dataTable.getChanged() > changedSaved) {
-            //System.out.println("Saved " + this.dataTable.getConfig().getTable());
+            System.out.println("Saved " + this.dataTable.getConfig().getTableFileName());
             new ObjectFileWriter().writeObjectToFile(this.dataTable, this.dataTable.getConfig().getTableFileName());
             changedSaved = this.dataTable.getChanged();
           }
-          Thread.sleep(5000);
+          Thread.sleep(this.dataTable.getConfig().getSaveInterval());
         } catch (Exception e) {
           e.printStackTrace();
         }

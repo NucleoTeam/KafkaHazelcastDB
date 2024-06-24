@@ -64,6 +64,8 @@ public class DataTable<T extends DataEntry> implements Serializable{
   @JsonIgnore
   private transient NucleoDB nucleoDB;
   @JsonIgnore
+  private transient ExportHandler exportHandler;
+  @JsonIgnore
   private transient Queue<Object[]> indexQueue = Queues.newLinkedBlockingQueue();
   @JsonIgnore
   private transient ProducerHandler producer = null;
@@ -182,7 +184,8 @@ public class DataTable<T extends DataEntry> implements Serializable{
       new Thread(new SaveHandler(this)).start();
     }
     if (config.isJsonExport()) {
-      new Thread(new ExportHandler(this)).start();
+      exportHandler = new ExportHandler(this);
+      new Thread(exportHandler).start();
     }
   }
 
@@ -585,6 +588,7 @@ public class DataTable<T extends DataEntry> implements Serializable{
                 }
               }
             }
+            this.changed = new Date().getTime();
             size++;
             consumerResponse(T, c.getChangeUUID());
             fireListeners(Modification.CREATE, T);
@@ -609,20 +613,20 @@ public class DataTable<T extends DataEntry> implements Serializable{
             T de = keyToEntry.get(d.getKey());
             if (de != null) {
               if (de.getVersion() >= d.getVersion()) {
-                //logger.info("Ignore already saved change.");
+                logger.info("Ignore already saved change.");
                 consumerResponse(de, d.getChangeUUID());
                 fireListeners(Modification.DELETE, de);
                 return; // ignore change
               }
               if (de.getVersion() + 1 != d.getVersion()) {
-                //logger.info("Version not ready!");
+                logger.info("Version not ready!");
                 itemRequeue();
                 modqueue.add(new ModificationQueueItem(mod, modification));
                 leftInModQueue.incrementAndGet();
                 synchronized (modqueue) {
                   modqueue.notifyAll();
                 }
-                //Serializer.log("ADDED TO MOD QUEUE");
+                Serializer.log("ADDED TO MOD QUEUE");
               } else {
                 deletedEntries.add(de.getKey());
                 synchronized (entries) {
@@ -636,6 +640,7 @@ public class DataTable<T extends DataEntry> implements Serializable{
                     }
                   });
                 }
+                this.changed = new Date().getTime();
                 size--;
                 de.setRequest(d.getRequest());
                 consumerResponse(de, d.getChangeUUID());
@@ -994,5 +999,13 @@ public class DataTable<T extends DataEntry> implements Serializable{
 
   public void setNucleoDB(NucleoDB nucleoDB) {
     this.nucleoDB = nucleoDB;
+  }
+
+  public ExportHandler getExportHandler() {
+    return exportHandler;
+  }
+
+  public void setExportHandler(ExportHandler exportHandler) {
+    this.exportHandler = exportHandler;
   }
 }

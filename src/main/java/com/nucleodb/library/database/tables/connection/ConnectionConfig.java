@@ -1,10 +1,8 @@
 package com.nucleodb.library.database.tables.connection;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.utils.StartupRun;
 import com.nucleodb.library.event.ConnectionEventListener;
-import com.nucleodb.library.event.DataTableEventListener;
 import com.nucleodb.library.mqs.config.MQSConfiguration;
 import com.nucleodb.library.mqs.kafka.KafkaConfiguration;
 
@@ -15,25 +13,24 @@ import java.util.TreeMap;
 
 public class ConnectionConfig implements Serializable{
   private static final long serialVersionUID = 1;
+
   Instant readToTime = null;
   boolean write = true;
   boolean read = true;
   boolean loadSaved = true;
   boolean jsonExport = false;
+  long exportInterval = 5000;
   boolean saveChanges = true;
+  long saveInterval = 5000;
   String topic;
   String label;
-
   Class connectionClass;
   Class toTable;
   Class fromTable;
-
   ConnectionEventListener<Connection> eventListener = null;
-
   MQSConfiguration mqsConfiguration = new KafkaConfiguration();
-
   Map<String, Object> settingsMap = new TreeMap<>();
-
+  String connectionFileName;
   @JsonIgnore
   private transient StartupRun startupRun = null;
 
@@ -160,5 +157,29 @@ public class ConnectionConfig implements Serializable{
 
   public void setEventListener(ConnectionEventListener<Connection> eventListener) {
     this.eventListener = eventListener;
+  }
+
+  public long getSaveInterval() {
+    return saveInterval;
+  }
+
+  public void setSaveInterval(long saveInterval) {
+    this.saveInterval = saveInterval;
+  }
+
+  public long getExportInterval() {
+    return exportInterval;
+  }
+
+  public void setExportInterval(long exportInterval) {
+    this.exportInterval = exportInterval;
+  }
+
+  public String getConnectionFileName() {
+    return connectionFileName;
+  }
+
+  public void setConnectionFileName(String connectionFileName) {
+    this.connectionFileName = connectionFileName;
   }
 }

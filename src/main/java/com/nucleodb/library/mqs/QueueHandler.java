@@ -34,6 +34,9 @@ class QueueHandler implements Runnable{
             String data = entry.substring(6);
             Modification mod = Modification.get(type);
             if (mod != null) {
+              if (this.consumerHandler.getDatabase()!=null && this.consumerHandler.getDatabase().getConfig() != null && this.consumerHandler.getDatabase().getConfig().isJsonExport()) {
+                this.consumerHandler.getDatabase().getExportHandler().getModifications().add(entry);
+              }
               this.consumerHandler.getDatabase().modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));
             }
           } else if (connectionType) {
@@ -43,6 +46,9 @@ class QueueHandler implements Runnable{
             if (mod != null) {
               try {
                 Modify modifiedEntry = (Modify) Serializer.getObjectMapper().getOm().readValue(data, mod.getModification());
+                if (this.consumerHandler.getConnectionHandler()!=null && this.consumerHandler.getConnectionHandler().getConfig() != null  && this.consumerHandler.getConnectionHandler().getConfig().isJsonExport()) {
+                  this.consumerHandler.getConnectionHandler().getExportHandler().getModifications().add(entry);
+                }
                 this.consumerHandler.getConnectionHandler().modify(mod, modifiedEntry);
               } catch (Exception e) {
                 e.printStackTrace();

@@ -10,10 +10,11 @@ public class EnvReplace{
         Pattern pattern = Pattern.compile("\\$\\{([^}:]+)(?::([^}]*))?\\}");
         Matcher matcher = pattern.matcher(input);
 
-        StringBuffer result = new StringBuffer();
+        String output = input;
 
         while (matcher.find()) {
             // Extract the environment variable name and the default value
+            String matchedVar = matcher.group(0);
             String envVarName = matcher.group(1);
             String defaultValue = matcher.group(2) == null ? "" : matcher.group(2);
 
@@ -24,11 +25,10 @@ public class EnvReplace{
             }
 
             // Replace the pattern with the value
-            matcher.appendReplacement(result, envVarValue);
+            output = output.replace(matchedVar, envVarValue);
+
         }
 
-        matcher.appendTail(result);
-
-        return result.toString();
+        return output;
     }
 }

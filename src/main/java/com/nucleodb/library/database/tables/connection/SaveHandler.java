@@ -16,11 +16,11 @@ public class SaveHandler implements Runnable{
       while (true) {
         try {
           if (this.connectionHandler.getChanged() > changedSaved) {
-            //System.out.println("Saved connections");
-            new ObjectFileWriter().writeObjectToFile(this.connectionHandler, "./data/"+connectionHandler.getConfig().getTopic()+".dat");
+            System.out.println("Saved "+connectionHandler.getConfig().getConnectionFileName());
+            new ObjectFileWriter().writeObjectToFile(this.connectionHandler, connectionHandler.getConfig().getConnectionFileName());
             changedSaved = this.connectionHandler.getChanged();
           }
-          Thread.sleep(5000);
+          Thread.sleep(this.connectionHandler.getConfig().getSaveInterval());
         } catch (Exception e) {
           e.printStackTrace();
         }

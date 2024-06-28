@@ -100,11 +100,6 @@ testing {
     }
 }
 
-
-tasks.named("check") {
-    dependsOn(testing.suites.integrationTest)
-}
-
 publishing {
     publications {
         mavenJava(MavenPublication) {

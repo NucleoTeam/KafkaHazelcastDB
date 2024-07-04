@@ -168,4 +168,12 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
     public void setRequest(String request) {
         this.request = request;
     }
+
+    public DataTable getDataTable() {
+        return dataTable;
+    }
+
+    public void setDataTable(DataTable dataTable) {
+        this.dataTable = dataTable;
+    }
 }

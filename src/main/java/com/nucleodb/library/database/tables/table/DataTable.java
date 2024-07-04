@@ -118,17 +118,18 @@ public class DataTable<T extends DataEntry> implements Serializable{
         this.entries = tmpTable.entries;
         this.partitionOffsets = tmpTable.partitionOffsets;
         this.keyToEntry = tmpTable.keyToEntry;
-        this.entries.forEach(e -> {
+        this.entries.forEach(entry -> {
           for (IndexWrapper i : this.indexes.values()) {
             try {
-              i.add(e);
+              i.add(entry);
             } catch (JsonProcessingException ex) {
               throw new RuntimeException(ex);
             } catch (InvalidIndexTypeException ex) {
               throw new RuntimeException(ex);
             }
           }
-          e.setTableName(this.config.getTable());
+          entry.setDataTable(this);
+          entry.setTableName(this.config.getTable());
         });
       } catch (IOException e) {
         throw new RuntimeException(e);

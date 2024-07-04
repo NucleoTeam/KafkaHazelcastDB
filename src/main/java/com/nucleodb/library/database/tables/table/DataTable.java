@@ -128,7 +128,7 @@ public class DataTable<T extends DataEntry> implements Serializable{
               throw new RuntimeException(ex);
             }
           }
-          entry.setDataTable(this);
+          entry.dataTable = this;
           entry.setTableName(this.config.getTable());
         });
       } catch (IOException e) {

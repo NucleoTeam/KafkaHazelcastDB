@@ -23,11 +23,14 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
     public String key;
     public long version = 0;
     public T data;
+
+    @JsonIgnore
     private transient String tableName;
+
     private Instant created;
     private Instant modified;
-
     private String request;
+
     @JsonIgnore
     public transient DataTable dataTable;
 
@@ -169,11 +172,4 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
         this.request = request;
     }
 
-    public DataTable getDataTable() {
-        return dataTable;
-    }
-
-    public void setDataTable(DataTable dataTable) {
-        this.dataTable = dataTable;
-    }
 }

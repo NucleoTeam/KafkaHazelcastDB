@@ -90,8 +90,11 @@ public class EventTest{
       assertEquals(1, deleted.get());
 
     } catch (InterruptedException e) {
+      e.printStackTrace();
+
       throw new RuntimeException(e);
     } catch (IncorrectDataEntryObjectException e) {
+      e.printStackTrace();
       throw new RuntimeException(e);
     }
   }

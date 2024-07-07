@@ -83,6 +83,7 @@ public class NucleoDB{
   public NucleoDB(DBType dbType, String readToTime, Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, Consumer<LockConfig> lockCustomizer, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     startLockManager(lockCustomizer);
     startTables(packagesToScan, dbType, readToTime, dataTableCustomizer);
+
     startConnections(packagesToScan, dbType, readToTime, connectionCustomizer);
   }
   private void startLockManager(Consumer<LockConfig> customizer) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {

@@ -8,21 +8,21 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class ConnectionProjection {
+public class ConnectionProjection<C extends Connection> {
   Pagination pagination = null;
 
-  Predicate<Connection> filter = null;
+  Predicate<C> filter = null;
 
-  Comparator<Connection> sort = null;
+  Comparator<C> sort = null;
   boolean write = false;
   boolean lock = false;
 
-  public ConnectionProjection(Pagination pagination, Predicate<Connection> filter) {
+  public ConnectionProjection(Pagination pagination, Predicate<C> filter) {
     this.pagination = pagination;
     this.filter = filter;
   }
 
-  public ConnectionProjection(Pagination pagination, Predicate<Connection> filter, Comparator<Connection> sort) {
+  public ConnectionProjection(Pagination pagination, Predicate<C> filter, Comparator<C> sort) {
     this.pagination = pagination;
     this.filter = filter;
     this.sort = sort;
@@ -32,14 +32,14 @@ public class ConnectionProjection {
     this.pagination = pagination;
   }
 
-  public ConnectionProjection(Predicate<Connection> filter) {
+  public ConnectionProjection(Predicate<C> filter) {
     this.filter = filter;
   }
 
   public ConnectionProjection() {
   }
 
-  public ConnectionProjection(Pagination pagination, Predicate<Connection> filter, boolean write) {
+  public ConnectionProjection(Pagination pagination, Predicate<C> filter, boolean write) {
     this.pagination = pagination;
     this.filter = filter;
     this.write = write;
@@ -50,19 +50,19 @@ public class ConnectionProjection {
     this.write = write;
   }
 
-  public ConnectionProjection(Predicate<Connection> filter, boolean write) {
+  public ConnectionProjection(Predicate<C> filter, boolean write) {
     this.filter = filter;
     this.write = write;
   }
 
-  public ConnectionProjection(Predicate<Connection> filter, boolean write, boolean lock) {
+  public ConnectionProjection(Predicate<C> filter, boolean write, boolean lock) {
     this.filter = filter;
     this.write = write;
     this.lock = lock;
   }
 
-  public Set<Connection> process(Stream<Connection> connectionStream, Class<? extends Connection> clazz){
-    Stream<Connection> connectionStreamTmp = connectionStream;
+  public Set<Connection> process(Stream<C> connectionStream, Class<? extends Connection> clazz){
+    Stream<C> connectionStreamTmp = connectionStream;
     if(this.filter!=null){
       connectionStreamTmp = connectionStreamTmp.filter(this.filter);
     }
@@ -73,14 +73,14 @@ public class ConnectionProjection {
       connectionStreamTmp = connectionStreamTmp.skip(this.pagination.getSkip()).limit(this.pagination.getLimit());
     }
     if(this.write){
-      connectionStreamTmp = connectionStreamTmp.map(c->(Connection)c.copy(clazz, lock));
+      connectionStreamTmp = connectionStreamTmp.map(c->(C)c.copy(clazz, lock));
     }
     return connectionStreamTmp.collect(Collectors.toSet());
   }
   public void setPagination(Pagination pagination) {
     this.pagination = pagination;
   }
-  public void setFilter(Predicate<Connection> filter) {
+  public void setFilter(Predicate<C> filter) {
     this.filter = filter;
   }
 
@@ -88,11 +88,11 @@ public class ConnectionProjection {
     this.write = write;
   }
 
-  public Comparator<Connection> getSort() {
+  public Comparator<C> getSort() {
     return sort;
   }
 
-  public void setSort(Comparator<Connection> sort) {
+  public void setSort(Comparator<C> sort) {
     this.sort = sort;
   }
 
@@ -100,7 +100,7 @@ public class ConnectionProjection {
     return pagination;
   }
 
-  public Predicate<Connection> getFilter() {
+  public Predicate<C> getFilter() {
     return filter;
   }
 

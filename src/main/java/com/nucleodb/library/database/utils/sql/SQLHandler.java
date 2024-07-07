@@ -139,6 +139,7 @@ public class SQLHandler{
             columnField = new PropertyDescriptor(next, o.getClass());
             o = columnField.getReadMethod().invoke(o);
           }catch (Exception e){
+            e.printStackTrace();
             o=null;
             break;
           }

@@ -11,6 +11,8 @@ import com.nucleodb.library.database.tables.connection.ConnectionHandler;
 import com.nucleodb.library.database.utils.Serializer;
 import com.nucleodb.library.database.utils.SkipCopy;
 import com.nucleodb.library.database.utils.Utils;
+import com.nucleodb.library.database.utils.exceptions.ObjectNotSavedException;
+import org.dizitart.no2.exceptions.ObjectMappingException;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
@@ -47,7 +49,10 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
         this.created = create.getTime();
     }
 
-    public <T extends DataEntry> T copy(Class<T> clazz, boolean lock) {
+    public <T extends DataEntry> T copy(Class<T> clazz, boolean lock) throws ObjectNotSavedException {
+        if(this.dataTable==null & lock){
+            throw new ObjectNotSavedException(this);
+        }
         if (lock){
             // get lock
             try {

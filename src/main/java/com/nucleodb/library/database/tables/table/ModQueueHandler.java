@@ -30,8 +30,6 @@ class ModQueueHandler implements Runnable {
                     overkillCheck = false;
                 }
 
-                System.out.println(leftTmp);
-              System.out.println(left);
                 left = leftTmp;
             }
             try {

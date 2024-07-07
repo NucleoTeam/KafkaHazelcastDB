@@ -6,6 +6,7 @@ import com.nucleodb.library.database.tables.table.DataTable;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryClassException;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleodb.library.database.utils.exceptions.MissingDataEntryConstructorsException;
+import com.nucleodb.library.database.utils.exceptions.ObjectNotSavedException;
 import com.nucleodb.library.helpers.models.Author;
 import com.nucleodb.library.helpers.models.AuthorDE;
 import com.nucleodb.library.mqs.local.LocalConfiguration;
@@ -73,8 +74,12 @@ class CoreTest{
     assertEquals(1, dataEntrySet.size());
     if(dataEntrySet.size()>0){
       DataEntry dataEntry = dataEntrySet.iterator().next();
-      dataEntry.copy(AuthorDE.class, false);
-      assertTrue(true);
+        try {
+            dataEntry.copy(AuthorDE.class, false);
+        } catch (ObjectNotSavedException e) {
+            throw new RuntimeException(e);
+        }
+        assertTrue(true);
     }
   }
 

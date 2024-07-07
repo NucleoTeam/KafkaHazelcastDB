@@ -1,6 +1,7 @@
 package com.nucleodb.library.database.tables.table;
 
 import com.nucleodb.library.database.utils.Pagination;
+import com.nucleodb.library.database.utils.exceptions.ObjectNotSavedException;
 
 import javax.xml.crypto.Data;
 import java.util.Comparator;
@@ -70,7 +71,13 @@ public class DataEntryProjection<T extends DataEntry>{
       dataEntryStream = dataEntryStream.skip(this.pagination.getSkip()).limit(this.pagination.getLimit());
     }
     if(isWritable()){
-      dataEntryStream = dataEntryStream.map(de->(T) de.copy(clazz, lockUntilWrite));
+      dataEntryStream = dataEntryStream.map(de-> {
+          try {
+              return (T) de.copy(clazz, lockUntilWrite);
+          } catch (ObjectNotSavedException e) {
+              throw new RuntimeException(e);
+          }
+      });
     }
     return dataEntryStream.collect(Collectors.toSet());
   }

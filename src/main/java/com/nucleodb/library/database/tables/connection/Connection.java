@@ -19,7 +19,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 
-public class Connection<T extends DataEntry, F extends DataEntry> implements Serializable, Comparable<Connection>{
+public class Connection<F extends DataEntry, T extends DataEntry> implements Serializable, Comparable<Connection>{
   @SkipCopy
   private static final long serialVersionUID = 1;
 
@@ -60,7 +60,6 @@ public class Connection<T extends DataEntry, F extends DataEntry> implements Ser
             this.connectionHandler.getConfig().getLabel(),
             uuid
         );
-        System.out.println("unlocked "+lockReference.getRequest());
         try {
           T obj =  Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(this), clazz);
           obj.setRequest(lockReference.getRequest());
@@ -70,6 +69,7 @@ public class Connection<T extends DataEntry, F extends DataEntry> implements Ser
           e.printStackTrace();
         }
       } catch (InterruptedException e) {
+        e.printStackTrace();
         throw new RuntimeException(e);
       }
     }else{

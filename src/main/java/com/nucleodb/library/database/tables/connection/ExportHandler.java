@@ -11,9 +11,12 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Queue;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class ExportHandler implements Runnable {
+    private static Logger logger = Logger.getLogger(ExportHandler.class.getName());
     ConnectionHandler connectionHandler;
 
     Queue<String> modifications = Queues.newConcurrentLinkedQueue();
@@ -28,7 +31,7 @@ public class ExportHandler implements Runnable {
         while (true) {
             try {
                 if (this.connectionHandler.getChanged() > changedSaved) {
-                    System.out.println("datatable export saved "+this.connectionHandler.getConfig().getLabel() );
+                    logger.log(Level.FINEST, "datatable export saved "+this.connectionHandler.getConfig().getLabel() );
                     OutputStream os = new FileOutputStream("./export/" + this.connectionHandler.getConfig().getLabel() + ".txt", true);
                     String entry;
                     while ((entry = modifications.poll()) != null) {

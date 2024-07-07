@@ -2,7 +2,11 @@ package com.nucleodb.library.database.tables.table;
 
 import com.nucleodb.library.database.utils.ObjectFileWriter;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 public class SaveHandler implements Runnable{
+    private static Logger logger = Logger.getLogger(SaveHandler.class.getName());
     DataTable dataTable;
 
 
@@ -16,7 +20,7 @@ public class SaveHandler implements Runnable{
       while (true) {
         try {
           if (this.dataTable.getChanged() > changedSaved) {
-            System.out.println("Saved " + this.dataTable.getConfig().getTableFileName());
+              logger.log(Level.FINEST,"Saved " + this.dataTable.getConfig().getTableFileName());
             new ObjectFileWriter().writeObjectToFile(this.dataTable, this.dataTable.getConfig().getTableFileName());
             changedSaved = this.dataTable.getChanged();
           }

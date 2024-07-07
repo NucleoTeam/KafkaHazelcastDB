@@ -22,6 +22,7 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -55,29 +56,25 @@ public class KafkaConsumerHandler extends ConsumerHandler {
         CountDownLatch countDownLatch = new CountDownLatch(1);
         try {
             ListTopicsResult listTopicsResult = client.listTopics();
-            listTopicsResult.names().whenComplete((names, f) -> {
-                if (f != null) {
-                    f.printStackTrace();
-                }
-                if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
-                    logger.info(String.format("kafka topic not found for %s", topic));
-                    final NewTopic newTopic = new NewTopic(topic, ((KafkaSettings) this.getSettings()).getPartitions(), (short) ((KafkaSettings) this.getSettings()).getReplicas());
-                    newTopic.configs(new TreeMap<>() {{
-                        put(TopicConfig.RETENTION_MS_CONFIG, "-1");
-                        put(TopicConfig.RETENTION_MS_CONFIG, "-1");
-                        put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
-                    }});
-                    CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
-                    createTopicsResult.all().whenComplete((c, e) -> {
-                        if (e != null) {
-                            e.printStackTrace();
-                        }
-                        countDownLatch.countDown();
-                    });
-                } else {
+            Set<String> names = listTopicsResult.names().get(500, TimeUnit.MILLISECONDS);
+            if (names.stream().filter(name -> name.equals(topic)).count() == 0) {
+                logger.log(Level.FINEST,String.format("kafka topic not found for %s", topic));
+                final NewTopic newTopic = new NewTopic(topic, ((KafkaSettings) this.getSettings()).getPartitions(), (short) ((KafkaSettings) this.getSettings()).getReplicas());
+                newTopic.configs(new TreeMap<>() {{
+                    put(TopicConfig.RETENTION_MS_CONFIG, "-1");
+                    put(TopicConfig.RETENTION_MS_CONFIG, "-1");
+                    put(TopicConfig.RETENTION_BYTES_CONFIG, "-1");
+                }});
+                CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
+                createTopicsResult.all().whenComplete((c, e) -> {
+                    if (e != null) {
+                        e.printStackTrace();
+                    }
                     countDownLatch.countDown();
-                }
-            });
+                });
+            } else {
+                countDownLatch.countDown();
+            }
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(-1);
@@ -108,7 +105,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
     public void start(int queueHandlers) {
         this.threads = queueHandlers;
         kafkaConsumingThread = new Thread(this);
-        this.subscribe(new String[]{table.toLowerCase()});
+        this.subscribe(new String[]{this.getSettings().getTable().toLowerCase()});
         kafkaConsumingThread.start();
         super.start(queueHandlers);
     }
@@ -127,16 +124,18 @@ public class KafkaConsumerHandler extends ConsumerHandler {
         return startupMap.size() == startupMap.entrySet().stream().filter(s -> getConsumer().position(s.getKey()) >= s.getValue()).count();
     }
 
-    public void seek(String tableName, Map<Integer, Long> offsetMap) {
+    public void seek(Map<Integer, Long> offsetMap) {
         if (offsetMap.size() > 0) {
             offsetMap.entrySet().forEach(e -> {
-                TopicPartition tp = new TopicPartition(tableName.toLowerCase(), e.getKey());
-                System.out.println(tp.toString() +" = "+ e.getValue());
+                TopicPartition tp = new TopicPartition(this.getSettings().getTable().toLowerCase(), e.getKey());
+                logger.log(Level.FINEST,tp + " = " + e.getValue());
                 consumer.seek(tp, e.getValue());
             });
         }
     }
+
     Set<String> assigned = new HashSet<>();
+
     @Override
     public void run() {
 
@@ -150,7 +149,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
         Map<Integer, Long> offsets = new HashMap<>();
         if (databaseType) {
             offsets = getDatabase().getPartitionOffsets();
-            while(assigned.size()<offsets.size()){
+            while (assigned.size() < offsets.size()) {
                 try {
                     getConsumer().poll(Duration.ofMillis(100));
                     Thread.sleep(1000);
@@ -158,27 +157,28 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                     throw new RuntimeException(e);
                 }
             }
-            seek(getDatabase().getConfig().getTable(), offsets);
+            seek(offsets);
             super.setStartupLoadCount(getDatabase().getStartupLoadCount());
         }
         if (connectionType) {
             offsets = getConnectionHandler().getPartitionOffsets();
-            while(assigned.size()<offsets.size()){
+            while (assigned.size() < offsets.size()) {
                 try {
                     getConsumer().poll(Duration.ofMillis(100));
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
+                    e.printStackTrace();
                     throw new RuntimeException(e);
+
                 }
             }
-            seek(getConnectionHandler().getConfig().getLabel(), offsets);
+            seek(offsets);
             super.setStartupLoadCount(getConnectionHandler().getStartupLoadCount());
         }
         if (lockManagerType) {
             offsets = new HashMap<>();
             super.setStartupLoadCount(new AtomicInteger(0));
         }
-
         Map<Integer, OffsetAndMetadata> offsetMetaMap = new HashMap<>();
         try {
             do {
@@ -187,10 +187,9 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                     Map<Integer, Long> finalOffsets = offsets;
                     rs.iterator().forEachRemaining(action -> {
                         Long offsetAtPartition = finalOffsets.get(action.partition());
-                        if(offsetAtPartition != null && action.offset()<= offsetAtPartition) return;
+                        if (offsetAtPartition != null && action.offset() <= offsetAtPartition) return;
                         if (getStartupPhaseConsume().get()) getStartupLoadCount().incrementAndGet();
                         String pop = action.value();
-                        System.out.println(pop);
                         //System.out.println("Change added to queue.");
                         getQueue().add(pop);
                         getLeftToRead().incrementAndGet();
@@ -211,9 +210,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                 }
                 //logger.info("consumed: "+leftToRead.get());
                 if (getStartupPhaseConsume().get() && initialLoad()) {
-                    System.out.println("In initial load");
                     getStartupPhaseConsume().set(false);
-                    System.out.println(getStartupLoadCount().get());
                     if (getStartupLoadCount().get() == 0) {
                         if (connectionType) {
                             getConnectionHandler().getStartupPhase().set(false);
@@ -229,7 +226,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                     }
                 }
             } while (!Thread.interrupted());
-            logger.info("Consumer interrupted " + (databaseType ? this.getDatabase().getConfig().getTable() : "connections"));
+            logger.log(Level.FINEST,"Consumer interrupted " + (databaseType ? this.getDatabase().getConfig().getTable() : "connections"));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -255,13 +252,13 @@ public class KafkaConsumerHandler extends ConsumerHandler {
         consumer.subscribe(Arrays.asList(topics), new ConsumerRebalanceListener() {
             @Override
             public void onPartitionsRevoked(Collection<TopicPartition> collection) {
-                System.out.println("revoked: " + collection.stream().map(c -> c.topic() + c.partition()).collect(Collectors.joining(", ")));
+                logger.log(Level.FINEST,"revoked: " + collection.stream().map(c -> c.topic() + c.partition()).collect(Collectors.joining(", ")));
             }
 
             @Override
             public void onPartitionsAssigned(Collection<TopicPartition> collection) {
-                assigned = collection.stream().map(c->c.toString()).collect(Collectors.toSet());
-                System.out.println("assigned: " + assigned.stream().collect(Collectors.joining(", ")));
+                assigned = collection.stream().map(c -> c.toString()).collect(Collectors.toSet());
+                logger.log(Level.FINEST,"assigned: " + assigned.stream().collect(Collectors.joining(", ")));
 
             }
         });

@@ -103,8 +103,8 @@ public class LockManager implements Runnable{
       executorPool.schedule(()->{
         LockReference lockReference = (LockReference)this.get(key);
         if(lockReference!=null && value instanceof LockReference && lockReference.getRequest().equals(((LockReference)value).getRequest())) {
-          logger.info( "EXPIRED");
-          logger.info((String) key);
+          logger.log(Level.FINEST,"EXPIRED");
+          logger.log(Level.FINEST,(String) key);
           try {
             LockReference activeLock = Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(value), LockReference.class);
             activeLock.setLock(false);

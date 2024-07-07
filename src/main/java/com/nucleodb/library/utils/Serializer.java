@@ -41,9 +41,9 @@ public class Serializer {
       ois = new ObjectInputStream(bis);
       return (T) ois.readObject();
     }catch (IOException e){
-      //e.printStackTrace();
+      e.printStackTrace();
     } catch (ClassNotFoundException e) {
-      //e.printStackTrace();
+      e.printStackTrace();
     } finally {
       if(ois!=null) {
         try {

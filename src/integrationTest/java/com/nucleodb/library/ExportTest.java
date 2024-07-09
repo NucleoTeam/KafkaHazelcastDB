@@ -154,15 +154,10 @@ class ExportTest {
     }
     @Test
     public void fileSaving() throws IncorrectDataEntryObjectException, InterruptedException {
-        AuthorDE edgarAllenPoe = new AuthorDE(new Author("Edgar Allen Poe", "fiction"));
-        authorTable.saveSync(edgarAllenPoe);
+        AuthorDE author = authorTable.get("name", "George Orwell").stream().findFirst().get();
         assertEquals(
                 1,
-                authorTable.get(
-                        "id",
-                        edgarAllenPoe.getKey(),
-                        null
-                ).size()
+                wroteConnections.getByFrom(author, null).size()
         );
         Thread.sleep(5000);
     }

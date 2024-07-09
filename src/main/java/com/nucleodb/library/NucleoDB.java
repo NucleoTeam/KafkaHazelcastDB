@@ -125,9 +125,9 @@ public class NucleoDB{
       Type[] toTableTypeArguments = new Type[0];
       Type[] fromTableTypeArguments = new Type[0];
       if(actualTypeArguments.length==2) {
-        Class<?> toTable = (Class<?>) actualTypeArguments[0];
+        Class<?> toTable = (Class<?>) actualTypeArguments[1];
         toTableTypeArguments = ((ParameterizedType) toTable.getGenericSuperclass()).getActualTypeArguments();
-        Class<?> fromTable = (Class<?>) actualTypeArguments[1];
+        Class<?> fromTable = (Class<?>) actualTypeArguments[0];
         fromTableTypeArguments = ((ParameterizedType) fromTable.getGenericSuperclass()).getActualTypeArguments();
         
       }

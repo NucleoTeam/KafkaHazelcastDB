@@ -49,6 +49,38 @@ public class DataEntry<T> implements Serializable, Comparable<DataEntry> {
         this.created = create.getTime();
     }
 
+    public <T extends DataEntry> T copy(boolean lock) throws ObjectNotSavedException {
+        if(this.dataTable==null & lock){
+            throw new ObjectNotSavedException(this);
+        }
+        if (lock){
+            // get lock
+            try {
+                LockReference lockReference = this.dataTable.getNucleoDB().getLockManager().waitForLock(
+                        this.tableName,
+                        key
+                );
+                try {
+                    T obj =  (T) Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(this), dataTable.getConfig().getDataEntryClass());
+                    obj.setRequest(lockReference.getRequest());
+                    return obj;
+                } catch (JsonProcessingException e) {
+                    e.printStackTrace();
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }else{
+            try {
+                T obj =  (T) Serializer.getObjectMapper().getOm().readValue(Serializer.getObjectMapper().getOm().writeValueAsString(this), dataTable.getConfig().getDataEntryClass());
+                return obj;
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+        }
+        return null;
+    }
+
     public <T extends DataEntry> T copy(Class<T> clazz, boolean lock) throws ObjectNotSavedException {
         if(this.dataTable==null & lock){
             throw new ObjectNotSavedException(this);

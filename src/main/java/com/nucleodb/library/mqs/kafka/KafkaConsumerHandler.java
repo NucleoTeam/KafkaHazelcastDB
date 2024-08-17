@@ -182,7 +182,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
         Map<Integer, OffsetAndMetadata> offsetMetaMap = new HashMap<>();
         try {
             do {
-                ConsumerRecords<Integer, String> rs = getConsumer().poll(Duration.ofMillis(1000));
+                ConsumerRecords<String, String> rs = getConsumer().poll(Duration.ofMillis(1000));
                 if (rs.count() > 0) {
                     Map<Integer, Long> finalOffsets = offsets;
                     rs.iterator().forEachRemaining(action -> {
@@ -191,11 +191,25 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                         if (getStartupPhaseConsume().get()) getStartupLoadCount().incrementAndGet();
                         String pop = action.value();
                         //System.out.println("Change added to queue.");
-                        getQueue().add(pop);
-                        getLeftToRead().incrementAndGet();
-                        synchronized (getQueue()) {
-                            getQueue().notifyAll();
+                        if(connectionType){
+                            if(this.getConnectionHandler().getConfig().getNodeFilter().accept(action.key())){
+                                getQueue().add(pop);
+                                getLeftToRead().incrementAndGet();
+                                synchronized (getQueue()) {
+                                    getQueue().notifyAll();
+                                }
+                            }
                         }
+                        if(databaseType){
+                            if(this.getDatabase().getConfig().getNodeFilter().accept(action.key())){
+                                getQueue().add(pop);
+                                getLeftToRead().incrementAndGet();
+                                synchronized (getQueue()) {
+                                    getQueue().notifyAll();
+                                }
+                            }
+                        }
+
                         if (saveConnection)
                             this.getConnectionHandler().getPartitionOffsets().put(action.partition(), action.offset());
                         if (saveDatabase)

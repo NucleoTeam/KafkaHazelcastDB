@@ -70,6 +70,7 @@ public class DataTableConfig implements Serializable{
   MQSConfiguration mqsConfiguration = new KafkaConfiguration();
   Map<String, Object> settingsMap = new TreeMap<>();
   String tableFileName;
+  NodeFilter nodeFilter = new NodeFilter();
   @JsonIgnore
   private transient StartupRun startupRun = null;
 
@@ -219,5 +220,13 @@ public class DataTableConfig implements Serializable{
 
   public void setExportInterval(long exportInterval) {
     this.exportInterval = exportInterval;
+  }
+
+  public NodeFilter getNodeFilter() {
+    return nodeFilter;
+  }
+
+  public void setNodeFilter(NodeFilter nodeFilter) {
+    this.nodeFilter = nodeFilter;
   }
 }

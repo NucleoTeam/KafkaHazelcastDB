@@ -553,10 +553,14 @@ public class DataTable<T extends DataEntry> implements Serializable{
     if (this.startupPhase.get()) this.startupLoadCount.incrementAndGet();
   }
 
-  public void modify(Modification mod, Object modification) {
+  public void modify(Modification mod, Object modification) throws ExecutionException {
     switch (mod) {
       case CREATE:
         Create c = (Create) modification;
+        if(!config.getNodeFilter().create(c)){
+          consumerResponse(null, c.getChangeUUID());
+          return;
+        }
         //if(!startupPhase.get()) logger.info("Create statement called");
         if (c != null) {
           try {
@@ -601,17 +605,23 @@ public class DataTable<T extends DataEntry> implements Serializable{
         break;
       case DELETE:
         Delete d = (Delete) modification;
+
         //if(!startupPhase.get()) logger.info("Delete statement called");
         if (d != null) {
           try {
             itemProcessed();
+            T de = keyToEntry.get(d.getKey());
+            if(de!=null && !config.getNodeFilter().delete(d, de)){
+              consumerResponse(null, d.getChangeUUID());
+              return;
+            }
             if (this.config.getReadToTime() != null && d.getTime().isAfter(this.config.getReadToTime())) {
               consumerResponse(null, d.getChangeUUID());
               fireListeners(Modification.DELETE, null);
               return;
             }
 
-            T de = keyToEntry.get(d.getKey());
+
             if (de != null) {
               if (de.getVersion() >= d.getVersion()) {
                 logger.info("Ignore already saved change.");

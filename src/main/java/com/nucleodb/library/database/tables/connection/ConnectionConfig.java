@@ -1,6 +1,7 @@
 package com.nucleodb.library.database.tables.connection;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.nucleodb.library.database.tables.annotation.Conn;
 import com.nucleodb.library.database.utils.StartupRun;
 import com.nucleodb.library.event.ConnectionEventListener;
 import com.nucleodb.library.mqs.config.MQSConfiguration;
@@ -31,6 +32,7 @@ public class ConnectionConfig implements Serializable{
   MQSConfiguration mqsConfiguration = new KafkaConfiguration();
   Map<String, Object> settingsMap = new TreeMap<>();
   String connectionFileName;
+  NodeFilter nodeFilter = new NodeFilter();
   @JsonIgnore
   private transient StartupRun startupRun = null;
 
@@ -181,5 +183,13 @@ public class ConnectionConfig implements Serializable{
 
   public void setConnectionFileName(String connectionFileName) {
     this.connectionFileName = connectionFileName;
+  }
+
+  public NodeFilter getNodeFilter() {
+    return nodeFilter;
+  }
+
+  public void setNodeFilter(NodeFilter nodeFilter) {
+    this.nodeFilter = nodeFilter;
   }
 }

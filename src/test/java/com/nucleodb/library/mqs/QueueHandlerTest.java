@@ -15,6 +15,7 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,7 +33,7 @@ public class QueueHandlerTest {
     }
 
     @Test
-    public void testRun_method() throws IOException {
+    public void testRun_method() throws IOException, ExecutionException {
       
         // Define mocks, for testing different branches of the run method
         // Mock for the database modification branch

@@ -3,6 +3,7 @@ package com.nucleodb.library.database.tables.table;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Queue;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
 class ModQueueHandler implements Runnable {
@@ -21,7 +22,11 @@ class ModQueueHandler implements Runnable {
         while (true) {
             int left = 0;
             while (!modqueue.isEmpty() && (mqi = modqueue.poll()) != null) {
-                this.dataTable.modify(mqi.getMod(), mqi.getModification());
+                try {
+                    this.dataTable.modify(mqi.getMod(), mqi.getModification());
+                } catch (ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
                 int leftTmp = dataTable.getLeftInModQueue().decrementAndGet();
                 if (left == leftTmp) {
                     overkillCheck = true;

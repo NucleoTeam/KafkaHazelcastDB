@@ -236,7 +236,7 @@ public class LockManager implements Runnable{
   }
 
   void log(String key, String msg){
-    logger.log(Level.ALL, String.format("%s: %s", key, msg));
+    System.out.println(String.format("%s: %s", key, msg));
   }
 
   public ConcurrentMap<String, LockReference> getActiveLocks() {

@@ -159,8 +159,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
             }
             seek(offsets);
             super.setStartupLoadCount(getDatabase().getStartupLoadCount());
-        }
-        if (connectionType) {
+        }else if (connectionType) {
             offsets = getConnectionHandler().getPartitionOffsets();
             while (assigned.size() < offsets.size()) {
                 try {
@@ -174,8 +173,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
             }
             seek(offsets);
             super.setStartupLoadCount(getConnectionHandler().getStartupLoadCount());
-        }
-        if (lockManagerType) {
+        }else if (lockManagerType) {
             offsets = new HashMap<>();
             super.setStartupLoadCount(new AtomicInteger(0));
         }
@@ -207,6 +205,14 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                                 synchronized (getQueue()) {
                                     getQueue().notifyAll();
                                 }
+                            }
+                        }
+
+                        if(lockManagerType){
+                            getQueue().add(pop);
+                            getLeftToRead().incrementAndGet();
+                            synchronized (getQueue()) {
+                                getQueue().notifyAll();
                             }
                         }
 

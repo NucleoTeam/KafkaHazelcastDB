@@ -16,20 +16,25 @@ public class KafkaSettings extends MQSSettings{
 
   public KafkaSettings(Map<String, Object> objs) {
     super(objs);
-    if(objs.containsKey("servers")) {
-      this.servers = (String) objs.get("servers");
+    Object servers = objs.get("servers");
+    Object groupName = objs.get("groupName");
+    Object partitions = objs.get("partitions");
+    Object replicas = objs.get("replicas");
+    Object offsetReset = objs.get("offsetReset");
+    if(servers!=null) {
+      this.servers = (String) servers;
     }
-    if(objs.containsKey("groupName")) {
-      this.groupName = (String) objs.get("groupName");
+    if(groupName!=null) {
+      this.groupName = (String) groupName;
     }
-    if(objs.containsKey("partitions")) {
-      this.partitions = (int) objs.get("partitions");
+    if(partitions!=null) {
+      this.partitions = (int) partitions;
     }
-    if(objs.containsKey("replicas")) {
-      this.replicas = (int) objs.get("replicas");
+    if(replicas!=null) {
+      this.replicas = (int) replicas;
     }
-    if(objs.containsKey("offsetReset")) {
-      this.offsetReset = (String) objs.get("offsetReset");
+    if(offsetReset!=null) {
+      this.offsetReset = (String) offsetReset;
     }
   }
 

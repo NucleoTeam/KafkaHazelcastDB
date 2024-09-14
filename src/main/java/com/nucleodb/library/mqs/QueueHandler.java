@@ -55,7 +55,7 @@ class QueueHandler implements Runnable{
               }
             }
           }else if(lockdownType){
-            //logger.info("processing lockdown");
+            logger.info("processing lockdown");
             this.consumerHandler.getLockManager().lockAction(
                 Serializer.getObjectMapper().getOm().readValue(entry, LockReference.class)
             );

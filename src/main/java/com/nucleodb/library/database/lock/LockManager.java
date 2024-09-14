@@ -172,6 +172,7 @@ public class LockManager implements Runnable{
   public void push(LockReference lockReference) {
     try {
       String key = String.format("%s_%s", lockReference.getTableName(), lockReference.getKey());
+      log(key, "Lock Request Sent To Cluster");
       producerHandler.push(key, Serializer.getObjectMapper().getOm().writeValueAsString(lockReference));
     } catch (JsonProcessingException e) {
       e.printStackTrace();

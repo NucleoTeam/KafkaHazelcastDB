@@ -54,6 +54,7 @@ public class DataTable<T extends DataEntry> implements Serializable{
 
   private Set<T> entries = new TreeSetExt<>();
   private transient DataTableConfig config;
+  private String name;
   @JsonIgnore
   private transient Map<String, IndexWrapper<T>> indexes = new TreeMap<>();
   private Map<String, T> keyToEntry = new TreeMap<>();
@@ -1018,5 +1019,13 @@ public class DataTable<T extends DataEntry> implements Serializable{
 
   public void setExportHandler(ExportHandler exportHandler) {
     this.exportHandler = exportHandler;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
   }
 }

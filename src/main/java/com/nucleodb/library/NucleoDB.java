@@ -178,7 +178,8 @@ public class NucleoDB {
             case EXPORT -> config.setJsonExport(true);
         }
         ConnectionHandler connectionHandler = new ConnectionHandler(this, config);
-        connections.put(connectionType.value().toUpperCase(), connectionHandler);
+        connectionHandler.setName(connectionType.value().toUpperCase());
+        connections.put(connectionHandler.getName(), connectionHandler);
 
         try {
             latch.await();
@@ -248,8 +249,9 @@ public class NucleoDB {
                 case EXPORT -> config.setJsonExport(true);
             }
             ConnectionHandler connectionHandler = new ConnectionHandler(this, config);
+            connectionHandler.setName(connectionType.value().toUpperCase());
             handlers.add(connectionHandler);
-            connections.put(connectionType.value().toUpperCase(), connectionHandler);
+            connections.put(connectionHandler.getName(), connectionHandler);
         }
 
         try {
@@ -323,6 +325,7 @@ public class NucleoDB {
         try {
             builtTable = table.build();
             builtTable.setNucleoDB(this);
+            builtTable.setName(tableName);
         } catch (IntrospectionException e) {
             throw new RuntimeException(e);
         } catch (InvocationTargetException e) {
@@ -422,6 +425,7 @@ public class NucleoDB {
             try {
                 DataTable built = table.build();
                 built.setNucleoDB(this);
+                built.setName(table.getConfig().getTable());
                 handlers.add(built);
             } catch (IntrospectionException e) {
                 throw new RuntimeException(e);

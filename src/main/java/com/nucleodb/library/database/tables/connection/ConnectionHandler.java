@@ -68,6 +68,7 @@ import java.util.stream.Collectors;
 public class ConnectionHandler<C extends Connection> implements Serializable{
   private static Logger logger = Logger.getLogger(ConnectionHandler.class.getName());
   private static final long serialVersionUID = 1;
+  private String name;
   @JsonIgnore
   private transient Map<String, Set<C>> connections = new TreeMap<>();
   @JsonIgnore
@@ -821,5 +822,13 @@ public class ConnectionHandler<C extends Connection> implements Serializable{
 
   public ExportHandler getExportHandler() {
     return exportHandler;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
   }
 }

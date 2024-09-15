@@ -99,7 +99,7 @@ public class NucleoDB {
         startConnections(packagesToScan, dbType, readToTime, connectionCustomizer);
     }
 
-    private void startLockManager(Consumer<LockConfig> customizer) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    public void startLockManager(Consumer<LockConfig> customizer) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
         LockConfig config = new LockConfig();
         CountDownLatch lockManagerStartupComplete = new CountDownLatch(1);
         config.setStartupRun(new StartupRun() {

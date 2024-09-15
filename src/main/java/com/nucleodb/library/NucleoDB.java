@@ -273,7 +273,7 @@ public class NucleoDB {
             throw new IncorrectDataEntryClassException(String.format("%s does not extend DataEntry", dataEntryClass.getName()));
         }
         if (!tableName.isEmpty()) {
-            tableName = type.getName().toLowerCase();
+            tableName = type.getSimpleName().toLowerCase();
         } else {
             throw new IncorrectDataEntryClassException(String.format("%s does not extend DataEntry", dataEntryClass.getName()));
         }
@@ -369,7 +369,7 @@ public class NucleoDB {
             Table tableAnnotation = type.getAnnotation(Table.class);
             String tableName = tableAnnotation.tableName();
             if (tableName.isEmpty()) {
-                tableName = type.getName().toLowerCase();
+                tableName = type.getSimpleName().toLowerCase();
             }
             Class dataEntryClass = tableAnnotation.dataEntryClass();
             if (!DataEntry.class.isAssignableFrom(dataEntryClass)) {

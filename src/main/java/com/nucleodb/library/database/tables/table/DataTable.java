@@ -172,7 +172,6 @@ public class DataTable<T extends DataEntry> implements Serializable{
 
     if (config.isRead()) {
       new Thread(new ModQueueHandler(this)).start();
-      this.consume();
     }
 
     if (config.isWrite()) {

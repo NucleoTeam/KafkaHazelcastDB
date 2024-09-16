@@ -124,7 +124,6 @@ public class ConnectionHandler<C extends Connection> implements Serializable{
 
     if (config.isRead()) {
       new Thread(new ModQueueHandler(this)).start();
-      this.consume();
     }
     if (config.isWrite()) {
       producer = this.config.getMqsConfiguration().createProducerHandler(this.config.getSettingsMap());
@@ -150,7 +149,6 @@ public class ConnectionHandler<C extends Connection> implements Serializable{
 
     if (config.isRead()) {
       new Thread(new ModQueueHandler(this)).start();
-      this.consume();
     }
     if (config.isWrite()) {
       producer = this.config.getMqsConfiguration().createProducerHandler(this.config.getSettingsMap());

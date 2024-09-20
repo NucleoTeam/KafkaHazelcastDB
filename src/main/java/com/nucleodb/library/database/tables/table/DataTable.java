@@ -174,13 +174,6 @@ public class DataTable<T extends DataEntry> implements Serializable{
       new Thread(new ModQueueHandler(this)).start();
     }
 
-    if (config.isWrite()) {
-
-      producer = this.config
-          .getMqsConfiguration()
-          .createProducerHandler(this.config.getSettingsMap());
-    }
-
     if (config.isSaveChanges()) {
       new Thread(new SaveHandler(this)).start();
     }
@@ -197,6 +190,11 @@ public class DataTable<T extends DataEntry> implements Serializable{
     this.consumer.setDatabase(this);
     this.consumer.start(36);
     this.config.getSettingsMap().put("consumerHandler", this.consumer);
+    if (config.isWrite()) {
+      producer = this.config
+              .getMqsConfiguration()
+              .createProducerHandler(this.config.getSettingsMap());
+    }
   }
 
   public void exportTo(DataTable tb) throws IncorrectDataEntryObjectException {

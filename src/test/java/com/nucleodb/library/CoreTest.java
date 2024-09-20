@@ -39,6 +39,8 @@ class CoreTest{
         },
         "com.nucleodb.library.helpers.models"
     );
+    nucleoDB.startConsuming();
+    nucleoDB.waitTillReady();
     table = nucleoDB.getTable(Author.class);
     table.saveSync( new AuthorDE(new Author("George Orwell", "science-fiction")));
   }

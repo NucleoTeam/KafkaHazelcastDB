@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class EventTest{
   @Test
-  public void createTest() throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+  public void createTest() throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, InterruptedException {
     AtomicLong saved = new AtomicLong(0);
     AtomicLong deleted = new AtomicLong(0);
     AtomicLong updated = new AtomicLong(0);
@@ -66,6 +66,8 @@ public class EventTest{
         },
         "com.nucleodb.library.helpers.models"
     );
+    nucleoDB.startConsuming();
+    nucleoDB.waitTillReady();
     try {
       DataTable<AuthorDE> table = nucleoDB.getTable(Author.class);
       AuthorDE authorDE = new AuthorDE(new Author("test", "testing"));

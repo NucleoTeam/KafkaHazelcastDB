@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class LockTest{
   private static Logger logger = Logger.getLogger(LockTest.class.getName());
   @Test
-  public void lockingTest() throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+  public void lockingTest() throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, InterruptedException {
     logger.info("Starting lock test");
     NucleoDB nucleoDB = new NucleoDB(
         NucleoDB.DBType.NO_LOCAL,
@@ -46,7 +46,8 @@ public class LockTest{
         },
         "com.nucleodb.library.helpers.models"
     );
-
+    nucleoDB.startConsuming();
+    nucleoDB.waitTillReady();
     try {
       int x = 1;
       AuthorDE authorDE = new AuthorDE(new Author("test", "testing"));

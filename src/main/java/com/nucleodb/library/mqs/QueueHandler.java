@@ -72,7 +72,7 @@ class QueueHandler implements Runnable{
             if (this.consumerHandler.getLeftToRead().get() == 0) this.consumerHandler.getQueue().wait(100);
           }
         } catch (Exception e) {
-          e.printStackTrace();
+          //e.printStackTrace();
         }
       } else {
         try {

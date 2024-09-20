@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,7 +41,7 @@ class ExportTest {
         nucleoDB = new NucleoDB(
                 NucleoDB.DBType.ALL,
                 c -> {
-                    c.getConnectionConfig().setMqsConfiguration(new KafkaConfiguration());
+                    c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration());
                     c.getConnectionConfig().setLoadSaved(true);
                     c.getConnectionConfig().setJsonExport(true);
                     c.getConnectionConfig().setSaveChanges(true);
@@ -49,7 +50,7 @@ class ExportTest {
                     c.getConnectionConfig().setSaveInterval(50);
                 },
                 c -> {
-                    c.getDataTableConfig().setMqsConfiguration(new KafkaConfiguration());
+                    c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration());
                     c.getDataTableConfig().setLoadSave(true);
                     c.getDataTableConfig().setSaveChanges(true);
                     c.getDataTableConfig().setJsonExport(true);
@@ -58,10 +59,13 @@ class ExportTest {
                     c.getDataTableConfig().setSaveInterval(50);
                 },
                 c -> {
-                    c.setMqsConfiguration(new KafkaConfiguration());
+                    c.setMqsConfiguration(new LocalConfiguration());
                 },
                 "com.nucleodb.library.models"
         );
+        nucleoDB.startConsuming();
+        nucleoDB.waitTillReady();
+
         authorTable = nucleoDB.getTable(Author.class);
         bookTable = nucleoDB.getTable(Book.class);
         wroteConnections = nucleoDB.getConnectionHandler(WroteConnection.class);

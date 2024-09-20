@@ -1,5 +1,6 @@
 package com.nucleodb.library;
 
+import com.google.common.collect.Queues;
 import com.nucleodb.library.database.lock.LockConfig;
 import com.nucleodb.library.database.lock.LockManager;
 import com.nucleodb.library.database.modifications.Create;
@@ -56,6 +57,8 @@ public class NucleoDB {
     private List<Consumer<DataTable>> tableEvents = new LinkedList<>();
     private List<Consumer<ConnectionHandler>> connectionEvents = new LinkedList<>();
 
+    private Queue<CountDownLatch> latches = Queues.newArrayBlockingQueue(25);
+
     public NucleoDB() {
     }
 
@@ -88,15 +91,26 @@ public class NucleoDB {
 
     public NucleoDB(DBType dbType, String readToTime, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
         startLockManager(null);
-        startTables(packagesToScan, dbType, readToTime, null);
-        startConnections(packagesToScan, dbType, readToTime, null);
+        CountDownLatch latch = startTables(packagesToScan, dbType, readToTime, null);
+        if(latch!=null){
+            latches.add(latch);
+        }
+        latch = startConnections(packagesToScan, dbType, readToTime, null);
+        if(latch!=null){
+            latches.add(latch);
+        }
     }
 
     public NucleoDB(DBType dbType, String readToTime, Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, Consumer<LockConfig> lockCustomizer, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
         startLockManager(lockCustomizer);
-        startTables(packagesToScan, dbType, readToTime, dataTableCustomizer);
-
-        startConnections(packagesToScan, dbType, readToTime, connectionCustomizer);
+        CountDownLatch latch = startTables(packagesToScan, dbType, readToTime, dataTableCustomizer);
+        if(latch!=null){
+            latches.add(latch);
+        }
+        latch = startConnections(packagesToScan, dbType, readToTime, connectionCustomizer);
+        if(latch!=null){
+            latches.add(latch);
+        }
     }
 
     public void startLockManager(Consumer<LockConfig> customizer) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
@@ -125,7 +139,7 @@ public class NucleoDB {
         });
     }
 
-    public void startConnection(Class<?> type, DBType dbType, String readToTime, Consumer<ConnectionConsumer> customizer) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    public CountDownLatch startConnection(Class<?> type, DBType dbType, String readToTime, Consumer<ConnectionConsumer> customizer) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
 
         CountDownLatch latch = new CountDownLatch(1);
         Conn connectionType = type.getAnnotation(Conn.class);
@@ -165,6 +179,7 @@ public class NucleoDB {
         config.setStartupRun(new StartupRun() {
             public void run(ConnectionHandler connectionHandler) {
                 latch.countDown();
+                connectionEvents.forEach(eventListener->eventListener.accept(connectionHandler));
             }
         });
         switch (dbType) {
@@ -180,21 +195,15 @@ public class NucleoDB {
         ConnectionHandler connectionHandler = new ConnectionHandler(this, config);
         connectionHandler.setName(connectionType.value().toUpperCase());
         connections.put(connectionHandler.getName(), connectionHandler);
-
-        try {
-            latch.await();
-            connectionEvents.forEach(eventListener->eventListener.accept(connectionHandler));
-            logger.info("NucleoDB Connection[" + connectionType.value() + "] Started");
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        logger.info("NucleoDB Connection[" + connectionType.value() + "] ready to consume.");
+        return latch;
     }
 
-    private void startConnections(String[] packagesToScan, DBType dbType, String readToTime, Consumer<ConnectionConsumer> customizer) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    private CountDownLatch startConnections(String[] packagesToScan, DBType dbType, String readToTime, Consumer<ConnectionConsumer> customizer) throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
         logger.info("NucleoDB Connections Starting");
         Optional<Set<Class<?>>> connectionTypesOptional = getConnectionClasses(packagesToScan);
         if (!connectionTypesOptional.isPresent()) {
-            return;
+            return null;
         }
         Set<Class<?>> connectionTypes = connectionTypesOptional.get();
         CountDownLatch latch = new CountDownLatch(connectionTypes.size());
@@ -236,6 +245,7 @@ public class NucleoDB {
             config.setStartupRun(new StartupRun() {
                 public void run(ConnectionHandler connectionHandler) {
                     latch.countDown();
+                    connectionEvents.forEach(eventListener -> eventListener.accept(connectionHandler));
                 }
             });
             switch (dbType) {
@@ -253,18 +263,11 @@ public class NucleoDB {
             handlers.add(connectionHandler);
             connections.put(connectionHandler.getName(), connectionHandler);
         }
-
-        try {
-
-            latch.await();
-            handlers.forEach(handler->connectionEvents.forEach(eventListener->eventListener.accept(handler)));
-            logger.info("NucleoDB Connections Started");
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        logger.info("NucleoDB connections ready to consume.");
+        return latch;
     }
 
-    public void startTable(Class<?> type, DBType dbType, String readToTime, Consumer<DataTableConsumer> customizer) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
+    public CountDownLatch startTable(Class<?> type, DBType dbType, String readToTime, Consumer<DataTableConsumer> customizer) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
         Table tableAnnotation = type.getAnnotation(Table.class);
         CountDownLatch latch = new CountDownLatch(1);
         String tableName = tableAnnotation.tableName();
@@ -294,21 +297,25 @@ public class NucleoDB {
             case ALL -> launchTable(tableName, dataEntryClass, type, new StartupRun() {
                 public void run(DataTable table) {
                     latch.countDown();
+                    tableEvents.forEach(eventListener->eventListener.accept(table));
                 }
             }, customizer);
             case NO_LOCAL -> launchLocalOnlyTable(tableName, dataEntryClass, type, new StartupRun() {
                 public void run(DataTable table) {
                     latch.countDown();
+                    tableEvents.forEach(eventListener->eventListener.accept(table));
                 }
             }, customizer);
             case READ_ONLY -> launchReadOnlyTable(tableName, dataEntryClass, type, new StartupRun() {
                 public void run(DataTable table) {
                     latch.countDown();
+                    tableEvents.forEach(eventListener->eventListener.accept(table));
                 }
             }, customizer);
             case EXPORT -> launchExportOnlyTable(tableName, dataEntryClass, type, new StartupRun() {
                 public void run(DataTable table) {
                     latch.countDown();
+                    tableEvents.forEach(eventListener->eventListener.accept(table));
                 }
             }, customizer);
         };
@@ -337,14 +344,8 @@ public class NucleoDB {
         } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
         }
-        try {
-
-            latch.await();
-            logger.info("NucleoDB " + tableName + " Started");
-            tableEvents.forEach(eventListener->eventListener.accept(builtTable));
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        logger.info("NucleoDB " + tableName + " ready to consume.");
+        return latch;
     }
 
     public Optional<Set<Class<?>>> getTableClasses(String[] packagesToScan) {
@@ -354,11 +355,11 @@ public class NucleoDB {
         });
     }
 
-    private void startTables(String[] packagesToScan, DBType dbType, String readToTime, Consumer<DataTableConsumer> customizer) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
+    private CountDownLatch startTables(String[] packagesToScan, DBType dbType, String readToTime, Consumer<DataTableConsumer> customizer) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException {
         logger.info("NucleoDB Tables Starting");
         Optional<Set<Class<?>>> tableTypesOptional = getTableClasses(packagesToScan);
         if (!tableTypesOptional.isPresent()) {
-            return;
+            return null;
         }
 
         Set<Class<?>> tableTypes = tableTypesOptional.get();
@@ -392,21 +393,25 @@ public class NucleoDB {
                 case ALL -> tables.add(launchTable(tableName, dataEntryClass, type, new StartupRun() {
                     public void run(DataTable table) {
                         latch.countDown();
+                        tableEvents.forEach(eventListener->eventListener.accept(table));
                     }
                 }, customizer));
                 case NO_LOCAL -> tables.add(launchLocalOnlyTable(tableName, dataEntryClass, type, new StartupRun() {
                     public void run(DataTable table) {
                         latch.countDown();
+                        tableEvents.forEach(eventListener->eventListener.accept(table));
                     }
                 }, customizer));
                 case READ_ONLY -> tables.add(launchReadOnlyTable(tableName, dataEntryClass, type, new StartupRun() {
                     public void run(DataTable table) {
                         latch.countDown();
+                        tableEvents.forEach(eventListener->eventListener.accept(table));
                     }
                 }, customizer));
                 case EXPORT -> tables.add(launchExportOnlyTable(tableName, dataEntryClass, type, new StartupRun() {
                     public void run(DataTable table) {
                         latch.countDown();
+                        tableEvents.forEach(eventListener->eventListener.accept(table));
                     }
                 }, customizer));
             }
@@ -439,13 +444,8 @@ public class NucleoDB {
                 throw new RuntimeException(e);
             }
         });
-        try {
-            latch.await();
-            handlers.forEach(handler->tableEvents.forEach(eventListener->eventListener.accept(handler)));
-            logger.info("NucleoDB Tables Started");
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        logger.info("NucleoDB Tables ready to consume.");
+        return latch;
     }
 
     private Set<DataTableConfig.IndexConfig> processIndexListForClass(Class<?> clazz) {
@@ -636,5 +636,48 @@ public class NucleoDB {
     }
     public void addTableEvent(Consumer<DataTable> dataTableConsumer){
         tableEvents.add(dataTableConsumer);
+    }
+
+    public void startConsuming(){
+        getConnections().values().forEach(c-> {
+            try {
+                c.consume();
+            } catch (IntrospectionException e) {
+                throw new RuntimeException(e);
+            } catch (InvocationTargetException e) {
+                throw new RuntimeException(e);
+            } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            } catch (InstantiationException e) {
+                throw new RuntimeException(e);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        getTables().values().forEach(de-> {
+            try {
+                de.consume();
+            } catch (IntrospectionException e) {
+                throw new RuntimeException(e);
+            } catch (InvocationTargetException e) {
+                throw new RuntimeException(e);
+            } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            } catch (InstantiationException e) {
+                throw new RuntimeException(e);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+    public void waitTillReady() throws InterruptedException {
+        CountDownLatch c;
+        while((c=getLatches().poll())!=null){
+            c.await();
+        }
+    }
+
+    public Queue<CountDownLatch> getLatches() {
+        return latches;
     }
 }

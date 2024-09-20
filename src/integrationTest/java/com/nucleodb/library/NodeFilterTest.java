@@ -13,6 +13,7 @@ import com.nucleodb.library.database.utils.exceptions.MissingDataEntryConstructo
 import com.nucleodb.library.database.utils.exceptions.ObjectNotSavedException;
 import com.nucleodb.library.models.*;
 import com.nucleodb.library.mqs.kafka.KafkaConfiguration;
+import com.nucleodb.library.mqs.local.LocalConfiguration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,7 +39,7 @@ public class NodeFilterTest {
         nucleoDB = new NucleoDB(
                 NucleoDB.DBType.ALL,
                 c -> {
-                    c.getConnectionConfig().setMqsConfiguration(new KafkaConfiguration());
+                    c.getConnectionConfig().setMqsConfiguration(new LocalConfiguration());
                     c.getConnectionConfig().setLoadSaved(true);
                     c.getConnectionConfig().setJsonExport(true);
                     c.getConnectionConfig().setSaveChanges(true);
@@ -68,7 +70,7 @@ public class NodeFilterTest {
                     });
                 },
                 c -> {
-                    c.getDataTableConfig().setMqsConfiguration(new KafkaConfiguration());
+                    c.getDataTableConfig().setMqsConfiguration(new LocalConfiguration());
                     c.getDataTableConfig().setLoadSave(true);
                     c.getDataTableConfig().setSaveChanges(true);
                     c.getDataTableConfig().setJsonExport(true);
@@ -99,10 +101,12 @@ public class NodeFilterTest {
                     });
                 },
                 c -> {
-                    c.setMqsConfiguration(new KafkaConfiguration());
+                    c.setMqsConfiguration(new LocalConfiguration());
                 },
                 "com.nucleodb.library.models"
         );
+        nucleoDB.startConsuming();
+        nucleoDB.waitTillReady();
         authorTable = nucleoDB.getTable(Author.class);
         bookTable = nucleoDB.getTable(Book.class);
         wroteConnections = nucleoDB.getConnectionHandler(WroteConnection.class);
@@ -161,11 +165,6 @@ public class NodeFilterTest {
                         throw new RuntimeException(e);
                     }
                 });
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
     }
     @Test
     public void checkSaving() throws IncorrectDataEntryObjectException, InterruptedException {
@@ -180,7 +179,7 @@ public class NodeFilterTest {
                         null
                 ).size()
         );
-        assertEquals(2, authorTable.getEntries().size());
+        assertEquals(1, authorTable.getEntries().size());
     }
 
 }

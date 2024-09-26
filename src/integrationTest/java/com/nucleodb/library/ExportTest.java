@@ -160,8 +160,8 @@ class ExportTest {
     public void fileSaving() throws IncorrectDataEntryObjectException, InterruptedException {
         AuthorDE author = authorTable.get("name", "George Orwell").stream().findFirst().get();
         assertEquals(
-                1,
-                wroteConnections.getByFrom(author, null).size()
+            1,
+            wroteConnections.getByFrom(author, null).size()
         );
         Thread.sleep(5000);
     }

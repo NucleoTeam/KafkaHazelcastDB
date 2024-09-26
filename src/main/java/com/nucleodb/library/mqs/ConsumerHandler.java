@@ -38,6 +38,13 @@ public class ConsumerHandler implements Runnable{
       new Thread(new QueueHandler(this)).start();
   }
 
+  public void readFromStart(){
+    startupLoadCount.set(0);
+    queue.clear();
+    startupPhaseConsume.set(true);
+    leftToRead.set(0);
+  }
+
   @Override
   public void run() {
     try {

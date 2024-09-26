@@ -43,6 +43,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
         logger.info(servers + " using group id " + groupName);
         this.consumer = createConsumer(servers, groupName);
 
+
         this.table = table;
     }
 
@@ -110,6 +111,28 @@ public class KafkaConsumerHandler extends ConsumerHandler {
         super.start(queueHandlers);
     }
 
+    @Override
+    public void readFromStart() {
+        kafkaConsumingThread.interrupt();
+        try {
+            kafkaConsumingThread.wait();
+        } catch (InterruptedException e) {
+        }
+        boolean connectionType = this.getConnectionHandler() != null;
+        boolean databaseType = this.getDatabase() != null;
+
+        if(connectionType){
+            getConnectionHandler().setPartitionOffsets(new TreeMap<>());
+        }
+        if(databaseType){
+            getDatabase().setPartitionOffsets(new TreeMap<>());
+        }
+        if(connectionType || databaseType) {
+            consumer.seekToBeginning(consumer.assignment());
+            super.readFromStart();
+            this.start(this.threads);
+        }
+    }
 
     private Map<TopicPartition, Long> startupMap = null;
 

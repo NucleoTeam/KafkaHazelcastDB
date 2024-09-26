@@ -113,10 +113,12 @@ public class KafkaConsumerHandler extends ConsumerHandler {
 
     @Override
     public void readFromStart() {
-        kafkaConsumingThread.interrupt();
-        try {
-            kafkaConsumingThread.wait();
-        } catch (InterruptedException e) {
+        synchronized (kafkaConsumingThread) {
+            kafkaConsumingThread.interrupt();
+            try {
+                kafkaConsumingThread.wait();
+            } catch (InterruptedException e) {
+            }
         }
         boolean connectionType = this.getConnectionHandler() != null;
         boolean databaseType = this.getDatabase() != null;

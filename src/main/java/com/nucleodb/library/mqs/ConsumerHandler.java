@@ -52,7 +52,9 @@ public class ConsumerHandler implements Runnable{
     Thread queueThread;
     while((queueThread = queueThreads.poll())!=null) {
       try {
-        queueThread.interrupt();
+        synchronized (queueThread) {
+          queueThread.interrupt();
+        }
       }catch (Exception e){}
     }
   }

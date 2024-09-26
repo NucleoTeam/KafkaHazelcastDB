@@ -7,7 +7,7 @@ import com.nucleodb.library.database.tables.table.DataTable;
 import com.nucleodb.library.mqs.config.MQSSettings;
 import com.nucleodb.library.mqs.exceptions.RequiredMethodNotImplementedException;
 
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -29,13 +29,19 @@ public class ConsumerHandler implements Runnable{
 
   private MQSSettings settings;
 
+  private Queue<Thread> queueThreads = Queues.newLinkedBlockingQueue();
+
+
   public ConsumerHandler(MQSSettings settings, String table) {
     this.table = table;
     this.settings = settings;
   }
   public void start(int queues){
-    for (int x = 0; x < queues; x++)
-      new Thread(new QueueHandler(this)).start();
+    for (int x = 0; x < queues; x++) {
+      Thread queueThread = new Thread(new QueueHandler(this));
+      queueThreads.add(queueThread);
+      queueThread.start();
+    }
   }
 
   public void readFromStart(){
@@ -43,6 +49,12 @@ public class ConsumerHandler implements Runnable{
     queue.clear();
     startupPhaseConsume.set(true);
     leftToRead.set(0);
+    Thread queueThread;
+    while((queueThread = queueThreads.poll())!=null) {
+      try {
+        queueThread.interrupt();
+      }catch (Exception e){}
+    }
   }
 
   @Override

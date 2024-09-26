@@ -20,6 +20,8 @@ import org.apache.kafka.common.serialization.*;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -31,7 +33,8 @@ public class KafkaConsumerHandler extends ConsumerHandler {
     private KafkaConsumer consumer = null;
     private ConnectionHandler connectionHandler = null;
 
-    private Thread kafkaConsumingThread = null;
+    private ExecutorService thread = Executors.newFixedThreadPool(1);
+
     private int threads = 36;
     private String table;
 
@@ -105,21 +108,15 @@ public class KafkaConsumerHandler extends ConsumerHandler {
     @Override
     public void start(int queueHandlers) {
         this.threads = queueHandlers;
-        kafkaConsumingThread = new Thread(this);
+        thread.submit(new Thread(this));
         this.subscribe(new String[]{this.getSettings().getTable().toLowerCase()});
-        kafkaConsumingThread.start();
         super.start(queueHandlers);
     }
 
     @Override
-    public void readFromStart() {
-        synchronized (kafkaConsumingThread) {
-            kafkaConsumingThread.interrupt();
-            try {
-                kafkaConsumingThread.wait();
-            } catch (InterruptedException e) {
-            }
-        }
+    public synchronized void readFromStart() throws InterruptedException {
+        thread.shutdownNow();
+        thread.awaitTermination(4, TimeUnit.SECONDS);
         boolean connectionType = this.getConnectionHandler() != null;
         boolean databaseType = this.getDatabase() != null;
 

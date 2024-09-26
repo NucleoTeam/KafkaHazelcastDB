@@ -8,6 +8,10 @@ import com.nucleodb.library.mqs.config.MQSSettings;
 import com.nucleodb.library.mqs.exceptions.RequiredMethodNotImplementedException;
 
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -27,9 +31,10 @@ public class ConsumerHandler implements Runnable{
   private AtomicInteger startupLoadCount = new AtomicInteger(0);
   private AtomicBoolean startupPhaseConsume = new AtomicBoolean(true);
 
+
   private MQSSettings settings;
 
-  private Queue<Thread> queueThreads = Queues.newLinkedBlockingQueue();
+  private ExecutorService queueTasks = Executors.newFixedThreadPool(60);
 
 
   public ConsumerHandler(MQSSettings settings, String table) {
@@ -39,24 +44,17 @@ public class ConsumerHandler implements Runnable{
   public void start(int queues){
     for (int x = 0; x < queues; x++) {
       Thread queueThread = new Thread(new QueueHandler(this));
-      queueThreads.add(queueThread);
-      queueThread.start();
+      queueTasks.submit(queueThread);
     }
   }
 
-  public void readFromStart(){
+  public void readFromStart() throws InterruptedException {
     startupLoadCount.set(0);
     queue.clear();
     startupPhaseConsume.set(true);
     leftToRead.set(0);
-    Thread queueThread;
-    while((queueThread = queueThreads.poll())!=null) {
-      try {
-        synchronized (queueThread) {
-          queueThread.interrupt();
-        }
-      }catch (Exception e){}
-    }
+    queueTasks.shutdownNow();
+    queueTasks.awaitTermination(4, TimeUnit.SECONDS);
   }
 
   @Override

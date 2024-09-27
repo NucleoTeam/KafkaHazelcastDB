@@ -638,38 +638,6 @@ public class NucleoDB {
         tableEvents.add(dataTableConsumer);
     }
 
-    public void startConsuming(){
-        getConnections().values().forEach(c-> {
-            try {
-                c.consume();
-            } catch (IntrospectionException e) {
-                throw new RuntimeException(e);
-            } catch (InvocationTargetException e) {
-                throw new RuntimeException(e);
-            } catch (NoSuchMethodException e) {
-                throw new RuntimeException(e);
-            } catch (InstantiationException e) {
-                throw new RuntimeException(e);
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        getTables().values().forEach(de-> {
-            try {
-                de.consume();
-            } catch (IntrospectionException e) {
-                throw new RuntimeException(e);
-            } catch (InvocationTargetException e) {
-                throw new RuntimeException(e);
-            } catch (NoSuchMethodException e) {
-                throw new RuntimeException(e);
-            } catch (InstantiationException e) {
-                throw new RuntimeException(e);
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
     public void waitTillReady() throws InterruptedException {
         CountDownLatch c;
         while((c=getLatches().poll())!=null){

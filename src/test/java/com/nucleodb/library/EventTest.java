@@ -66,7 +66,6 @@ public class EventTest{
         },
         "com.nucleodb.library.helpers.models"
     );
-    nucleoDB.startConsuming();
     nucleoDB.waitTillReady();
     try {
       DataTable<AuthorDE> table = nucleoDB.getTable(Author.class);

@@ -126,6 +126,8 @@ public class ConnectionHandler<C extends Connection> implements Serializable{
       new Thread(new ModQueueHandler(this)).start();
     }
 
+    consume();
+
     if (config.isSaveChanges()) {
       new Thread(new SaveHandler(this)).start();
     }
@@ -148,6 +150,8 @@ public class ConnectionHandler<C extends Connection> implements Serializable{
     if (config.isRead()) {
       new Thread(new ModQueueHandler(this)).start();
     }
+
+    consume();
 
     if (config.isSaveChanges()) {
       new Thread(new SaveHandler(this)).start();

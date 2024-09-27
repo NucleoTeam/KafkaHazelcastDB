@@ -63,7 +63,6 @@ class ExportTest {
                 },
                 "com.nucleodb.library.models"
         );
-        nucleoDB.startConsuming();
         nucleoDB.waitTillReady();
 
         authorTable = nucleoDB.getTable(Author.class);

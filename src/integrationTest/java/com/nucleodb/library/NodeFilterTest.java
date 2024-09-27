@@ -105,7 +105,6 @@ public class NodeFilterTest {
                 },
                 "com.nucleodb.library.models"
         );
-        nucleoDB.startConsuming();
         nucleoDB.waitTillReady();
         authorTable = nucleoDB.getTable(Author.class);
         bookTable = nucleoDB.getTable(Book.class);

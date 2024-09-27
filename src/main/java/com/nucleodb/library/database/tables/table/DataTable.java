@@ -169,6 +169,7 @@ public class DataTable<T extends DataEntry> implements Serializable{
       addAll(Arrays.asList(config.getClazz().getSuperclass().getFields()));
     }};
 
+    consume();
 
     if (config.isRead()) {
       new Thread(new ModQueueHandler(this)).start();

@@ -36,7 +36,6 @@ public class ReadToTime{
         },
         "com.nucleodb.library.helpers.models"
     );
-    nucleoDB.startConsuming();
     nucleoDB.waitTillReady();
     Serializer.log(instant.toString());
     DataTable table = nucleoDB.getTable(Author.class);
@@ -61,7 +60,6 @@ public class ReadToTime{
         },
         "com.nucleodb.library.helpers.models"
     );
-    nucleoDB.startConsuming();
     nucleoDB.waitTillReady();
     DataTable table = nucleoDB.getTable(Author.class);
     table.saveSync( new AuthorDE(new Author("George Orwell", "science-fiction")));
@@ -78,7 +76,6 @@ public class ReadToTime{
         },
         "com.nucleodb.library.helpers.models"
     );
-    nucleoDB.startConsuming();
     nucleoDB.waitTillReady();
     DataTable table = nucleoDB.getTable(Author.class);
     table.saveSync( new AuthorDE(new Author("George Orwell", "science-fiction")));
@@ -99,7 +96,6 @@ public class ReadToTime{
         },
         "com.nucleodb.library.helpers.models"
     );
-    nucleoDB.startConsuming();
     nucleoDB.waitTillReady();
     DataTable table = nucleoDB.getTable(Author.class);
     table.saveSync( new AuthorDE(new Author("George Orwell", "science-fiction")));
@@ -121,7 +117,6 @@ public class ReadToTime{
         },
         "com.nucleodb.library.helpers.models"
     );
-    nucleoDB.startConsuming();
     nucleoDB.waitTillReady();
     DataTable<AuthorDE> table = nucleoDB.getTable(Author.class);
     table.saveSync( new AuthorDE(new Author("George Orwell", "science-fiction")));

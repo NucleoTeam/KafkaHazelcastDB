@@ -46,7 +46,6 @@ public class LockTest{
         },
         "com.nucleodb.library.helpers.models"
     );
-    nucleoDB.startConsuming();
     nucleoDB.waitTillReady();
     try {
       int x = 1;

@@ -55,6 +55,7 @@ public class ConsumerHandler implements Runnable{
     leftToRead.set(0);
     queueTasks.shutdownNow();
     queueTasks.awaitTermination(4, TimeUnit.SECONDS);
+    queueTasks = Executors.newFixedThreadPool(60);
   }
 
   @Override

@@ -117,6 +117,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
     public synchronized void readFromStart() throws InterruptedException {
         thread.shutdownNow();
         thread.awaitTermination(4, TimeUnit.SECONDS);
+        thread = Executors.newFixedThreadPool(1);
         boolean connectionType = this.getConnectionHandler() != null;
         boolean databaseType = this.getDatabase() != null;
 

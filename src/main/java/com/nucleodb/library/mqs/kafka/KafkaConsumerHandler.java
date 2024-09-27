@@ -176,7 +176,8 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                     getConsumer().poll(Duration.ofMillis(100));
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+//                    throw new RuntimeException(e);
+                    e.printStackTrace();
                 }
             }
             seek(offsets);
@@ -189,7 +190,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
-                    throw new RuntimeException(e);
+                    //throw new RuntimeException(e);
 
                 }
             }

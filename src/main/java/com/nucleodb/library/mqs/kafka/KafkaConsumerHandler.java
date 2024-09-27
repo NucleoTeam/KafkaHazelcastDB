@@ -46,6 +46,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
         logger.info(servers + " using group id " + groupName);
         this.consumer = createConsumer(servers, groupName);
 
+        this.subscribe(new String[]{this.getSettings().getTable().toLowerCase()});
 
         this.table = table;
     }
@@ -109,7 +110,6 @@ public class KafkaConsumerHandler extends ConsumerHandler {
     public void start(int queueHandlers) {
         this.threads = queueHandlers;
         thread.submit(new Thread(this));
-        this.subscribe(new String[]{this.getSettings().getTable().toLowerCase()});
         super.start(queueHandlers);
     }
 

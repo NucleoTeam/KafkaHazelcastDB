@@ -547,6 +547,10 @@ public class ConnectionHandler<C extends Connection> implements Serializable{
 
         //logger.info("Create statement called");
         if (c != null) {
+          if (deletedEntries.contains(c.getUuid())) {
+            consumerResponse(null, c.getChangeUUID());
+            return;
+          }
           itemProcessed();
           if (this.config.getReadToTime() != null && c.getDate().isAfter(this.config.getReadToTime())) {
             //logger.info("Create after target db date");
@@ -620,6 +624,7 @@ public class ConnectionHandler<C extends Connection> implements Serializable{
               if (deletedEntries.contains(d.getUuid())) {
                 //logger.info("already deleted conn "+d.getUuid());
                 //System.exit(1);
+                consumerResponse(null, d.getChangeUUID());
                 return;
               } else {
                 itemRequeue();
@@ -698,11 +703,15 @@ public class ConnectionHandler<C extends Connection> implements Serializable{
                 }
               }
             } else {
-              itemRequeue();
-              modqueue.add(new ModificationQueueItem(mod, modification));
-              leftInModQueue.incrementAndGet();
-              synchronized (modqueue) {
-                modqueue.notifyAll();
+              if (!deletedEntries.contains(u.getUuid())) {
+                itemRequeue();
+                modqueue.add(new ModificationQueueItem(mod, modification));
+                leftInModQueue.incrementAndGet();
+                synchronized (modqueue) {
+                  modqueue.notifyAll();
+                }
+              }else{
+                consumerResponse(null, u.getChangeUUID());
               }
             }
           } catch (Exception e) {

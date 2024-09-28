@@ -559,11 +559,14 @@ public class DataTable<T extends DataEntry> implements Serializable{
         }
         //if(!startupPhase.get()) logger.info("Create statement called");
         if (c != null) {
+          if (deletedEntries.contains(c.getKey())) {
+            consumerResponse(null, c.getChangeUUID());
+            return;
+          }
           try {
             itemProcessed();
             if (this.config.getReadToTime() != null && c.getTime().isAfter(this.config.getReadToTime())) {
               consumerResponse(null, c.getChangeUUID());
-              fireListeners(Modification.CREATE, null);
               return;
             }
 
@@ -613,7 +616,6 @@ public class DataTable<T extends DataEntry> implements Serializable{
             }
             if (this.config.getReadToTime() != null && d.getTime().isAfter(this.config.getReadToTime())) {
               consumerResponse(null, d.getChangeUUID());
-              fireListeners(Modification.DELETE, null);
               return;
             }
 
@@ -663,6 +665,8 @@ public class DataTable<T extends DataEntry> implements Serializable{
               if (deletedEntries.contains(d.getKey())) {
                 //logger.info("ERROR already deleted: "+d.getKey()+" table: "+this.config.getTable());
                 //System.exit(1);
+                consumerResponse(de, d.getChangeUUID());
+                fireListeners(Modification.DELETE, de);
                 return;
               } else {
                 itemRequeue();
@@ -687,7 +691,6 @@ public class DataTable<T extends DataEntry> implements Serializable{
             if (this.config.getReadToTime() != null && u.getTime().isAfter(this.config.getReadToTime())) {
               //logger.info("Update after target db date");
               consumerResponse(null, u.getChangeUUID());
-              fireListeners(Modification.UPDATE, null);
               return;
             }
             T de = keyToEntry.get(u.getKey());
@@ -755,11 +758,15 @@ public class DataTable<T extends DataEntry> implements Serializable{
                 }
               }
             } else {
-              itemRequeue();
-              modqueue.add(new ModificationQueueItem(mod, modification));
-              leftInModQueue.incrementAndGet();
-              synchronized (modqueue) {
-                modqueue.notifyAll();
+              if (!deletedEntries.contains(u.getKey())) {
+                itemRequeue();
+                modqueue.add(new ModificationQueueItem(mod, modification));
+                leftInModQueue.incrementAndGet();
+                synchronized (modqueue) {
+                  modqueue.notifyAll();
+                }
+              }else{
+                consumerResponse(null, u.getChangeUUID());
               }
             }
           } catch (Exception e) {

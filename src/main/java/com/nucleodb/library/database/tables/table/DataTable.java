@@ -15,12 +15,8 @@ import com.nucleodb.library.database.modifications.Create;
 import com.nucleodb.library.database.modifications.Delete;
 import com.nucleodb.library.database.modifications.Modify;
 import com.nucleodb.library.database.modifications.Update;
-import com.nucleodb.library.database.utils.JsonOperations;
+import com.nucleodb.library.database.utils.*;
 import com.nucleodb.library.database.modifications.Modification;
-import com.nucleodb.library.database.utils.ObjectFileReader;
-import com.nucleodb.library.database.utils.Serializer;
-import com.nucleodb.library.database.utils.TreeSetExt;
-import com.nucleodb.library.database.utils.Utils;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryObjectException;
 import com.nucleodb.library.database.index.IndexWrapper;
 import com.nucleodb.library.database.utils.exceptions.InvalidIndexTypeException;
@@ -240,8 +236,9 @@ public class DataTable<T extends DataEntry> implements Serializable{
 
   public void startup() {
     inStartup = false;
-    if (this.config.getStartupRun() != null) {
-      this.config.getStartupRun().run(this);
+    if (this.config.getStartupRuns() != null) {
+      StartupRun startupRun = null;
+      while((startupRun = this.config.getStartupRuns().poll())!=null) startupRun.run(this);
     }
   }
 

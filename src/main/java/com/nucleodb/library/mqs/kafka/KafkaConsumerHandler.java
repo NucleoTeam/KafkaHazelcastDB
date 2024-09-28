@@ -118,6 +118,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
         thread.shutdownNow();
         thread.awaitTermination(4, TimeUnit.SECONDS);
         thread = Executors.newFixedThreadPool(1);
+
         boolean connectionType = this.getConnectionHandler() != null;
         boolean databaseType = this.getDatabase() != null;
 
@@ -161,7 +162,6 @@ public class KafkaConsumerHandler extends ConsumerHandler {
 
     @Override
     public void run() {
-
         boolean connectionType = this.getConnectionHandler() != null;
         boolean databaseType = this.getDatabase() != null;
         boolean lockManagerType = this.getLockManager() != null;
@@ -170,103 +170,109 @@ public class KafkaConsumerHandler extends ConsumerHandler {
 
 
         Map<Integer, Long> offsets = new HashMap<>();
-        if (databaseType) {
-            offsets = getDatabase().getPartitionOffsets();
-            while (assigned.size() < offsets.size()) {
-                try {
-                    getConsumer().poll(Duration.ofMillis(100));
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {}
-            }
-            seek(offsets);
-            super.setStartupLoadCount(getDatabase().getStartupLoadCount());
-        }else if (connectionType) {
-            offsets = getConnectionHandler().getPartitionOffsets();
-            while (assigned.size() < offsets.size()) {
-                try {
-                    getConsumer().poll(Duration.ofMillis(100));
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {}
-            }
-            seek(offsets);
-            super.setStartupLoadCount(getConnectionHandler().getStartupLoadCount());
-        }else if (lockManagerType) {
-            offsets = new HashMap<>();
-            super.setStartupLoadCount(new AtomicInteger(0));
-        }
-        Map<Integer, OffsetAndMetadata> offsetMetaMap = new HashMap<>();
         try {
-            do {
-                ConsumerRecords<String, String> rs = getConsumer().poll(Duration.ofMillis(1000));
-                if (rs.count() > 0) {
-                    Map<Integer, Long> finalOffsets = offsets;
-                    rs.iterator().forEachRemaining(action -> {
-                        Long offsetAtPartition = finalOffsets.get(action.partition());
-                        if (offsetAtPartition != null && action.offset() <= offsetAtPartition) return;
-                        if (getStartupPhaseConsume().get()) getStartupLoadCount().incrementAndGet();
-                        String pop = action.value();
-                        //System.out.println("Change added to queue.");
-                        if(connectionType){
-                            if(this.getConnectionHandler().getConfig().getNodeFilter().accept(action.key())){
-                                getQueue().add(pop);
-                                getLeftToRead().incrementAndGet();
-                                synchronized (getQueue()) {
-                                    getQueue().notifyAll();
-                                }
-                            }
-                        }
-                        if(databaseType){
-                            if(this.getDatabase().getConfig().getNodeFilter().accept(action.key())){
-                                getQueue().add(pop);
-                                getLeftToRead().incrementAndGet();
-                                synchronized (getQueue()) {
-                                    getQueue().notifyAll();
-                                }
-                            }
-                        }
 
-                        if(lockManagerType){
-                            getQueue().add(pop);
-                            getLeftToRead().incrementAndGet();
-                            synchronized (getQueue()) {
-                                getQueue().notifyAll();
-                            }
-                        }
-
-                        if (saveConnection)
-                            this.getConnectionHandler().getPartitionOffsets().put(action.partition(), action.offset());
-                        if (saveDatabase)
-                            this.getDatabase().getPartitionOffsets().put(action.partition(), action.offset());
-                        offsetMetaMap.put(action.partition(), new OffsetAndMetadata(action.offset()));
-                    });
-                    consumer.commitAsync();
-                }
-
-                while (getStartupPhaseConsume().get() && getLeftToRead().get() > 50000) {
-                    Thread.sleep(1000);
-                }
-                //logger.info("consumed: "+leftToRead.get());
-                if (getStartupPhaseConsume().get() && initialLoad()) {
-                    getStartupPhaseConsume().set(false);
-                    if (getStartupLoadCount().get() == 0) {
-                        if (connectionType) {
-                            getConnectionHandler().getStartupPhase().set(false);
-                            new Thread(() -> getConnectionHandler().startup()).start();
-                        }
-                        if (databaseType) {
-                            getDatabase().getStartupPhase().set(false);
-                            new Thread(() -> getDatabase().startup()).start();
-                        }
-                        if (lockManagerType) {
-                            new Thread(() -> getLockManager().startup()).start();
-                        }
+            if (databaseType) {
+                offsets = getDatabase().getPartitionOffsets();
+                while (assigned.size() < offsets.size()) {
+                    try {
+                        getConsumer().poll(Duration.ofMillis(100));
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
                     }
                 }
-            } while (!Thread.interrupted());
-            logger.log(Level.FINEST,"Consumer interrupted " + (databaseType ? this.getDatabase().getConfig().getTable() : "connections"));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+                seek(offsets);
+                super.setStartupLoadCount(getDatabase().getStartupLoadCount());
+            } else if (connectionType) {
+                offsets = getConnectionHandler().getPartitionOffsets();
+                while (assigned.size() < offsets.size()) {
+                    try {
+                        getConsumer().poll(Duration.ofMillis(100));
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                    }
+                }
+                seek(offsets);
+                super.setStartupLoadCount(getConnectionHandler().getStartupLoadCount());
+            } else if (lockManagerType) {
+                offsets = new HashMap<>();
+                super.setStartupLoadCount(new AtomicInteger(0));
+            }
+        }catch (Exception e){}
+            Map<Integer, OffsetAndMetadata> offsetMetaMap = new HashMap<>();
+            try {
+                do {
+                    ConsumerRecords<String, String> rs = getConsumer().poll(Duration.ofMillis(1000));
+                    if (rs.count() > 0) {
+                        Map<Integer, Long> finalOffsets = offsets;
+                        rs.iterator().forEachRemaining(action -> {
+                            Long offsetAtPartition = finalOffsets.get(action.partition());
+                            if (offsetAtPartition != null && action.offset() <= offsetAtPartition) return;
+                            if (getStartupPhaseConsume().get()) getStartupLoadCount().incrementAndGet();
+                            String pop = action.value();
+                            //System.out.println("Change added to queue.");
+                            if (connectionType) {
+                                if (this.getConnectionHandler().getConfig().getNodeFilter().accept(action.key())) {
+                                    getQueue().add(pop);
+                                    getLeftToRead().incrementAndGet();
+                                    synchronized (getQueue()) {
+                                        getQueue().notifyAll();
+                                    }
+                                }
+                            }
+                            if (databaseType) {
+                                if (this.getDatabase().getConfig().getNodeFilter().accept(action.key())) {
+                                    getQueue().add(pop);
+                                    getLeftToRead().incrementAndGet();
+                                    synchronized (getQueue()) {
+                                        getQueue().notifyAll();
+                                    }
+                                }
+                            }
+
+                            if (lockManagerType) {
+                                getQueue().add(pop);
+                                getLeftToRead().incrementAndGet();
+                                synchronized (getQueue()) {
+                                    getQueue().notifyAll();
+                                }
+                            }
+
+                            if (saveConnection)
+                                this.getConnectionHandler().getPartitionOffsets().put(action.partition(), action.offset());
+                            if (saveDatabase)
+                                this.getDatabase().getPartitionOffsets().put(action.partition(), action.offset());
+                            offsetMetaMap.put(action.partition(), new OffsetAndMetadata(action.offset()));
+                        });
+                        consumer.commitAsync();
+                    }
+
+                    while (getStartupPhaseConsume().get() && getLeftToRead().get() > 50000) {
+                        Thread.sleep(1000);
+                    }
+                    //logger.info("consumed: "+leftToRead.get());
+                    if (getStartupPhaseConsume().get() && initialLoad()) {
+                        getStartupPhaseConsume().set(false);
+                        if (getStartupLoadCount().get() == 0) {
+                            if (connectionType) {
+                                getConnectionHandler().getStartupPhase().set(false);
+                                new Thread(() -> getConnectionHandler().startup()).start();
+                            }
+                            if (databaseType) {
+                                getDatabase().getStartupPhase().set(false);
+                                new Thread(() -> getDatabase().startup()).start();
+                            }
+                            if (lockManagerType) {
+                                new Thread(() -> getLockManager().startup()).start();
+                            }
+                        }
+                    }
+                } while (!Thread.interrupted());
+                logger.log(Level.FINEST, "Consumer interrupted " + (databaseType ? this.getDatabase().getConfig().getTable() : "connections"));
+            } catch (Exception e) {
+                //e.printStackTrace();
+            }
+
     }
 
     private KafkaConsumer createConsumer(String bootstrap, String groupName) {

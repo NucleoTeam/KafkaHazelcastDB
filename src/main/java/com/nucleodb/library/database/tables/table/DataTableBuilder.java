@@ -119,7 +119,7 @@ public class DataTableBuilder implements Comparable{
     return this;
   }
   public DataTableBuilder setStartupRun(StartupRun startupRun) {
-    this.config.setStartupRun(startupRun);
+    this.config.getStartupRuns().add(startupRun);
     return this;
   }
   public DataTableBuilder setEventListener(DataTableEventListener<? extends DataEntry> eventListener){

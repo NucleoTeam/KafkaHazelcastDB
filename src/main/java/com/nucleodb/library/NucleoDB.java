@@ -176,7 +176,7 @@ public class NucleoDB {
         config.setLabel(connectionType.value().toUpperCase());
         if (customizer != null)
             customizer.accept(new ConnectionConsumer(toTableTypeArguments[0], fromTableTypeArguments[0], config));
-        config.setStartupRun(new StartupRun() {
+        config.getStartupRuns().add(new StartupRun() {
             public void run(ConnectionHandler connectionHandler) {
                 latch.countDown();
                 connectionEvents.forEach(eventListener->eventListener.accept(connectionHandler));
@@ -242,7 +242,7 @@ public class NucleoDB {
             config.setLabel(connectionType.value().toUpperCase());
             if (customizer != null)
                 customizer.accept(new ConnectionConsumer(toTableTypeArguments[0], fromTableTypeArguments[0], config));
-            config.setStartupRun(new StartupRun() {
+            config.getStartupRuns().add(new StartupRun() {
                 public void run(ConnectionHandler connectionHandler) {
                     latch.countDown();
                     connectionEvents.forEach(eventListener -> eventListener.accept(connectionHandler));

@@ -18,12 +18,7 @@ import com.nucleodb.library.database.modifications.Modify;
 import com.nucleodb.library.database.tables.annotation.Conn;
 import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.modifications.Modification;
-import com.nucleodb.library.database.utils.InvalidConnectionException;
-import com.nucleodb.library.database.utils.JsonOperations;
-import com.nucleodb.library.database.utils.ObjectFileReader;
-import com.nucleodb.library.database.utils.Serializer;
-import com.nucleodb.library.database.utils.TreeSetExt;
-import com.nucleodb.library.database.utils.Utils;
+import com.nucleodb.library.database.utils.*;
 import com.nucleodb.library.event.ConnectionEventListener;
 import com.nucleodb.library.mqs.ConsumerHandler;
 import com.nucleodb.library.mqs.ProducerHandler;
@@ -421,8 +416,9 @@ public class ConnectionHandler<C extends Connection> implements Serializable{
 
   public void startup() {
     inStartup = false;
-    if (this.config.getStartupRun() != null) {
-      this.config.getStartupRun().run(this);
+    if (this.config.getStartupRuns() != null) {
+      StartupRun startupRun = null;
+      while((startupRun = this.config.getStartupRuns().poll())!=null) startupRun.run(this);
     }
   }
 

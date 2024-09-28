@@ -1,6 +1,7 @@
 package com.nucleodb.library.database.tables.connection;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.Queues;
 import com.nucleodb.library.database.tables.annotation.Conn;
 import com.nucleodb.library.database.utils.StartupRun;
 import com.nucleodb.library.event.ConnectionEventListener;
@@ -10,6 +11,7 @@ import com.nucleodb.library.mqs.kafka.KafkaConfiguration;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Queue;
 import java.util.TreeMap;
 
 public class ConnectionConfig implements Serializable{
@@ -34,7 +36,7 @@ public class ConnectionConfig implements Serializable{
   String connectionFileName;
   NodeFilter nodeFilter = new NodeFilter();
   @JsonIgnore
-  private transient StartupRun startupRun = null;
+  private transient Queue<StartupRun> startupRuns = Queues.newLinkedBlockingDeque();
 
   public ConnectionConfig() {
   }
@@ -55,12 +57,12 @@ public class ConnectionConfig implements Serializable{
     this.write = write;
   }
 
-  public StartupRun getStartupRun() {
-    return startupRun;
+  public Queue<StartupRun> getStartupRuns() {
+    return startupRuns;
   }
 
-  public void setStartupRun(StartupRun startupRun) {
-    this.startupRun = startupRun;
+  public void setStartupRuns(Queue<StartupRun> startupRuns) {
+    this.startupRuns = startupRuns;
   }
 
   public boolean isRead() {

@@ -1,6 +1,7 @@
 package com.nucleodb.library.database.tables.table;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.Queues;
 import com.nucleodb.library.database.index.IndexWrapper;
 import com.nucleodb.library.database.utils.StartupRun;
 import com.nucleodb.library.event.DataTableEventListener;
@@ -10,12 +11,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 
 public class DataTableConfig implements Serializable{
   private static final long serialVersionUID = 1;
@@ -72,7 +68,7 @@ public class DataTableConfig implements Serializable{
   String tableFileName;
   NodeFilter nodeFilter = new NodeFilter();
   @JsonIgnore
-  private transient StartupRun startupRun = null;
+  private transient Queue<StartupRun> startupRuns = Queues.newLinkedBlockingDeque();
 
 
 
@@ -99,10 +95,6 @@ public class DataTableConfig implements Serializable{
 
   public Instant getReadToTime() {
     return readToTime;
-  }
-
-  public StartupRun getStartupRun() {
-    return startupRun;
   }
 
   public boolean isRead() {
@@ -155,8 +147,12 @@ public class DataTableConfig implements Serializable{
     this.indexes = indexes;
   }
 
-  public void setStartupRun(StartupRun startupRun) {
-    this.startupRun = startupRun;
+  public Queue<StartupRun> getStartupRuns() {
+    return startupRuns;
+  }
+
+  public void setStartupRuns(Queue<StartupRun> startupRuns) {
+    this.startupRuns = startupRuns;
   }
 
   public void merge(DataTableConfig config) {

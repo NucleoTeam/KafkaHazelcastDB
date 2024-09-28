@@ -176,10 +176,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                 try {
                     getConsumer().poll(Duration.ofMillis(100));
                     Thread.sleep(1000);
-                } catch (InterruptedException e) {
-//                    throw new RuntimeException(e);
-                    e.printStackTrace();
-                }
+                } catch (InterruptedException e) {}
             }
             seek(offsets);
             super.setStartupLoadCount(getDatabase().getStartupLoadCount());
@@ -189,11 +186,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                 try {
                     getConsumer().poll(Duration.ofMillis(100));
                     Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    //throw new RuntimeException(e);
-
-                }
+                } catch (InterruptedException e) {}
             }
             seek(offsets);
             super.setStartupLoadCount(getConnectionHandler().getStartupLoadCount());

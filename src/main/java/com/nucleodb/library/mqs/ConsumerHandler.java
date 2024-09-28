@@ -53,6 +53,7 @@ public class ConsumerHandler implements Runnable{
     queue.clear();
     startupPhaseConsume.set(true);
     leftToRead.set(0);
+    startupItems = -1;
     queueTasks.shutdownNow();
     queueTasks.awaitTermination(4, TimeUnit.SECONDS);
     queueTasks = Executors.newFixedThreadPool(60);

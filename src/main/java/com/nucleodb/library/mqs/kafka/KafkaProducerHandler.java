@@ -28,8 +28,8 @@ public class KafkaProducerHandler extends ProducerHandler{
     private KafkaProducer producer;
 
 
-    public KafkaProducerHandler(MQSSettings settings, String servers, String table) {
-        super(settings, table);
+    public KafkaProducerHandler(MQSSettings settings, String servers) {
+        super(settings);
         createTopics();
         producer = createProducer(servers);
     }
@@ -56,7 +56,7 @@ public class KafkaProducerHandler extends ProducerHandler{
         props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, settings.getServers());
         AdminClient client = KafkaAdminClient.create(props);
 
-        String topic = getSettings().getTable().toLowerCase();
+        String topic = super.getTopic();
         CountDownLatch countDownLatch = new CountDownLatch(1);
         try {
             ListTopicsResult listTopicsResult = client.listTopics();
@@ -118,7 +118,7 @@ public class KafkaProducerHandler extends ProducerHandler{
         new Thread(()-> {
             try {
                 ProducerRecord record = new ProducerRecord(
-                    getTable().toLowerCase(),
+                    super.getTopic(),
                     key,
                     modify.getClass().getSimpleName() + Serializer.getObjectMapper().getOm().writeValueAsString(modify)
                 );
@@ -143,7 +143,7 @@ public class KafkaProducerHandler extends ProducerHandler{
     public void push(String key, String message){
         try {
             ProducerRecord record = new ProducerRecord(
-                getTable().toLowerCase(),
+                super.getTopic(),
                 key,
                 message
             );

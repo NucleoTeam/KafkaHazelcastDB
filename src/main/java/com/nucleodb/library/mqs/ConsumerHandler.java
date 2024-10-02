@@ -2,10 +2,12 @@ package com.nucleodb.library.mqs;
 
 import com.google.common.collect.Queues;
 import com.nucleodb.library.database.lock.LockManager;
+import com.nucleodb.library.database.modifications.Modify;
 import com.nucleodb.library.database.tables.connection.ConnectionHandler;
 import com.nucleodb.library.database.tables.table.DataTable;
 import com.nucleodb.library.mqs.config.MQSSettings;
 import com.nucleodb.library.mqs.exceptions.RequiredMethodNotImplementedException;
+import org.apache.kafka.clients.consumer.Consumer;
 
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -24,12 +26,13 @@ public class ConsumerHandler implements Runnable{
   private ConnectionHandler connectionHandler = null;
 
   private LockManager lockManager = null;
-  private String table;
+  private String topic;
   int startupItems = -1;
   private Queue<String> queue = Queues.newConcurrentLinkedQueue();
   private transient AtomicInteger leftToRead = new AtomicInteger(0);
   private AtomicInteger startupLoadCount = new AtomicInteger(0);
   private AtomicBoolean startupPhaseConsume = new AtomicBoolean(true);
+  boolean reloadConsumer = false;
 
 
   private MQSSettings settings;
@@ -37,26 +40,19 @@ public class ConsumerHandler implements Runnable{
   private ExecutorService queueTasks = Executors.newFixedThreadPool(60);
 
 
-  public ConsumerHandler(MQSSettings settings, String table) {
-    this.table = table;
+  public ConsumerHandler(MQSSettings settings) {
     this.settings = settings;
+  }
+  public ConsumerHandler reload(java.util.function.Consumer completeCallback) {
+    ConsumerHandler reloadConsumerHandler =  new ConsumerHandler(settings);
+    reloadConsumerHandler.setReloadConsumer(true);
+    return reloadConsumerHandler;
   }
   public void start(int queues){
     for (int x = 0; x < queues; x++) {
       Thread queueThread = new Thread(new QueueHandler(this));
       queueTasks.submit(queueThread);
     }
-  }
-
-  public void readFromStart() throws InterruptedException {
-    startupLoadCount.set(0);
-    queue.clear();
-    startupPhaseConsume.set(true);
-    leftToRead.set(0);
-    startupItems = -1;
-    queueTasks.shutdownNow();
-    queueTasks.awaitTermination(4, TimeUnit.SECONDS);
-    queueTasks = Executors.newFixedThreadPool(60);
   }
 
   @Override
@@ -92,15 +88,6 @@ public class ConsumerHandler implements Runnable{
   public void setConnectionHandler(ConnectionHandler connectionHandler) {
     this.connectionHandler = connectionHandler;
   }
-
-  public String getTable() {
-    return table;
-  }
-
-  public void setTable(String table) {
-    this.table = table;
-  }
-
   public int getStartupItems() {
     return startupItems;
   }
@@ -153,7 +140,23 @@ public class ConsumerHandler implements Runnable{
     return lockManager;
   }
 
+  public String getTopic() {
+    return topic;
+  }
+
+  public void setTopic(String topic) {
+    this.topic = topic;
+  }
+
   public void setLockManager(LockManager lockManager) {
     this.lockManager = lockManager;
+  }
+
+  public boolean isReloadConsumer() {
+    return reloadConsumer;
+  }
+
+  public void setReloadConsumer(boolean reloadConsumer) {
+    this.reloadConsumer = reloadConsumer;
   }
 }

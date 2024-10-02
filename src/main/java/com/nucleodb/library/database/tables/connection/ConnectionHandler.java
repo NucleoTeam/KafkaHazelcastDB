@@ -50,9 +50,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -374,6 +372,17 @@ public class ConnectionHandler<C extends Connection> implements Serializable{
       countDownLatch.countDown();
     });
     countDownLatch.await();
+    return true;
+  }
+
+  @JsonIgnore
+  private transient ExecutorService reloadExecutor = Executors.newSingleThreadExecutor();
+  @JsonIgnore
+  private transient Future<?> runningReload = null;
+
+  public boolean reload(Consumer reloadComplete) {
+    if(runningReload!=null && !runningReload.isDone()) return false;
+    runningReload = reloadExecutor.submit(this.consumer.reload(reloadComplete));
     return true;
   }
 

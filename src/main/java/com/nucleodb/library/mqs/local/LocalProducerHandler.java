@@ -11,10 +11,10 @@ import java.util.logging.Logger;
 public class LocalProducerHandler extends ProducerHandler{
   private static Logger logger = Logger.getLogger(LocalProducerHandler.class.getName());
   LocalConsumerHandler localConsumerHandler;
-  public LocalProducerHandler(MQSSettings settings, LocalConsumerHandler localConsumerHandler, String table) {
-    super(settings, table);
+  public LocalProducerHandler(MQSSettings settings, LocalConsumerHandler localConsumerHandler) {
+    super(settings);
     this.localConsumerHandler = localConsumerHandler;
-    logger.info("local producer handler started for "+table);
+    logger.info("local producer handler started for "+super.getTopic());
   }
 
   @Override

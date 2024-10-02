@@ -1,6 +1,7 @@
 package com.nucleodb.library.mqs.kafka;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.nucleodb.library.database.index.trie.Entry;
 import com.nucleodb.library.database.tables.connection.ConnectionHandler;
 import com.nucleodb.library.database.tables.table.DataTable;
 import com.nucleodb.library.database.utils.Serializer;
@@ -30,27 +31,80 @@ import java.util.stream.Collectors;
 
 public class KafkaConsumerHandler extends ConsumerHandler {
     private static Logger logger = Logger.getLogger(KafkaConsumerHandler.class.getName());
+
     private KafkaConsumer consumer = null;
     private ConnectionHandler connectionHandler = null;
 
-    private ExecutorService thread = Executors.newFixedThreadPool(1);
+    private ExecutorService thread = Executors.newFixedThreadPool(5);
+    private String groupName;
+    private String servers;
+    private java.util.function.Consumer<Map<Integer, Long>> completeCallback;
 
     private int threads = 36;
-    private String table;
 
-    public KafkaConsumerHandler(MQSSettings settings, String servers, String groupName, String table) {
-        super(settings, table);
+    public KafkaConsumerHandler(MQSSettings settings, String servers, String groupName) {
+        super(settings);
 
         createTopics();
 
+        this.servers = servers;
+        this.groupName = groupName;
         logger.info(servers + " using group id " + groupName);
         this.consumer = createConsumer(servers, groupName);
 
-        this.subscribe(new String[]{this.getSettings().getTable().toLowerCase()});
+    }
+    public KafkaConsumerHandler(KafkaConsumerHandler kafkaConsumerHandler) {
+        super(kafkaConsumerHandler.getSettings());
+        this.servers = kafkaConsumerHandler.getServers();
+        this.groupName = UUID.randomUUID().toString();
+        super.setDatabase(kafkaConsumerHandler.getDatabase());
+        super.setConnectionHandler(kafkaConsumerHandler.getConnectionHandler());
+        super.setQueue(kafkaConsumerHandler.getQueue());
+        super.setTopic(kafkaConsumerHandler.getTopic());
+        super.setLockManager(kafkaConsumerHandler.getLockManager());
+        logger.info(servers + " using group id " + groupName);
+        this.consumer = createConsumer(servers, groupName);
 
-        this.table = table;
     }
 
+    public KafkaConsumerHandler reload(java.util.function.Consumer completeCallback) {
+        KafkaConsumerHandler kafkaConsumerHandler = new KafkaConsumerHandler(this);
+        kafkaConsumerHandler.setReloadConsumer(true);
+        this.completeCallback = completeCallback;
+        return kafkaConsumerHandler;
+    }
+
+    private KafkaConsumer createConsumer(String bootstrap, String groupName) {
+        Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
+        //System.out.println(groupName);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupName);
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        //props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 100);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, ((KafkaSettings) getSettings()).getOffsetReset());
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        KafkaConsumer consumer = new KafkaConsumer(props);
+
+        return consumer;
+    }
+
+    public void subscribe(String[] topics) {
+        //System.out.println("Subscribed to topic " + Arrays.asList(topics).toString());
+        consumer.subscribe(Arrays.asList(topics), new ConsumerRebalanceListener() {
+            @Override
+            public void onPartitionsRevoked(Collection<TopicPartition> collection) {
+                logger.log(Level.FINEST,"revoked: " + collection.stream().map(c -> c.topic() + c.partition()).collect(Collectors.joining(", ")));
+            }
+
+            @Override
+            public void onPartitionsAssigned(Collection<TopicPartition> collection) {
+                assigned = collection.stream().map(c -> c.toString()).collect(Collectors.toSet());
+                logger.log(Level.FINEST,"assigned: " + assigned.stream().collect(Collectors.joining(", ")));
+
+            }
+        });
+    }
     public void createTopics() {
         Properties props = new Properties();
         KafkaSettings settings = (KafkaSettings) getSettings();
@@ -113,28 +167,6 @@ public class KafkaConsumerHandler extends ConsumerHandler {
         super.start(queueHandlers);
     }
 
-    @Override
-    public synchronized void readFromStart() throws InterruptedException {
-        thread.shutdownNow();
-        thread.awaitTermination(4, TimeUnit.SECONDS);
-        thread = Executors.newFixedThreadPool(1);
-
-        boolean connectionType = this.getConnectionHandler() != null;
-        boolean databaseType = this.getDatabase() != null;
-
-        if(connectionType){
-            getConnectionHandler().setPartitionOffsets(new TreeMap<>());
-        }
-        if(databaseType){
-            getDatabase().setPartitionOffsets(new TreeMap<>());
-        }
-        if(connectionType || databaseType) {
-            consumer.seekToBeginning(consumer.assignment());
-            super.readFromStart();
-            this.start(this.threads);
-        }
-    }
-
     private Map<TopicPartition, Long> startupMap = null;
 
     private boolean initialLoad() {
@@ -160,15 +192,13 @@ public class KafkaConsumerHandler extends ConsumerHandler {
 
     Set<String> assigned = new HashSet<>();
 
-    @Override
-    public void run() {
+
+    private void regularConsumer(){
         boolean connectionType = this.getConnectionHandler() != null;
         boolean databaseType = this.getDatabase() != null;
         boolean lockManagerType = this.getLockManager() != null;
         boolean saveConnection = connectionType && this.getConnectionHandler().getConfig().isSaveChanges();
         boolean saveDatabase = databaseType && this.getDatabase().getConfig().isSaveChanges();
-
-
         Map<Integer, Long> offsets = new HashMap<>();
         try {
 
@@ -199,112 +229,168 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                 super.setStartupLoadCount(new AtomicInteger(0));
             }
         }catch (Exception e){}
-            Map<Integer, OffsetAndMetadata> offsetMetaMap = new HashMap<>();
-            try {
-                do {
-                    ConsumerRecords<String, String> rs = getConsumer().poll(Duration.ofMillis(1000));
-                    if (rs.count() > 0) {
-                        Map<Integer, Long> finalOffsets = offsets;
-                        rs.iterator().forEachRemaining(action -> {
-                            Long offsetAtPartition = finalOffsets.get(action.partition());
-                            if (offsetAtPartition != null && action.offset() <= offsetAtPartition) return;
-                            if (getStartupPhaseConsume().get()) getStartupLoadCount().incrementAndGet();
-                            String pop = action.value();
-                            //System.out.println("Change added to queue.");
-                            if (connectionType) {
-                                if (this.getConnectionHandler().getConfig().getNodeFilter().accept(action.key())) {
-                                    getQueue().add(pop);
-                                    getLeftToRead().incrementAndGet();
-                                    synchronized (getQueue()) {
-                                        getQueue().notifyAll();
-                                    }
-                                }
-                            }
-                            if (databaseType) {
-                                if (this.getDatabase().getConfig().getNodeFilter().accept(action.key())) {
-                                    getQueue().add(pop);
-                                    getLeftToRead().incrementAndGet();
-                                    synchronized (getQueue()) {
-                                        getQueue().notifyAll();
-                                    }
-                                }
-                            }
-
-                            if (lockManagerType) {
+        Map<Integer, OffsetAndMetadata> offsetMetaMap = new HashMap<>();
+        try {
+            do {
+                ConsumerRecords<String, String> rs = getConsumer().poll(Duration.ofMillis(1000));
+                if (rs.count() > 0) {
+                    Map<Integer, Long> finalOffsets = offsets;
+                    rs.iterator().forEachRemaining(action -> {
+                        Long offsetAtPartition = finalOffsets.get(action.partition());
+                        if (offsetAtPartition != null && action.offset() <= offsetAtPartition) return;
+                        if (getStartupPhaseConsume().get()) getStartupLoadCount().incrementAndGet();
+                        String pop = action.value();
+                        //System.out.println("Change added to queue.");
+                        if (connectionType) {
+                            if (this.getConnectionHandler().getConfig().getNodeFilter().accept(action.key())) {
                                 getQueue().add(pop);
                                 getLeftToRead().incrementAndGet();
                                 synchronized (getQueue()) {
                                     getQueue().notifyAll();
                                 }
                             }
-
-                            if (saveConnection)
-                                this.getConnectionHandler().getPartitionOffsets().put(action.partition(), action.offset());
-                            if (saveDatabase)
-                                this.getDatabase().getPartitionOffsets().put(action.partition(), action.offset());
-                            offsetMetaMap.put(action.partition(), new OffsetAndMetadata(action.offset()));
-                        });
-                        consumer.commitAsync();
-                    }
-
-                    while (getStartupPhaseConsume().get() && getLeftToRead().get() > 50000) {
-                        Thread.sleep(1000);
-                    }
-                    //logger.info("consumed: "+leftToRead.get());
-                    if (getStartupPhaseConsume().get() && initialLoad()) {
-                        getStartupPhaseConsume().set(false);
-                        if (getStartupLoadCount().get() == 0) {
-                            if (connectionType) {
-                                getConnectionHandler().getStartupPhase().set(false);
-                                new Thread(() -> getConnectionHandler().startup()).start();
+                        }
+                        if (databaseType) {
+                            if (this.getDatabase().getConfig().getNodeFilter().accept(action.key())) {
+                                getQueue().add(pop);
+                                getLeftToRead().incrementAndGet();
+                                synchronized (getQueue()) {
+                                    getQueue().notifyAll();
+                                }
                             }
-                            if (databaseType) {
-                                getDatabase().getStartupPhase().set(false);
-                                new Thread(() -> getDatabase().startup()).start();
+                        }
+
+                        if (lockManagerType) {
+                            getQueue().add(pop);
+                            getLeftToRead().incrementAndGet();
+                            synchronized (getQueue()) {
+                                getQueue().notifyAll();
                             }
-                            if (lockManagerType) {
-                                new Thread(() -> getLockManager().startup()).start();
+                        }
+
+                        if (saveConnection)
+                            this.getConnectionHandler().getPartitionOffsets().put(action.partition(), action.offset());
+                        if (saveDatabase)
+                            this.getDatabase().getPartitionOffsets().put(action.partition(), action.offset());
+                        offsetMetaMap.put(action.partition(), new OffsetAndMetadata(action.offset()));
+                    });
+                    consumer.commitAsync();
+                }
+
+                while (getStartupPhaseConsume().get() && getLeftToRead().get() > 50000) {
+                    Thread.sleep(1000);
+                }
+                //logger.info("consumed: "+leftToRead.get());
+                if (getStartupPhaseConsume().get() && initialLoad()) {
+                    getStartupPhaseConsume().set(false);
+                    if (getStartupLoadCount().get() == 0) {
+                        if (connectionType) {
+                            getConnectionHandler().getStartupPhase().set(false);
+                            new Thread(() -> getConnectionHandler().startup()).start();
+                        }
+                        if (databaseType) {
+                            getDatabase().getStartupPhase().set(false);
+                            new Thread(() -> getDatabase().startup()).start();
+                        }
+                        if (lockManagerType) {
+                            new Thread(() -> getLockManager().startup()).start();
+                        }
+                    }
+                }
+            } while (!Thread.interrupted());
+            logger.log(Level.FINEST, "Consumer interrupted " + (databaseType ? this.getDatabase().getConfig().getTable() : "connections"));
+        } catch (Exception e) {
+            //e.printStackTrace();
+        }
+    }
+
+    private void reloadConsumer(){
+
+        boolean connectionType = this.getConnectionHandler() != null;
+        boolean databaseType = this.getDatabase() != null;
+        boolean lockManagerType = this.getLockManager() != null;
+
+        int partitions = getConsumer().partitionsFor(getTopic()).size();
+        while (getConsumer().assignment().size()<partitions) {
+            try {
+                getConsumer().poll(Duration.ofMillis(100));
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+            }
+        }
+
+        getConsumer().seekToBeginning(getConsumer().assignment());
+
+
+        Set<TopicPartition> assignments = getConsumer().assignment();
+        Map<Integer, Long> currentOffsets = new HashMap<>();
+        Map<Integer, Long> endOffsets = new HashMap<>();
+        Map<TopicPartition, Long> endOffsetMap = getConsumer().endOffsets(assignments);
+        for (Map.Entry<TopicPartition, Long> entry : endOffsetMap.entrySet()) {
+            endOffsets.put(entry.getKey().partition(), entry.getValue());
+        }
+        boolean completedLoad = false;
+        try {
+            do {
+                ConsumerRecords<String, String> rs = getConsumer().poll(Duration.ofMillis(1000));
+                if (rs.count() > 0) {
+                    for (ConsumerRecord<String, String> action : rs) {
+
+                        if(endOffsets.get(action.partition())<action.offset()){
+                            continue;
+                        }
+                        currentOffsets.put(action.partition(), action.offset());
+                        String pop = action.value();
+                        if (connectionType) {
+                            if (this.getConnectionHandler().getConfig().getNodeFilter().accept(action.key())) {
+                                getQueue().add(pop);
+                                getLeftToRead().incrementAndGet();
+                                synchronized (getQueue()) {
+                                    getQueue().notifyAll();
+                                }
+                            }
+                        }
+                        if (databaseType) {
+                            if (this.getDatabase().getConfig().getNodeFilter().accept(action.key())) {
+                                getQueue().add(pop);
+                                getLeftToRead().incrementAndGet();
+                                synchronized (getQueue()) {
+                                    getQueue().notifyAll();
+                                }
+                            }
+                        }
+                        if (lockManagerType) {
+                            getQueue().add(pop);
+                            getLeftToRead().incrementAndGet();
+                            synchronized (getQueue()) {
+                                getQueue().notifyAll();
                             }
                         }
                     }
-                } while (!Thread.interrupted());
-                logger.log(Level.FINEST, "Consumer interrupted " + (databaseType ? this.getDatabase().getConfig().getTable() : "connections"));
-            } catch (Exception e) {
-                //e.printStackTrace();
-            }
-
+                    consumer.commitAsync();
+                }
+                completedLoad = true;
+                for (Map.Entry<Integer, Long> integerLongEntry : endOffsets.entrySet()) {
+                    if(currentOffsets.get(integerLongEntry.getKey())>=integerLongEntry.getValue()) completedLoad=false;
+                }
+            } while (!Thread.interrupted() && !completedLoad);
+        } catch (Exception e) {
+            //e.printStackTrace();
+        }
+        completeCallback.accept(currentOffsets);
     }
 
-    private KafkaConsumer createConsumer(String bootstrap, String groupName) {
-        Properties props = new Properties();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
-        //System.out.println(groupName);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupName);
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-        //props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 100);
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, ((KafkaSettings) getSettings()).getOffsetReset());
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        KafkaConsumer consumer = new KafkaConsumer(props);
+    @Override
+    public void run() {
 
-        return consumer;
-    }
+        this.subscribe(new String[]{this.getSettings().getTable().toLowerCase()});
 
-    public void subscribe(String[] topics) {
-        //System.out.println("Subscribed to topic " + Arrays.asList(topics).toString());
-        consumer.subscribe(Arrays.asList(topics), new ConsumerRebalanceListener() {
-            @Override
-            public void onPartitionsRevoked(Collection<TopicPartition> collection) {
-                logger.log(Level.FINEST,"revoked: " + collection.stream().map(c -> c.topic() + c.partition()).collect(Collectors.joining(", ")));
-            }
+        if(isReloadConsumer()){
+            regularConsumer();
+            return;
+        }
 
-            @Override
-            public void onPartitionsAssigned(Collection<TopicPartition> collection) {
-                assigned = collection.stream().map(c -> c.toString()).collect(Collectors.toSet());
-                logger.log(Level.FINEST,"assigned: " + assigned.stream().collect(Collectors.joining(", ")));
-
-            }
-        });
+        regularConsumer();
     }
 
     public KafkaConsumer getConsumer() {
@@ -323,4 +409,19 @@ public class KafkaConsumerHandler extends ConsumerHandler {
         this.connectionHandler = connectionHandler;
     }
 
+    public String getGroupName() {
+        return groupName;
+    }
+
+    public void setGroupName(String groupName) {
+        this.groupName = groupName;
+    }
+
+    public String getServers() {
+        return servers;
+    }
+
+    public void setServers(String servers) {
+        this.servers = servers;
+    }
 }

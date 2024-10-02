@@ -14,13 +14,13 @@ public class LocalConfiguration extends MQSConfiguration{
     super(
         new MQSConstructorSettings<>(
             LocalConsumerHandler.class,
-            new String[]{"table"},
-            new Class[]{MQSSettings.class, String.class}
+            new String[]{},
+            new Class[]{MQSSettings.class}
         ),
         new MQSConstructorSettings<>(
             LocalProducerHandler.class,
-            new String[]{"consumerHandler", "table"},
-            new Class[]{MQSSettings.class, LocalConsumerHandler.class, String.class}
+            new String[]{"consumerHandler"},
+            new Class[]{MQSSettings.class, LocalConsumerHandler.class}
         ),
         MQSSettings.class
     );

@@ -8,10 +8,10 @@ import java.util.Map;
 
 public class MQSSettings{
   ConsumerHandler consumerHandler;
-  String table;
+  String topic;
 
   public MQSSettings(Map<String, Object> objs) {
-    this.table = (String) objs.get("table");
+    this.topic = (String) objs.get("topic");
     this.consumerHandler = (ConsumerHandler) objs.get("consumerHandler");
 
   }
@@ -25,10 +25,10 @@ public class MQSSettings{
   }
 
   public String getTable() {
-    return table;
+    return topic;
   }
 
   public void setTable(String table) {
-    this.table = table;
+    this.topic = table;
   }
 }

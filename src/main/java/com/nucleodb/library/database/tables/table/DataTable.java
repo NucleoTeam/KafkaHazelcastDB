@@ -2,7 +2,6 @@ package com.nucleodb.library.database.tables.table;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.github.fge.jsonpatch.diff.JsonDiff;
 import com.google.common.cache.Cache;
@@ -31,17 +30,13 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class DataTable<T extends DataEntry> implements Serializable{
   private static final long serialVersionUID = 1;
@@ -66,12 +61,13 @@ public class DataTable<T extends DataEntry> implements Serializable{
   private transient Queue<Object[]> indexQueue = Queues.newLinkedBlockingQueue();
   @JsonIgnore
   private transient ProducerHandler producer = null;
+
   @JsonIgnore
   private transient ConsumerHandler consumer = null;
   private transient AtomicInteger startupLoadCount = new AtomicInteger(0);
   private transient AtomicBoolean startupPhase = new AtomicBoolean(true);
 
-  private transient Cache<String, Consumer<T>> consumers = CacheBuilder.newBuilder()
+  private transient Cache<String, Consumer<T>> changeListeners = CacheBuilder.newBuilder()
       .maximumSize(10000)
       .softValues()
       .expireAfterWrite(5, TimeUnit.SECONDS)
@@ -165,7 +161,7 @@ public class DataTable<T extends DataEntry> implements Serializable{
       addAll(Arrays.asList(config.getClazz().getSuperclass().getFields()));
     }};
 
-    consume();
+    startRootConsumer();
 
     if (config.isRead()) {
       new Thread(new ModQueueHandler(this)).start();
@@ -180,7 +176,7 @@ public class DataTable<T extends DataEntry> implements Serializable{
     }
   }
 
-  public void consume() throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+  public void startRootConsumer() throws IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
     this.consumer = this.getConfig()
         .getMqsConfiguration()
         .createConsumerHandler(this.config.getSettingsMap());
@@ -192,6 +188,16 @@ public class DataTable<T extends DataEntry> implements Serializable{
               .getMqsConfiguration()
               .createProducerHandler(this.config.getSettingsMap());
     }
+  }
+
+  @JsonIgnore
+  private transient ExecutorService reloadExecutor = Executors.newSingleThreadExecutor();
+  @JsonIgnore
+  private transient Future<?> runningReload = null;
+  public boolean reload(Consumer reloadComplete) {
+    if(runningReload!=null && !runningReload.isDone()) return false;
+    runningReload = reloadExecutor.submit(this.consumer.reload(reloadComplete));
+    return true;
   }
 
   public void exportTo(DataTable tb) throws IncorrectDataEntryObjectException {
@@ -211,7 +217,7 @@ public class DataTable<T extends DataEntry> implements Serializable{
     } catch (Exception e) {
       //e.printStackTrace();
     }
-    consumers.cleanUp();
+    changeListeners.cleanUp();
     listeners = new HashMap<>();
     System.gc();
   }
@@ -391,7 +397,7 @@ public class DataTable<T extends DataEntry> implements Serializable{
     entry.versionIncrease();
     Delete delete = new Delete(changeUUID, entry);
     if (consumer != null) {
-      consumers.put(changeUUID, consumer);
+      changeListeners.put(changeUUID, consumer);
     }
     producer.push(delete.getKey(), delete.getVersion(), delete, null);
     return true;
@@ -443,7 +449,7 @@ public class DataTable<T extends DataEntry> implements Serializable{
     }
     String changeUUID = UUID.randomUUID().toString();
     if (consumer != null) {
-      consumers.put(changeUUID, consumer);
+      changeListeners.put(changeUUID, consumer);
     }
     if (saveInternal(entry, changeUUID)) {
       return true;
@@ -784,10 +790,10 @@ public class DataTable<T extends DataEntry> implements Serializable{
       }
       if (changeUUID != null) {
 
-        Consumer<T> TConsumer = consumers.getIfPresent(changeUUID);
+        Consumer<T> TConsumer = changeListeners.getIfPresent(changeUUID);
         if (TConsumer != null) {
           new Thread(() -> TConsumer.accept(T)).start();
-          consumers.invalidate(changeUUID);
+          changeListeners.invalidate(changeUUID);
         }
       }
     } catch (CacheLoader.InvalidCacheLoadException e) {
@@ -903,12 +909,12 @@ public class DataTable<T extends DataEntry> implements Serializable{
     this.consumer = consumer;
   }
 
-  public Cache<String, Consumer<T>> getConsumers() {
-    return consumers;
+  public Cache<String, Consumer<T>> getChangeListeners() {
+    return changeListeners;
   }
 
-  public void setConsumers(Cache<String, Consumer<T>> consumers) {
-    this.consumers = consumers;
+  public void setChangeListeners(Cache<String, Consumer<T>> changeListeners) {
+    this.changeListeners = changeListeners;
   }
 
   public Map<Modification, Set<Consumer<T>>> getListeners() {

@@ -6,11 +6,10 @@ import com.nucleodb.library.mqs.exceptions.RequiredMethodNotImplementedException
 import org.apache.kafka.clients.producer.Callback;
 
 public class ProducerHandler {
-  private String table;
+  private String topic;
   private MQSSettings settings;
 
-  public ProducerHandler(MQSSettings settings, String table) {
-    this.table = table;
+  public ProducerHandler(MQSSettings settings) {
     this.settings = settings;
   }
 
@@ -33,12 +32,12 @@ public class ProducerHandler {
     System.exit(1);
   }
 
-  public String getTable() {
-    return table;
+  public String getTopic() {
+    return topic;
   }
 
-  public void setTable(String table) {
-    this.table = table;
+  public void setTopic(String topic) {
+    this.topic = topic;
   }
 
   public MQSSettings getSettings() {

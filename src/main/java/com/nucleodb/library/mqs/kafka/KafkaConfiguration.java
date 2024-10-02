@@ -11,13 +11,13 @@ public class KafkaConfiguration extends MQSConfiguration{
     super(
         new MQSConstructorSettings<>(
             KafkaConsumerHandler.class,
-            new String[]{"servers", "groupName", "table"},
-            new Class[]{MQSSettings.class, String.class, String.class, String.class}
+            new String[]{"servers", "groupName"},
+            new Class[]{MQSSettings.class, String.class, String.class}
         ),
         new MQSConstructorSettings<>(
             KafkaProducerHandler.class,
-            new String[]{"servers", "table"},
-            new Class[]{MQSSettings.class, String.class, String.class}
+            new String[]{"servers"},
+            new Class[]{MQSSettings.class, String.class}
         ),
         KafkaSettings.class
     );

@@ -1,13 +1,12 @@
 package com.nucleodb.library.mqs;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nucleodb.library.database.lock.LockReference;
 import com.nucleodb.library.database.modifications.Modification;
 import com.nucleodb.library.database.modifications.Modify;
 import com.nucleodb.library.database.utils.Serializer;
-import com.nucleodb.library.mqs.kafka.KafkaConsumerHandler;
 
-import java.io.Serial;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
 class QueueHandler implements Runnable{
@@ -30,30 +29,9 @@ class QueueHandler implements Runnable{
         this.consumerHandler.getLeftToRead().decrementAndGet();
         try {
           if (databaseType) {
-            String type = entry.substring(0, 6);
-            String data = entry.substring(6);
-            Modification mod = Modification.get(type);
-            if (mod != null) {
-              if (this.consumerHandler.getDatabase()!=null && this.consumerHandler.getDatabase().getConfig() != null && this.consumerHandler.getDatabase().getConfig().isJsonExport()) {
-                this.consumerHandler.getDatabase().getExportHandler().getModifications().add(entry);
-              }
-              this.consumerHandler.getDatabase().modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));
-            }
+            dataTableType(entry);
           } else if (connectionType) {
-            String type = entry.substring(0, 16);
-            String data = entry.substring(16);
-            Modification mod = Modification.get(type);
-            if (mod != null) {
-              try {
-                Modify modifiedEntry = (Modify) Serializer.getObjectMapper().getOm().readValue(data, mod.getModification());
-                if (this.consumerHandler.getConnectionHandler()!=null && this.consumerHandler.getConnectionHandler().getConfig() != null  && this.consumerHandler.getConnectionHandler().getConfig().isJsonExport()) {
-                  this.consumerHandler.getConnectionHandler().getExportHandler().getModifications().add(entry);
-                }
-                this.consumerHandler.getConnectionHandler().modify(mod, modifiedEntry);
-              } catch (Exception e) {
-                e.printStackTrace();
-              }
-            }
+            connectionType(entry);
           }else if(lockdownType){
             logger.info("processing lockdown");
             this.consumerHandler.getLockManager().lockAction(
@@ -80,6 +58,35 @@ class QueueHandler implements Runnable{
         } catch (InterruptedException e) {
           throw new RuntimeException(e);
         }
+      }
+    }
+  }
+
+  private void dataTableType(String entry) throws ExecutionException, JsonProcessingException {
+    String type = entry.substring(0, 6);
+    String data = entry.substring(6);
+    Modification mod = Modification.get(type);
+    if (mod != null) {
+      if (this.consumerHandler.getDatabase()!=null && this.consumerHandler.getDatabase().getConfig() != null && this.consumerHandler.getDatabase().getConfig().isJsonExport()) {
+        this.consumerHandler.getDatabase().getExportHandler().getModifications().add(entry);
+      }
+      this.consumerHandler.getDatabase().modify(mod, Serializer.getObjectMapper().getOm().readValue(data, mod.getModification()));
+    }
+  }
+
+  private void connectionType(String entry) {
+    String type = entry.substring(0, 16);
+    String data = entry.substring(16);
+    Modification mod = Modification.get(type);
+    if (mod != null) {
+      try {
+        Modify modifiedEntry = (Modify) Serializer.getObjectMapper().getOm().readValue(data, mod.getModification());
+        if (this.consumerHandler.getConnectionHandler()!=null && this.consumerHandler.getConnectionHandler().getConfig() != null  && this.consumerHandler.getConnectionHandler().getConfig().isJsonExport()) {
+          this.consumerHandler.getConnectionHandler().getExportHandler().getModifications().add(entry);
+        }
+        this.consumerHandler.getConnectionHandler().modify(mod, modifiedEntry);
+      } catch (Exception e) {
+        e.printStackTrace();
       }
     }
   }

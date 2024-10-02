@@ -386,7 +386,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
         this.subscribe(new String[]{this.getSettings().getTable().toLowerCase()});
 
         if(isReloadConsumer()){
-            regularConsumer();
+            reloadConsumer();
             return;
         }
 
